@@ -1,0 +1,77 @@
+#!/bin/bash
+#
+# Simple shell script for building SPLAT! and associated utilities.
+# Written by John A. Magliacane, KD2BD May 2002 -- Last update: January 2011
+#
+
+cpu=`uname -m`
+model=""
+
+if [ "$cpu" = "x86_64" ]; then
+        cpu="x86-64"
+	model="-mcmodel=medium"
+fi
+
+build_splat()
+{
+	if [ -r std-parms.h ]; then
+		cp std-parms.h splat.h
+	else
+		echo "/* Parameters for 3 arc-second standard resolution mode of operation */" > std-parms.h
+
+		echo "#define MAXPAGES 9" >> std-parms.h
+		echo "#define HD_MODE 0" >> std-parms.h
+		cp std-parms.h splat.h
+	fi
+
+	echo -n "Compiling SPLAT!... "
+	g++ -Wall -O2 -fomit-frame-pointer -ffast-math -pipe -march=$cpu $model itwom3.0.cpp splat.cpp -lm -lbz2 -o splat
+
+	if [ -x splat ]; then
+		echo "Done!"
+	else
+		echo "Compilation failed!"
+	fi
+
+	if [ -r hd-parms.h ]; then
+		cp hd-parms.h splat.h
+		echo -n "Compiling SPLAT! HD... "
+		g++ -Wall -O2 -fomit-frame-pointer -ffast-math -pipe -march=$cpu $model itwom3.0.cpp splat.cpp -lm -lbz2 -o splat-hd
+
+		if [ -x splat-hd ]; then
+			echo "Done!"
+		else
+			echo "Compilation failed!"
+		fi
+	fi
+}
+
+build_utils()
+{
+	cd utils
+	./build all
+	cd ..
+}
+
+if [ "$#" = "0" ]; then
+	echo "Usage: build  { splat, utils, all }"
+else
+
+	if [ "$1" = "splat" ]; then
+		build_splat
+	fi
+
+	if [ "$1" = "utils" ]; then
+		build_utils
+	fi
+
+	if [ "$1" = "all" ]; then
+		build_splat
+		build_utils
+	fi
+
+	if [ "$1" != "splat" ] && [ "$1" != "utils" ] && [ "$1" != "all" ]; then
+		echo "Usage: build { splat, utils, all }"
+	fi
+fi
+

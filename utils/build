@@ -1,0 +1,112 @@
+#!/bin/bash
+#
+# Simple shell script for building SPLAT! and associated utilities.
+# Written by John A. Magliacane, KD2BD May 2002.  Updated September 2009.
+#
+
+build_citydecoder()
+{
+	echo -n "Compiling citydecoder... "
+	cc -Wall -O2 -fomit-frame-pointer citydecoder.c -o citydecoder
+
+	if [ -x citydecoder ]; then
+		echo "Done!"
+	else
+		echo "Compilation failed!"
+	fi
+}
+
+build_usgs2sdf()
+{
+	echo -n "Compiling usgs2sdf... "
+	cc -Wall -O2 -fomit-frame-pointer usgs2sdf.c -o usgs2sdf
+
+	if [ -x usgs2sdf ]; then
+		echo "Done!"
+	else
+		echo "Compilation failed!"
+	fi
+}
+
+build_srtm2sdf()
+{
+	echo -n "Compiling srtm2sdf... "
+	cc -Wall -O2 -fomit-frame-pointer srtm2sdf.c -lbz2 -o srtm2sdf
+	rm -f srtm2sdf-hd
+	ln -s srtm2sdf srtm2sdf-hd
+
+	if [ -x srtm2sdf ]; then
+		echo "Done!"
+	else
+		echo "Compilation failed!"
+	fi
+
+}
+
+build_fontdata()
+{
+	echo -n "Compiling fontdata... "
+	cc -Wall -O2 -lz -fomit-frame-pointer fontdata.c -o fontdata
+
+	if [ -x fontdata ]; then
+		echo "Done!"
+	else
+		echo "Compilation failed!"
+	fi
+
+}
+
+build_bearing()
+{
+	echo -n "Compiling bearing... "
+	cc -Wall -O2 -fomit-frame-pointer -lm bearing.c -o bearing
+
+	if [ -x bearing ]; then
+		echo "Done!"
+	else
+		echo "Compilation failed!"
+	fi
+
+}
+
+if [ "$#" = "0" ]; then
+	echo "Usage: build  { citydecoder, srtm2sdf, usgs2sdf, fontdata, bearing all }"
+else
+
+	if [ "$1" = "citydecoder" ]; then
+		build_citydecoder
+	fi
+
+	if [ "$1" = "usgs2sdf" ]; then
+		build_usgs2sdf
+	fi
+
+	if [ "$1" = "srtm2sdf" ]; then
+		build_srtm2sdf
+	fi
+
+	if [ "$1" = "fontdata" ]; then
+		build_fontdata
+	fi
+
+	if [ "$1" = "bearing" ]; then
+		build_bearing
+	fi
+
+	if [ "$1" = "clean" ]; then
+		rm -f citydecoder usgs2sdf fontdata
+	fi
+
+	if [ "$1" = "all" ]; then
+		build_citydecoder
+		build_usgs2sdf
+		build_srtm2sdf
+		build_fontdata
+		build_bearing
+	fi
+
+	if [ "$1" != "citydecoder" ] && [ "$1" != "srtm2sdf" ] && [ "$1" != "usgs2sdf" ] && [ "$1" != "fontdata" ] && [ "$1" != "bearing" ] && [ "$1" != "clean" ] && [ "$1" != "all" ]; then
+		echo "Usage: build { citydecoder, srtm2sdf, usgs2sdf, fontdata, bearing, all }"
+	fi
+fi
+
