@@ -1,21 +1,21 @@
 /********************************************************************************
 * ITWOM version 3.0a, January 20, 2011  File: itwom3.0a.cpp                     *
-* Provenance:   Further test version of itwom2.0m re adj to Hrzn range factors  * 
+* Provenance:   Further test version of itwom2.0m re adj to Hrzn range factors  *
 * 1. This file is based on a thorough debugging, completion, and update of the  *
-* ITM, based on an original, public domain version of this file obtained from:  * 
+* ITM, based on an original, public domain version of this file obtained from:  *
 * ftp://flattop.its.bldrdoc.gov/itm/ITMDLL.cpp prior to May, 2007. C++ routines *
 * for this program are taken from a translation of the FORTRAN code written by  *
 * U.S. Department of Commerce NTIA/ITS Institute for Telecommunication Sciences	*
 * Irregular Terrain Model (ITM) (Longley-Rice).                                 *
 * 2. The Linux version of this file incorporates improvements suggested by a    *
 * study of changes made to file itm.cpp by J. D. McDonald to remove Microsoft   *
-* Windows dll-isms and to debug an ambguity in overloaded calls.                *  
+* Windows dll-isms and to debug an ambguity in overloaded calls.                *
 * 3. The Linux version of this file also incorporates improvements suggested by *
 * a study of further modifications made to itm.cpp by John A. Magliacane to     *
 * remove unused variables, unneeded #includes, and to replace pow() statements 	*
 * with explicit multiplications to improve execution speed and accuracy.        *
 * 4. On August 19, 2007 this file was modified by Sid Shumate to include        *
-* changes and updates included in version 7.0 of ITMDLL.cpp, which was released * 
+* changes and updates included in version 7.0 of ITMDLL.cpp, which was released *
 * by the NTIA/ITS on June 26, 2007. With correction set SS1 and SS2: itm71.cpp.	*
 * 5. On Feb. 5, 2008 this file became v.1.0 of the ITWOM with the addition, by 	*
 * Sid Shumate, of multiple corrections, the replacement of subroutines lrprop   *
@@ -23,19 +23,17 @@
 * incorporate Radiative Transfer Engine (RTE) computations in the line of sight *
 * range.									*
 * Update 8 Jun 2010 to modify alos to match 2010 series of IEEE-BTS             *
-* newsletter articles                                                           *	
+* newsletter articles                                                           *
 * Update June 12, 2010 to z version to change test outputs                      *
-* Offshoot start date June 23, 2010 to start itwom2.0 dual version for FCC.     * 
-* Update to 2.0b July 25 to correct if statement errors in adiff2 re two peak   * 
-* calculations starting at line 525                                             * 
+* Offshoot start date June 23, 2010 to start itwom2.0 dual version for FCC.     *
+* Update to 2.0b July 25 to correct if statement errors in adiff2 re two peak   *
+* calculations starting at line 525                                             *
 * Development to 2.0c 8 Aug 2010 after modifying saalos and adiff for full      *
-* addition of saalos treatment to post obstruction calculations and debugging.  * 
-* Modified to make 1st obs loss=5.8 only, no clutter loss considered            * 
-*                                                                               *  
-* This file is copyright(c) 2011 by Sid Shumate and Givens & Bell, Inc.         *
-* All rights reserved. Commercial use, and resale, including when compiled with * 
-* wrap-around software, is prohibited except under Givens & Bell, Inc. license.	*
+* addition of saalos treatment to post obstruction calculations and debugging.  *
+* Modified to make 1st obs loss=5.8 only, no clutter loss considered            *
 *                                                                               *
+* Commented out unused variables and calculations to eliminate gcc warnings     *
+*    (-Wunused-but-set-variable)  -- John A. Magliacane -- July 25, 2013        *
 ********************************************************************************/
 
 #include <math.h>
@@ -481,22 +479,22 @@ double adiff2(double d, prop_type &prop, propa_type &propa)
 {
 	complex<double> prop_zgnd(prop.zgndreal,prop.zgndimag);
 	static double wd1, xd1, qk, aht, xht, toh, toho, roh, roho, dto, dto1, dtro, dro, 
-	dro2, drto, dtr, dhh1, dhh2, dhec, dtof, dto1f, drof, dro2f;
-	double a, q, pk, rd, ds, dsl, dfdh, th, wa, ar, wd, sf1, sf2, ec, vv, kedr=0.0, arp=0.0,
+	dro2, drto, dtr, dhh1, dhh2, /* dhec, */ dtof, dto1f, drof, dro2f;
+	double a, q, pk, rd, ds, dsl, /* dfdh, */ th, wa, /* ar, wd, sf1, */ sf2, /* ec, */ vv, kedr=0.0, arp=0.0,
 	sdr=0.0, pd=0.0, srp=0.0, kem=0.0, csd=0.0, sdl=0.0, adiffv2=0.0, closs=0.0;
 
-	sf1=1.0;  /* average empirical hilltop foliage scatter factor for 1 obstruction  */
+	/* sf1=1.0; */ /* average empirical hilltop foliage scatter factor for 1 obstruction  */
 	sf2=1.0;  /* average empirical hilltop foliage scatter factor for 2 obstructions */
 	
-	dfdh=prop.dh;
-	ec=0.5*prop.gme;
+	/* dfdh=prop.dh; */
+	/* ec=0.5*prop.gme; */
 
 	/* adiff2 must first be run with d==0.0 to set up coefficients */
 	if (d==0)
 	{
 		q=prop.hg[0]*prop.hg[1];
 		qk=prop.he[0]*prop.he[1]-q;
-		dhec=2.73;
+		/* dhec=2.73; */
 
 		if (prop.mdp<0.0)
 			q+=10.0;
@@ -589,12 +587,12 @@ double adiff2(double d, prop_type &prop, propa_type &propa)
 			{
 					/* rounding attenuation */
 					q=(1.607-pk)*151.0*wa*th+xht;
-					ar=0.05751*q-10*log10(q)-aht;
+					/* ar=0.05751*q-10*log10(q)-aht; */
 
 					/* knife edge vs round weighting */
 					q=(1.0-0.8*exp(-d/50e3))*prop.dh;	
 					q=(wd1+xd1/d)*mymin((q*prop.wn),6283.2);
-					wd=25.1/(25.1+sqrt(q));
+					/* wd=25.1/(25.1+sqrt(q)); */
 	
 					q=0.6365*prop.wn;			
 
@@ -915,7 +913,7 @@ double alos2(double d, prop_type &prop, propa_type &propa)
 	complex<double> prop_zgnd(prop.zgndreal,prop.zgndimag);
 	complex<double> r;
 	double cd, cr, dr, hr, hrg, ht, htg, hrp, re, s, sps, q, pd, drh;
-	int rp;
+	/* int rp; */
 	double alosv;
 	
 	cd=0.0;
@@ -924,7 +922,7 @@ double alos2(double d, prop_type &prop, propa_type &propa)
 	hrg=prop.hg[1];
 	ht=prop.ght;
 	hr=prop.ghr;
-	rp=prop.rpl;
+	/* rp=prop.rpl; */
 	hrp=prop.rph;
 	pd=prop.dist;
 
@@ -2365,7 +2363,7 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 	double zc, zr;
 	double eno, enso, q;
 	long ja, jb, i, np;
-	double dkm, xkm;
+	/* double dkm, xkm; */
 	double fs;
 
 	prop.hg[0]=tht_m;
@@ -2377,8 +2375,8 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 	zc=qerfi(conf);
 	zr=qerfi(rel);
 	np=(long)elev[0];
-	dkm=(elev[1]*elev[0])/1000.0;
-	xkm=elev[1]/1000.0;
+	/* dkm=(elev[1]*elev[0])/1000.0; */
+	/* xkm=elev[1]/1000.0; */
 	eno=eno_ns_surfref;
 	enso=0.0;
 	q=enso;
@@ -2488,7 +2486,7 @@ void point_to_point(double elev[], double tht_m, double rht_m, double eps_dielec
 	double zc, zr;
 	double eno, enso, q;
 	long ja, jb, i, np;
-	double dkm, xkm;
+	/* double dkm, xkm; */
 	double tpd, fs;
 
 	prop.hg[0]=tht_m;
@@ -2503,8 +2501,8 @@ void point_to_point(double elev[], double tht_m, double rht_m, double eps_dielec
 	zc=qerfi(conf);
 	zr=qerfi(rel);
 	np=(long)elev[0];
-	dkm=(elev[1]*elev[0])/1000.0;
-	xkm=elev[1]/1000.0;
+	/* dkm=(elev[1]*elev[0])/1000.0; */
+	/* xkm=elev[1]/1000.0; */
 	eno=eno_ns_surfref;
 	enso=0.0;
 	q=enso;
@@ -2604,7 +2602,7 @@ void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
   double ztime, zloc, zconf;
   double eno, enso, q;
   long ja, jb, i, np;
-  double dkm, xkm;
+  /* double dkm, xkm; */
   double fs;
 
   propmode = -1;  // mode is undefined
@@ -2625,8 +2623,8 @@ void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
   zloc = qerfi(locpct);
   zconf = qerfi(confpct);
   np = (long)elev[0];
-  dkm = (elev[1] * elev[0]) / 1000.0;
-  xkm = elev[1] / 1000.0;
+  /* dkm = (elev[1] * elev[0]) / 1000.0; */
+  /* xkm = elev[1] / 1000.0; */
   eno = eno_ns_surfref;
   enso = 0.0;
   q = enso;
@@ -2702,7 +2700,7 @@ void point_to_pointDH (double elev[], double tht_m, double rht_m,
   double zc, zr;
   double eno, enso, q;
   long ja, jb, i, np;
-  double dkm, xkm;
+  /* double dkm, xkm; */
   double fs;
 
   prop.hg[0]=tht_m;   
@@ -2721,8 +2719,8 @@ void point_to_pointDH (double elev[], double tht_m, double rht_m,
   zc = qerfi(conf);
   zr = qerfi(rel);
   np = (long)elev[0];
-  dkm = (elev[1] * elev[0]) / 1000.0;
-  xkm = elev[1] / 1000.0;
+  /* dkm = (elev[1] * elev[0]) / 1000.0; */
+  /* xkm = elev[1] / 1000.0; */
   eno = eno_ns_surfref;
   enso = 0.0;
   q = enso;

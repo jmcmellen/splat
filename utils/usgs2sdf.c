@@ -1,7 +1,7 @@
 /****************************************************************************
 *            USGS2SDF: USGS to SPLAT Data File Converter Utility            *
-*               Copyright John A. Magliacane, KD2BD 1997-2009               *
-*                         Last update: 14-Mar-2009                          *
+*               Copyright John A. Magliacane, KD2BD 1997-2014               *
+*                         Last update: 08-Mar-2014                          *
 *****************************************************************************
 *                                                                           *
 * This program reads files containing delimited US Geological Survey        *
@@ -60,9 +60,9 @@ int main(argc,argv)
 int argc;
 char *argv[];
 {
-	unsigned char minimum[30], maximum[30], swlong[30], swlat[30],
-		 nwlong[30], nwlat[30], nelong[30], nelat[30], selong[30],
-		 selat[30];
+	unsigned char minimum[30], maximum[30], swlong[30],
+		 swlat[30], nelong[30], nelat[30];
+		/* nwlat[30], nwlong[30], selong[30], selat[30]; */
 	char string[40];
 	double max_el, min_el,  max_west, min_west, max_north, min_north;
 	int x, y, z, c, array[1202][1202];
@@ -113,9 +113,14 @@ char *argv[];
 
 		/* Read northwest longitude */
 
+		/**
 		for (x=0; x<22; x++)
 			nwlong[x]=getc(fd);
 		nwlong[x]=0;
+		**/
+
+		for (x=0; x<22; x++)
+			getc(fd);
 
 		/* Skip 2 bytes */
 
@@ -124,9 +129,14 @@ char *argv[];
 
 		/* Read northwest latitude */
 
+		/**
 		for (x=0; x<22; x++)
 			nwlat[x]=getc(fd);
 		nwlat[x]=0;
+		**/
+
+		for (x=0; x<22; x++)
+			getc(fd);
 
 		/* Skip 2 bytes */
 
@@ -157,9 +167,14 @@ char *argv[];
 
 		/* Read southeast longitude */
 
+		/**
 		for (x=0; x<22; x++)
 			selong[x]=getc(fd);
 		selong[x]=0;
+		**/
+
+		for (x=0; x<22; x++)
+			getc(fd);
 
 		/* Skip 2 bytes */
 
@@ -168,9 +183,14 @@ char *argv[];
 
 		/* Read southeast latitude */
 
+		/**
 		for (x=0; x<22; x++)
 			selat[x]=getc(fd);
 		selat[x]=0;
+		**/
+
+		for (x=0; x<22; x++)
+			getc(fd);
 
 		/* Skip 2 bytes */
 

@@ -1,7 +1,7 @@
 /****************************************************************************
 *                  FONTDATA:  A "fontdata.h" File Generator                 *
 *                  Copyright John A. Magliacane, KD2BD 2002                 *
-*                         Last update: 13-Apr-2002                          *
+*                         Last update: 08-Jan-2014                          *
 *****************************************************************************
 *                                                                           *
 * This utility reads gzip compressed font data, and generates a fontdata.h  *
@@ -13,7 +13,7 @@
 *   Writes s.fnt font data to "fontdata.h" in current working directory.    *
 *                                                                           *
 *****************************************************************************
-*          To compile: gcc -Wall -O6 -s -lz fontdata.c -o fontdata          *
+*          To compile: gcc -Wall -O3 -s -lz fontdata.c -o fontdata          *
 *****************************************************************************
 *                                                                           *
 * This program is free software; you can redistribute it and/or modify it   *
@@ -37,12 +37,13 @@ int main(argc,argv)
 int argc;
 char *argv[];
 {
-	int x;
-	unsigned char line, input;
-	FILE *infile, *outfile;
+	int x, input;
+	unsigned char line;
+	FILE *outfile;
+	gzFile *infile=Z_NULL;
 	
 	if (argc==2)
-		infile=gzopen(argv[1],"rb");
+		*infile=gzopen(argv[1],"rb");
 
 	else
 	{	
@@ -50,17 +51,17 @@ char *argv[];
 		exit(-1);
 	}
 
-	if (infile!=NULL)
+	if (infile!=Z_NULL)
 	{
 		outfile=fopen("fontdata.h","wb");
 
-		fprintf(outfile,"static char fontdata[] = {\n  ");
+		fprintf(outfile,"static unsigned char fontdata[] = {\n  ");
 
 		for (x=0, line=0; x<4096; x++)
 		{
-			input=gzgetc(infile);
+			input=gzgetc((gzFile)infile);
 			
-			fprintf(outfile," 0x%.2x",input);
+			fprintf(outfile," 0x%.2x",(unsigned char)input);
 	   		line++;
 
 			if (x<4095)
@@ -75,7 +76,7 @@ char *argv[];
 
 	 	fprintf(outfile," };\n");
 
-		gzclose(infile);
+		gzclose((gzFile)infile);
 		fclose(outfile);
 
 		printf("fontdata.h successfully written!\n");

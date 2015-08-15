@@ -7,7 +7,7 @@
  **************************************************************
  **                    Compile like this:                    **
  **      cc -Wall -O3 -s -lbz2 srtm2sdf.c -o srtm2sdf        **
- **              Last modification: 20-Jan-2011              **
+ **              Last modification: 08-Jan-2014              **
 \**************************************************************/ 
 
 #include <stdio.h>
@@ -121,7 +121,7 @@ int ReadSRTM(char *filename)
 
 			if (fd!=NULL)
 			{
-				n=fscanf(fd,"%lf",&cell_size);
+				fscanf(fd,"%lf",&cell_size);
 
 				if ((cell_size<0.0008) || (cell_size>0.0009))
 				{
@@ -129,13 +129,13 @@ int ReadSRTM(char *filename)
 					exit(1);
 				}
 
-				n=fscanf(fd,"%lf",&deg_west);
-				n=fscanf(fd,"%lf",&deg_west);
-				n=fscanf(fd,"%lf",&deg_west);
+				fscanf(fd,"%lf",&deg_west);
+				fscanf(fd,"%lf",&deg_west);
+				fscanf(fd,"%lf",&deg_west);
 
-				n=fscanf(fd,"%lf",&deg_west);
+				fscanf(fd,"%lf",&deg_west);
 
-				n=fscanf(fd,"%lf",&deg_north);
+				fscanf(fd,"%lf",&deg_north);
 
 				fclose(fd);
 			}
@@ -165,7 +165,7 @@ int ReadSRTM(char *filename)
 		return -1;
 	}
 
-	n=read(infile,&buffer,2);
+	read(infile,&buffer,2);
 
 	if ((buffer[0]=='P') && (buffer[1]=='K'))
 	{
@@ -247,7 +247,7 @@ int LoadSDF_SDF(char *name)
 	/* This function reads uncompressed
 	   SPLAT Data Files (.sdf) into memory. */
 
-	int x, y, n, dummy;
+	int x, y, dummy;
 	char sdf_file[255], path_plus_name[512];
 	FILE *infile;
 
@@ -268,17 +268,17 @@ int LoadSDF_SDF(char *name)
 	if (infile==NULL)
 		return 0;
 
-	n=fscanf(infile,"%d", &dummy);
-	n=fscanf(infile,"%d", &dummy);
-	n=fscanf(infile,"%d", &dummy);
-	n=fscanf(infile,"%d", &dummy);
+	fscanf(infile,"%d", &dummy);
+	fscanf(infile,"%d", &dummy);
+	fscanf(infile,"%d", &dummy);
+	fscanf(infile,"%d", &dummy);
 
 	printf("\nReading %s... ",path_plus_name);
 	fflush(stdout);
 
 	for (x=0; x<1200; x++)
 		for (y=0; y<1200; y++)
-			n=fscanf(infile,"%d",&usgs[x][y]);
+			fscanf(infile,"%d",&usgs[x][y]);
 
 	fclose(infile);
 
@@ -604,7 +604,7 @@ void WriteSDF(char *filename)
 int main(int argc, char **argv)
 {
 	int x, y, z=0;
-	char *env=NULL, string[255], *s=NULL;
+	char *env=NULL, string[255];
 	FILE *fd;
 
 	if (strstr(argv[0], "srtm2sdf-hd")!=NULL)
@@ -683,7 +683,7 @@ int main(int argc, char **argv)
 
 		if (fd!=NULL)
 		{
-			s=fgets(string,253,fd);
+			fgets(string,253,fd);
 
 			/* Remove <CR> and/or <LF> from string */
 

@@ -1,13 +1,13 @@
 #!/bin/bash
 #
 # Simple shell script for building SPLAT! and associated utilities.
-# Written by John A. Magliacane, KD2BD May 2002.  Updated September 2009.
+# Written by John A. Magliacane, KD2BD May 2002.  Updated January 2014.
 #
 
 build_citydecoder()
 {
 	echo -n "Compiling citydecoder... "
-	cc -Wall -O2 -fomit-frame-pointer citydecoder.c -o citydecoder
+	cc -O2 -s -fomit-frame-pointer citydecoder.c -o citydecoder
 
 	if [ -x citydecoder ]; then
 		echo "Done!"
@@ -19,7 +19,7 @@ build_citydecoder()
 build_usgs2sdf()
 {
 	echo -n "Compiling usgs2sdf... "
-	cc -Wall -O2 -fomit-frame-pointer usgs2sdf.c -o usgs2sdf
+	cc -O2 -s -fomit-frame-pointer usgs2sdf.c -o usgs2sdf
 
 	if [ -x usgs2sdf ]; then
 		echo "Done!"
@@ -31,7 +31,7 @@ build_usgs2sdf()
 build_srtm2sdf()
 {
 	echo -n "Compiling srtm2sdf... "
-	cc -Wall -O2 -fomit-frame-pointer srtm2sdf.c -lbz2 -o srtm2sdf
+	cc -O2 -s -fomit-frame-pointer srtm2sdf.c -lbz2 -o srtm2sdf
 	rm -f srtm2sdf-hd
 	ln -s srtm2sdf srtm2sdf-hd
 
@@ -46,7 +46,7 @@ build_srtm2sdf()
 build_fontdata()
 {
 	echo -n "Compiling fontdata... "
-	cc -Wall -O2 -lz -fomit-frame-pointer fontdata.c -o fontdata
+	cc -O2 -s -fomit-frame-pointer fontdata.c -lz -o fontdata
 
 	if [ -x fontdata ]; then
 		echo "Done!"
@@ -59,7 +59,7 @@ build_fontdata()
 build_bearing()
 {
 	echo -n "Compiling bearing... "
-	cc -Wall -O2 -fomit-frame-pointer -lm bearing.c -o bearing
+	cc -O2 -s -fomit-frame-pointer bearing.c -lm -o bearing
 
 	if [ -x bearing ]; then
 		echo "Done!"

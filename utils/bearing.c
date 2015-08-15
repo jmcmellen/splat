@@ -1,7 +1,7 @@
 /***************************************************************************\
 *     bearing: Determines distance and azimuth bearing between locations    *
 *                     specified in a pair of .qth files                     *
-*			  Last update: 08-Feb-2009			    *
+*			  Last update: 08-Jan-2014			    *
 *****************************************************************************
 *      Project started on December 7, 2007 by John A. Magliacane, KD2BD     *
 *****************************************************************************
@@ -236,7 +236,7 @@ struct site LoadQTH(char *filename)
 	   case meters is assumed, and is handled accordingly. */
 
 	int	x;
-	char	string[50], qthfile[255], *s=NULL;
+	char	string[50], qthfile[255];
 	struct	site tempsite;
 	FILE	*fd=NULL;
 
@@ -259,7 +259,7 @@ struct site LoadQTH(char *filename)
 	if (fd!=NULL)
 	{
 		/* Site Name */
-		s=fgets(string,49,fd);
+		fgets(string,49,fd);
 
 		/* Strip <CR> and/or <LF> from end of site name */
 
@@ -268,11 +268,11 @@ struct site LoadQTH(char *filename)
 		tempsite.name[x]=0;
 
 		/* Site Latitude */
-		s=fgets(string,49,fd);
+		fgets(string,49,fd);
 		tempsite.lat=ReadBearing(string);
 
 		/* Site Longitude */
-		s=fgets(string,49,fd);
+		fgets(string,49,fd);
 		tempsite.lon=ReadBearing(string);
 
 		fclose(fd);
