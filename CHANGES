@@ -1,3 +1,59 @@
+Release 1.4.2:
+By John A. Magliacane <kd2bd@amsat.org> (08-Dec-14)
+
+* Modified the "build" script to better accommodate the Mac OSX platform,
+  and fixed a contradiction in the documentation relating to the
+  description of the situational and time variability parameters
+  used in the ITM and ITWOM propagation models.
+  (Thanks John M. Vanderau, AA0DN)
+
+* Modified the man pages for improved rendering.  (Thanks Randy Berry, N3LRX)
+
+* Added a field limit in the citydecoder utility to prevent crashing if
+  the coordinate file being read should contain unexpectantly large fields.
+  (Thanks David Binderman)
+
+
+----------------------------------------------------------------------------
+
+Release 1.4.1:
+By John A. Magliacane <kd2bd@amsat.org> (08-Jan-14):
+
+* The copyright restriction on the ITWOM 3.0 propagation model has
+  been removed.  ITWOM 3.0 code may now be used and modified under
+  the GPLv2 license.
+
+* Commented out unused variables and calculations in itwom3.0.cpp
+  to eliminate gcc warnings about unused but set variables.
+
+* Fixed a bug that caused path loss graphs to be plotted incorrectly.
+
+* Embellished the "citydecoder" utility to handle U.S. Census County
+  Subdivision files, thereby providing an additional source of city
+  names and locations not necessarily contained in previously handled
+  Incorporated Places/Census Designated data files.
+
+* Corrected the image size written to the header of Xastir-compatible
+  .ppm maps.
+
+* Fixed a bug that sometimes prevented the "Mode of propagation" from
+  appearing in Path Analysis reports when running in -oldtim mode.
+
+* Added a -log command line switch that allows SPLAT!'s command line
+  and all associated switches and arguments to be written to a logfile
+  for future reference or re-execution at a later time.
+
+* Modified SPLAT!'s "build" script for better handling of OSX.
+  (Thanks Glen Bizeau, VE9GLN)
+
+* Changed some coding to eliminate compilation warnings produced by
+  recent versions of GCC.
+
+* Brought the documentation up to date.
+
+
+----------------------------------------------------------------------------
+
 Release 1.4.0:
 By John A. Magliacane <kd2bd@amsat.org> (14-Mar-11):
 

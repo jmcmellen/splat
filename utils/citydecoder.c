@@ -1,18 +1,27 @@
 /****************************************************************************
 *                CITYDECODER: A SPLAT! File Conversion Utility              *
 *                  Copyright John A. Magliacane, KD2BD 2002                 *
-*                         Last update: 08-Feb-2009                          *
+*                         Last update: 20-May-2014                          *
 *****************************************************************************
 *                                                                           *
 * This utility reads ASCII Metadata Cartographic Boundary Files available   *
 * through the U.S. Census Bureau, and generates a lists of cities, states,  *
-* and counties along with the latitude and longitude corresponding to their *
-* geographic centers.  Such data may be (optionally) sorted and written to  *
-* files for use with SPLAT! software.  This utility takes as an argument,   *
-* two-letter prefix plus the FIPS code for the state being processed (ie:   *
-* "citydecoder pl34" will read files "pl34_d00.dat" and "pl34_d00a.dat",    *
-* and produce a list of city names and geographical coordinates for the     *
-* state of New Jersey.                                                      *
+* counties, and county subdivisions along with the latitude and longitude   *
+* corresponding to their geographic centers.  Such data may be (optionally) *
+* sorted and written to files for use with SPLAT! software.  This utility   *
+* takes as an argument, a two-letter prefix plus the FIPS code for the      *
+* state being processed (ie: "citydecoder pl34" will read files             *
+* "pl34_d00.dat" and "pl34_d00a.dat", and "citydecoder cs34" will read      *
+* files "cs34_d00.dat" and "cs34_d00a.dat", and produce a list of city      *
+* names and geographical coordinates for the state of New Jersey.           *
+*                                                                           *
+* ZIP compressed data files for the United States may be downloaded from:   *
+*                                                                           *
+* http://web.archive.org/web/20130331172800/http://www.census.gov/geo/www/cob/cs2000.html *
+*                                                                           *
+* Please select among the ARC/INFO Ungenerate (ASCII) formatted files at    *
+* the bottom of each page, and use "unzip -a" or "gunzip" to properly       *
+* unzip these files under Unix/Linux prior to use.                          *
 *                                                                           *
 *****************************************************************************
 *                                                                           *
@@ -27,7 +36,7 @@
 * for more details.                                                         *
 *                                                                           *
 *****************************************************************************
-*          To compile: gcc -Wall -O6 -s citydecoder.c -o citydecoder        *
+*          To compile: gcc -Wall -O3 -s citydecoder.c -o citydecoder        *
 *****************************************************************************/
 
 #include <stdio.h>
@@ -37,15 +46,15 @@
 int main(argc,argv)
 char argc, *argv[];
 {
-	int x, y, z, n;
+	int x, y, z;
 	long attributefile_id, coordinatefile_id;
-	char string[80], name[80], attributefilename[15], coordinatefilename[15], *s=NULL;
+	char string[80], name[80], attributefilename[15], coordinatefilename[15];
 	double lat, lon;
 	FILE *attributefile=NULL, *coordinatefile=NULL;
 
 	if (argc==1)
 	{
-		fprintf(stderr,"\n*** Usage: citydecoder pl34 pl36 pl42 | sort > outputfile\n\n");
+		fprintf(stderr,"\n*** Usage: citydecoder pl34 cs34 pl42 cs42 | sort > outputfile\n\n");
 		exit(1);
 	}
 
@@ -62,34 +71,41 @@ char argc, *argv[];
 			/* Skip First ASCII File Record (ID=0) */
 
 			for (x=0; x<7; x++)
-				s=fgets(string,80,attributefile);
+				fgets(string,80,attributefile);
 
+			/* Skip yet another line for "cs" files */
+
+			if (argv[z][0]=='c' && argv[z][1]=='s')
+				fgets(string,80,attributefile);
 			do
 			{
 				string[0]=0;
-				n=fscanf(coordinatefile,"%ld", &coordinatefile_id);
+				fscanf(coordinatefile,"%ld", &coordinatefile_id);
 
 				if (coordinatefile_id!=-99999)
 				{
 					name[0]=0;
 
-					n=fscanf(coordinatefile,"%lf %lf",&lon, &lat);
+					fscanf(coordinatefile,"%lf %lf",&lon, &lat);
 
 					/* Read ID Number From Attribute File */
 
-					s=fgets(string,80,attributefile);
-					n=sscanf(string,"%ld",&attributefile_id);
+					fgets(string,80,attributefile);
+					sscanf(string,"%ld",&attributefile_id);
 
+					/* Skip Several Strings in Attribute File */
 
-					/* Skip Two Strings in Attribute File */
+					fgets(string,80,attributefile);
+					fgets(string,80,attributefile);
 
-					s=fgets(string,80,attributefile);
-					s=fgets(string,80,attributefile);
+					/* Skip a third line for "cs" files */
 
+					if (argv[z][0]=='c' && argv[z][1]=='s')
+						fgets(string,80,attributefile);
 
 					/* Read City Name From Attribute File */
 
-					s=fgets(string,80,attributefile);
+					fgets(string,80,attributefile);
 
 					/* Strip "quote" characters from name */
 
@@ -100,12 +116,12 @@ char argc, *argv[];
 
 					/* Skip Two Strings in Attribute File */
 
-					s=fgets(string,80,attributefile);
-					s=fgets(string,80,attributefile);
+					fgets(string,80,attributefile);
+					fgets(string,80,attributefile);
 
 					/* Skip blank line between records */
 
-					s=fgets(string,80,attributefile);
+					fgets(string,80,attributefile);
 
 					if (name[0]!=0 && name[0]!=' ' && feof(attributefile)==0 && attributefile_id==coordinatefile_id)
 						printf("%s, %f, %f\n",name,lat,-lon);
@@ -117,7 +133,7 @@ char argc, *argv[];
 				do
 				{
 					string[0]=0;
-					n=fscanf(coordinatefile,"%s",string);
+					fscanf(coordinatefile,"%80s",string);
 
 				} while (strncmp(string,"END",3)!=0 && feof(coordinatefile)==0);
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Simple shell script for building SPLAT! and associated utilities.
-# Written by John A. Magliacane, KD2BD May 2002 -- Last update: January 2011
+# Written by John A. Magliacane, KD2BD May 2002 -- Last update: February 2014
 #
 
 cpu=`uname -m`
@@ -10,6 +10,14 @@ model=""
 if [ "$cpu" = "x86_64" ]; then
         cpu="x86-64"
 	model="-mcmodel=medium"
+
+	if [[ `uname -a` =~ Darwin ]]; then
+		model="";   ## for Mac OSX  ## J.V.
+	fi
+
+elif [ "$cpu" = "sun4u" ]; then
+	cpu=""
+	model=""
 fi
 
 build_splat()
@@ -25,7 +33,7 @@ build_splat()
 	fi
 
 	echo -n "Compiling SPLAT!... "
-	g++ -Wall -O2 -fomit-frame-pointer -ffast-math -pipe -march=$cpu $model itwom3.0.cpp splat.cpp -lm -lbz2 -o splat
+	g++ -O2 -s -fomit-frame-pointer -ffast-math -pipe -march=$cpu $model itwom3.0.cpp splat.cpp -lm -lbz2 -o splat
 
 	if [ -x splat ]; then
 		echo "Done!"
@@ -36,7 +44,7 @@ build_splat()
 	if [ -r hd-parms.h ]; then
 		cp hd-parms.h splat.h
 		echo -n "Compiling SPLAT! HD... "
-		g++ -Wall -O2 -fomit-frame-pointer -ffast-math -pipe -march=$cpu $model itwom3.0.cpp splat.cpp -lm -lbz2 -o splat-hd
+		g++ -O2 -s -fomit-frame-pointer -ffast-math -pipe -march=$cpu $model itwom3.0.cpp splat.cpp -lm -lbz2 -o splat-hd
 
 		if [ -x splat-hd ]; then
 			echo "Done!"

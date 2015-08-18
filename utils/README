@@ -3,7 +3,7 @@
 			================
 
 Utilities for use with SPLAT! software are found under the
-splat-1.3.0/utils directory.  They include the following:
+splat-1.4.1/utils directory.  They include the following:
 
 
 srtm2sdf
@@ -27,7 +27,7 @@ or use with SPLAT! operating in standard definition mode.
 
 SRTM-3 Version 2 Elevation Data files may be downloaded from:
 
-    ftp://e0srp01u.ecs.nasa.gov:21/srtm/version2/
+	http://dds.cr.usgs.gov/srtm/version2_1/SRTM3/
 
 Files available at this site are ZIP compressed, and must be
 uncompressed (using "unzip", or "gunzip -S .zip") prior to being
@@ -98,7 +98,7 @@ resolution data files for use with SPLAT! HD.  SRTM-1 data files
 are available for the United States and its territories and
 possessions, and may be downloaded from:
 
-    ftp://e0srp01u.ecs.nasa.gov:21/srtm/version2/SRTM1/
+	http://dds.cr.usgs.gov/srtm/version2_1/SRTM1/
 
 
 usgs2sdf
@@ -128,34 +128,64 @@ produce a database of SPLAT Data Files.
 
 citydecoder
 ===========
-This utility reads U.S. Census Bureau files of Incorporated Places/Census
-Designated Places, and generates city/site data files for use with SPLAT!
-software.  Files for use with this utility are available for download
-free of charge from:
+This utility reads certain U.S. Census Bureau files to produce city/site
+data files that can be imported into SPLAT! software to annotate
+SPLAT!-generated maps.  Incorporated Places/Census Designated Places
+data files for use with citydecoder may be downloaded from:
 
-	http://www.census.gov/geo/www/cob/bdy_files.html.
+http://web.archive.org/web/20130201115142/http://www.census.gov/geo/www/cob/bdy_files.html
+
+(Formerly: http://www.census.gov/geo/www/cob/bdy_files.html)
+
+Similarly, County Subdivision files containing the names, locations,
+and boundaries of cities, and smaller towns, townships, and boroughs
+may be downloaded from:
+
+http://web.archive.org/web/20130331172800/http://www.census.gov/geo/www/cob/cs2000.html
+
+(Formerly: http://www.census.gov/geo/www/cob/cs2000.html)
+
+and processed with the citydecoder utility. 
 
 Please select the ARC/INFO Ungenerate (ASCII) Metadata Cartographic Boundary
-Files from this site and unzip them prior to importing them to citydecoder.
+Files from these sites and unzip them prior to processing them with
+citydecoder:
+
+	unzip -a pl34_d00_ascii.zip
+	unzip -a cs34_d00_ascii.zip
+
 U.S. Census files are cataloged by the two digit FIPS code for the region
-(state) they represent.  citydecoder takes as an argument the two-letter
-file prefix plus the FIPS code of the region or state being processed.
-For example:
+(state) they represent.  A list of FIPS codes is included in fips.txt
+under splat-1.4.1/utils for your convenience.
+
+citydecoder takes as an argument the two-letter file prefix plus the FIPS
+code of the region or state being processed.  For example:
 
 	citydecoder pl34
 
-reads files "pl34_d00.dat" and "pl34_d00a.dat" that are extracted after
-the downloaded file has been unzipped, and generates a list of city names
-and geographical coordinates for the state of New Jersey (FIPS code 34).
-This data may be sorted and written to a file (cities.nj.dat) in the
-following manner:
+reads files "pl34_d00.dat" and "pl34_d00a.dat" that were extracted after
+the unzipping process, and generates a list of city names and geographical
+coordinates for the state of New Jersey (FIPS code 34).  This data may be
+sorted and written to a file (cities.nj.dat) in the following manner:
 
 	citydecoder pl34 | sort > cities.nj.dat
 
-A list of FIPS codes (fips.txt) is included under splat-1.3.0/utils
-for your convenience.
+In a similar manner, unzipped County Subdivision files may be processed
+with the citydecoder utility to produce a file containing locations and
+names of towns, townships, and boroughs:
 
+	citydecoder cs34 | sort > townships.nj.dat
 
+citydecoder can also process more than one file or file type per invocation,
+and produce a merged output file as follows:
+
+	citydecoder pl34 cs34 | sort > everything.in.nj.dat
+
+Be advised that any redundancy that may exist between "cs" and "pl" files
+will be reflected in the merged output file, so some manual editing of
+the output file may be necessary.
+
+ 
 fontdata
 ========
 The fontdata utility reads Slackware gzipped console font data
@@ -217,5 +247,5 @@ You need to be 'root' to install any or all of these utilities.
 
 ---
 John A. Magliacane, KD2BD
-August 2008
+January 2014
 
