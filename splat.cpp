@@ -131,21 +131,23 @@ int	min_north=90, max_north=-90, min_west=360, max_west=-1, ippd, mpi,
 
 unsigned char got_elevation_pattern, got_azimuth_pattern, metric=0, dbm=0, smooth_contours=0;
 
-struct site {	double lat;
+typedef struct Site {	double lat;
 		double lon;
 		float alt;
 		char name[50];
 		char filename[255];
-	    } 	site;
+	    } Site;
+Site	site;
 
-struct path {	double lat[ARRAYSIZE];
+typedef struct Path {	double lat[ARRAYSIZE];
 		double lon[ARRAYSIZE];
 		double elevation[ARRAYSIZE];
 		double distance[ARRAYSIZE];
 		int length;
-	    }	path;
+	    } Path;
+Path path;
 
-struct dem {	int min_north;
+typedef struct Dem {	int min_north;
 		int max_north;
 		int min_west;
 		int max_west;
@@ -154,9 +156,10 @@ struct dem {	int min_north;
 		short data[IPPD][IPPD];
 		unsigned char mask[IPPD][IPPD];
 		unsigned char signal[IPPD][IPPD];
-           }	dem[MAXPAGES];
+           } Dem;
+Dem dem[MAXPAGES];
 
-struct LR {	double eps_dielect; 
+typedef struct LongleyRiceData {	double eps_dielect; 
 		double sgm_conductivity; 
 		double eno_ns_surfref;
 		double frq_mhz; 
@@ -166,12 +169,14 @@ struct LR {	double eps_dielect;
 		int radio_climate;  
 		int pol;
 		float antenna_pattern[361][1001];
-          }	LR;
+          }	LongleyRice;
+LongleyRiceData LR;
 
-struct region { unsigned char color[32][3];
+typedef struct Region { unsigned char color[32][3];
 		int level[32];
 		int levels;
-	      }	region;
+	      }	Region;
+Region region;
 
 double elev[ARRAYSIZE+10];
 
@@ -433,7 +438,7 @@ unsigned char GetSignal(double lat, double lon)
 		return 0;
 }
 
-double GetElevation(struct site location)
+double GetElevation(Site location)
 {
 	/* This function returns the elevation (in feet) of any location
 	   represented by the digital elevation model data in memory.
@@ -489,7 +494,7 @@ int AddElevation(double lat, double lon, double height)
 	return found;
 }
 
-double Distance(struct site site1, struct site site2)
+double Distance(Site site1, Site site2)
 {
 	/* This function returns the great circle distance
 	   in miles between any two site locations. */
@@ -506,7 +511,7 @@ double Distance(struct site site1, struct site site2)
 	return distance;
 }
 
-double Azimuth(struct site source, struct site destination)
+double Azimuth(Site source, Site destination)
 {
 	/* This function returns the azimuth (in degrees) to the
 	   destination as seen from the location of the source. */
@@ -558,7 +563,7 @@ double Azimuth(struct site source, struct site destination)
 	return (azimuth/DEG2RAD);		
 }
 
-double ElevationAngle(struct site source, struct site destination)
+double ElevationAngle(Site source, Site destination)
 {
 	/* This function returns the angle of elevation (in degrees)
 	   of the destination as seen from the source location.
@@ -579,7 +584,7 @@ double ElevationAngle(struct site source, struct site destination)
 	return ((180.0*(acos(((b*b)+(dx*dx)-(a*a))/(2.0*b*dx)))/PI)-90.0);
 }
 
-void ReadPath(struct site source, struct site destination)
+void ReadPath(Site source, Site destination)
 {
 	/* This function generates a sequence of latitude and
 	   longitude positions between source and destination
@@ -591,7 +596,7 @@ void ReadPath(struct site source, struct site destination)
 	double	azimuth, distance, lat1, lon1, beta, den, num,
 		lat2, lon2, total_distance, dx, dy, path_length,
 		miles_per_sample, samples_per_radian=68755.0;
-	struct	site tempsite;
+	Site tempsite;
 
 	lat1=source.lat*DEG2RAD;
 	lon1=source.lon*DEG2RAD;
@@ -695,7 +700,7 @@ void ReadPath(struct site source, struct site destination)
 		path.length=ARRAYSIZE-1;
 }
 
-double ElevationAngle2(struct site source, struct site destination, double er)
+double ElevationAngle2(Site source, Site destination, double er)
 {
 	/* This function returns the angle of elevation (in degrees)
 	   of the destination as seen from the source location, UNLESS
@@ -708,7 +713,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
 	double	source_alt, destination_alt, cos_xmtr_angle,
 		cos_test_angle, test_alt, elevation, distance,
 		source_alt2, first_obstruction_angle=0.0;
-	struct	path temp;
+	Path    temp;
 
 	temp=path;
 
@@ -764,7 +769,7 @@ double ElevationAngle2(struct site source, struct site destination, double er)
 	return elevation;
 }
 
-double AverageTerrain(struct site source, double azimuthx, double start_distance, double end_distance)
+double AverageTerrain(Site source, double azimuthx, double start_distance, double end_distance)
 {
 	/* This function returns the average terrain calculated in
 	   the direction of "azimuth" (degrees) between "start_distance"
@@ -776,7 +781,7 @@ double AverageTerrain(struct site source, double azimuthx, double start_distance
  
 	int	c, samples, endpoint;
 	double	beta, lat1, lon1, lat2, lon2, num, den, azimuth, terrain=0.0;
-	struct	site destination;
+	Site destination;
 
 	lat1=source.lat*DEG2RAD;
 	lon1=source.lon*DEG2RAD;
@@ -858,7 +863,7 @@ double AverageTerrain(struct site source, double azimuthx, double start_distance
 	}
 }
 
-double haat(struct site antenna)
+double haat(Site antenna)
 {
 	/* This function returns the antenna's Height Above Average
 	   Terrain (HAAT) based on FCC Part 73.313(d).  If a critical
@@ -897,7 +902,7 @@ double haat(struct site antenna)
 	}
 }
 
-void PlaceMarker(struct site location)
+void PlaceMarker(Site location)
 {
 	/* This function places text and marker data in the mask array
 	   for illustration on topographic maps generated by SPLAT!.
@@ -1175,7 +1180,7 @@ double ReadBearing(char *input)
 	return bearing;
 }
 
-struct site LoadQTH(char *filename)
+Site LoadQTH(char *filename)
 {
 	/* This function reads SPLAT! .qth (site location) files.
 	   The latitude and longitude may be expressed either in
@@ -1187,7 +1192,7 @@ struct site LoadQTH(char *filename)
 
 	int	x;
 	char	string[50], qthfile[255];
-	struct	site tempsite;
+	Site    tempsite;
 	FILE	*fd=NULL;
 
 	x=strlen(filename);
@@ -2182,7 +2187,7 @@ void LoadCities(char *filename)
 
 	int	x, y, z;
 	char	input[80], str[3][80];
-	struct	site city_site;
+	Site    city_site;
 	FILE	*fd=NULL;
 
 	fd=fopen(filename,"r");
@@ -2405,7 +2410,7 @@ void LoadBoundaries(char *filename)
 	int	x;
 	double	lat0, lon0, lat1, lon1;
 	char	string[80];
-	struct	site source, destination;
+	Site    source, destination;
 	FILE	*fd=NULL;
 
 	fd=fopen(filename,"r");
@@ -2458,7 +2463,7 @@ void LoadBoundaries(char *filename)
 		fprintf(stderr,"\n*** ERROR: \"%s\": not found!",filename);
 }
 
-char ReadLRParm(struct site txsite, char forced_read)
+char ReadLRParm(Site txsite, char forced_read)
 {
 	/* This function reads ITM parameter data for the transmitter
 	   site.  The file name is the same as the txsite, except the
@@ -2714,7 +2719,7 @@ char ReadLRParm(struct site txsite, char forced_read)
 	return (return_value);
 }
 
-void PlotPath(struct site source, struct site destination, char mask_value)
+void PlotPath(Site source, Site destination, char mask_value)
 {
 	/* This function analyzes the path between the source and
 	   destination locations.  It determines which points along
@@ -2772,7 +2777,7 @@ void PlotPath(struct site source, struct site destination, char mask_value)
 	}
 }
 
-void PlotLRPath(struct site source, struct site destination, unsigned char mask_value, FILE *fd)
+void PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd)
 {
 	/* This function plots the RF path loss between source and
 	   destination points based on the ITWOM propagation model,
@@ -2785,7 +2790,7 @@ void PlotLRPath(struct site source, struct site destination, unsigned char mask_
 		cos_test_angle=0.0, test_alt, elevation=0.0,
 		distance=0.0, four_thirds_earth, rxp, dBm,
 		field_strength=0.0;
-	struct	site temp;
+	Site temp;
 
 	ReadPath(source,destination);
 
@@ -2964,6 +2969,7 @@ void PlotLRPath(struct site source, struct site destination, unsigned char mask_
 					if (ofs>ifs)
 						ifs=ofs;
 
+                    // writes to dem
 					PutSignal(path.lat[y],path.lon[y],(unsigned char)ifs);
 				}
 
@@ -2984,6 +2990,7 @@ void PlotLRPath(struct site source, struct site destination, unsigned char mask_
 					if (ofs>ifs)
 						ifs=ofs;
 
+                    // writes to dem
 					PutSignal(path.lat[y],path.lon[y],(unsigned char)ifs);
 	
 					if (fd!=NULL)
@@ -3003,6 +3010,7 @@ void PlotLRPath(struct site source, struct site destination, unsigned char mask_
 				if (ofs<ifs && ofs!=0)
 					ifs=ofs;
 
+                // writes to dem
 				PutSignal(path.lat[y],path.lon[y],(unsigned char)ifs);
 			}
 
@@ -3021,7 +3029,7 @@ void PlotLRPath(struct site source, struct site destination, unsigned char mask_
 	}
 }
 
-void PlotLOSMap(struct site source, double altitude)
+void PlotLOSMap(Site source, double altitude)
 {
 	/* This function performs a 360 degree sweep around the
 	   transmitter site (source location), and plots the
@@ -3033,7 +3041,7 @@ void PlotLOSMap(struct site source, double altitude)
 	   is later invoked. */
 
 	int y, z, count;
-	struct site edge;
+	Site edge;
 	unsigned char symbol[4], x;
 	double lat, lon, minwest, maxnorth, th;
 	static unsigned char mask_value=1;
@@ -3195,7 +3203,7 @@ void PlotLOSMap(struct site source, double altitude)
 	}
 }
 
-void PlotLRMap(struct site source, double altitude, char *plo_filename)
+void PlotLRMap(Site source, double altitude, char *plo_filename)
 {
 	/* This function performs a 360 degree sweep around the
 	   transmitter site (source location), and plots the
@@ -3207,7 +3215,7 @@ void PlotLRMap(struct site source, double altitude, char *plo_filename)
 	   WritePPMSS() functions are later invoked. */
 
 	int y, z, count;
-	struct site edge;
+	Site edge;
 	double lat, lon, minwest, maxnorth, th;
 	unsigned char x, symbol[4];
 	static unsigned char mask_value=1;
@@ -3385,7 +3393,7 @@ void PlotLRMap(struct site source, double altitude, char *plo_filename)
 		mask_value++;
 }
 
-void LoadSignalColors(struct site xmtr)
+void LoadSignalColors(Site xmtr)
 {
 	int x, y, ok, val[4];
 	char filename[255], string[80], *pointer=NULL;
@@ -3534,7 +3542,7 @@ void LoadSignalColors(struct site xmtr)
 	}
 }
 
-void LoadLossColors(struct site xmtr)
+void LoadLossColors(Site xmtr)
 {
 	int x, y, ok, val[4];
 	char filename[255], string[80], *pointer=NULL;
@@ -3698,7 +3706,7 @@ void LoadLossColors(struct site xmtr)
 	}
 }
 
-void LoadDBMColors(struct site xmtr)
+void LoadDBMColors(Site xmtr)
 {
 	int x, y, ok, val[4];
 	char filename[255], string[80], *pointer=NULL;
@@ -3869,7 +3877,7 @@ void LoadDBMColors(struct site xmtr)
 	}
 }
 
-void WritePPM(char *filename, unsigned char geo, unsigned char kml, unsigned char ngs, struct site *xmtr, unsigned char txsites)
+void WritePPM(char *filename, unsigned char geo, unsigned char kml, unsigned char ngs, Site *xmtr, unsigned char txsites)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on logarithmically scaled topology data,
@@ -4154,7 +4162,7 @@ void WritePPM(char *filename, unsigned char geo, unsigned char kml, unsigned cha
 	fflush(stdout);
 }
 
-void WritePPMLR(char *filename, unsigned char geo, unsigned char kml, unsigned char ngs, struct site *xmtr, unsigned char txsites)
+void WritePPMLR(char *filename, unsigned char geo, unsigned char kml, unsigned char ngs, Site *xmtr, unsigned char txsites)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the content of flags held in the mask[][] 
@@ -4633,7 +4641,7 @@ void WritePPMLR(char *filename, unsigned char geo, unsigned char kml, unsigned c
 	fflush(stdout);
 }
 
-void WritePPMSS(char *filename, unsigned char geo, unsigned char kml, unsigned char ngs, struct site *xmtr, unsigned char txsites)
+void WritePPMSS(char *filename, unsigned char geo, unsigned char kml, unsigned char ngs, Site *xmtr, unsigned char txsites)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal strength values held in the
@@ -5147,7 +5155,7 @@ void WritePPMSS(char *filename, unsigned char geo, unsigned char kml, unsigned c
 	fflush(stdout);
 }
 
-void WritePPMDBM(char *filename, unsigned char geo, unsigned char kml, unsigned char ngs, struct site *xmtr, unsigned char txsites)
+void WritePPMDBM(char *filename, unsigned char geo, unsigned char kml, unsigned char ngs, Site *xmtr, unsigned char txsites)
 {
 	/* This function generates a topographic map in Portable Pix Map
 	   (PPM) format based on the signal power level values held in the
@@ -5737,7 +5745,7 @@ void WritePPMDBM(char *filename, unsigned char geo, unsigned char kml, unsigned 
 	fflush(stdout);
 }
 
-void GraphTerrain(struct site source, struct site destination, char *name)
+void GraphTerrain(Site source, Site destination, char *name)
 {
 	/* This function invokes gnuplot to generate an appropriate
 	   output file indicating the terrain profile between the source
@@ -5898,7 +5906,7 @@ void GraphTerrain(struct site source, struct site destination, char *name)
 		fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
 }
 
-void GraphElevation(struct site source, struct site destination, char *name)
+void GraphElevation(Site source, Site destination, char *name)
 {
 	/* This function invokes gnuplot to generate an appropriate
 	   output file indicating the terrain elevation profile between
@@ -5912,7 +5920,7 @@ void GraphElevation(struct site source, struct site destination, char *name)
 	char	basename[255], term[30], ext[15];
 	double	angle, clutter_angle=0.0, refangle, maxangle=-90.0,
 	       	minangle=90.0, distance;
-	struct	site remote, remote2;
+	Site    remote, remote2;
 	FILE	*fd=NULL, *fd1=NULL, *fd2=NULL;
 
 	ReadPath(destination,source);  /* destination=RX, source=TX */
@@ -6100,7 +6108,7 @@ void GraphElevation(struct site source, struct site destination, char *name)
 		fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
 }
 
-void GraphHeight(struct site source, struct site destination, char *name, unsigned char fresnel_plot, unsigned char normalized)
+void GraphHeight(Site source, Site destination, char *name, unsigned char fresnel_plot, unsigned char normalized)
 {
 	/* This function invokes gnuplot to generate an appropriate
 	   output file indicating the terrain height profile between
@@ -6119,7 +6127,7 @@ void GraphHeight(struct site source, struct site destination, char *name, unsign
 		nm=0.0, nb=0.0, ed=0.0, es=0.0, r=0.0, d=0.0, d1=0.0,
 		terrain, azimuth, distance, dheight=0.0, minterrain=100000.0,
 		minearth=100000.0, miny, maxy, min2y, max2y;
-	struct	site remote;
+	Site    remote;
 	FILE	*fd=NULL, *fd1=NULL, *fd2=NULL, *fd3=NULL, *fd4=NULL, *fd5=NULL;
 
 	ReadPath(destination,source);  /* destination=RX, source=TX */
@@ -6481,13 +6489,13 @@ void GraphHeight(struct site source, struct site destination, char *name, unsign
 		fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
 }
 
-void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f, FILE *outfile)
+void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 {
 	/* Perform an obstruction analysis along the
 	   path between receiver and transmitter. */
 
 	int	x;
-	struct	site site_x;
+	Site site_x;
 	double	h_r, h_t, h_x, h_r_orig, cos_tx_angle, cos_test_angle,
 		cos_tx_angle_f1, cos_tx_angle_fpt6, d_tx, d_x,
 		h_r_f1, h_r_fpt6, h_f, h_los, lambda=0.0;
@@ -6656,7 +6664,7 @@ void ObstructionAnalysis(struct site xmtr, struct site rcvr, double f, FILE *out
 	}
 }
 
-void PathReport(struct site source, struct site destination, char *name, char graph_it)
+void PathReport(Site source, Site destination, char *name, char graph_it)
 {
 	/* This function writes a SPLAT! Path Report (name.txt) to
 	   the filesystem.  If (graph_it == 1), then gnuplot is invoked
@@ -7295,7 +7303,7 @@ void PathReport(struct site source, struct site destination, char *name, char gr
 		unlink("profile.gp");
 }
 
-void SiteReport(struct site xmtr)
+void SiteReport(Site xmtr)
 {
 	char	report_name[80];
 	double	terrain;
@@ -7558,7 +7566,7 @@ int LoadANO(char *filename)
 	return error;
 }
 
-void WriteKML(struct site source, struct site destination)
+void WriteKML(Site source, Site destination)
 {
 	int	x, y;
 	char	block, report_name[80];
@@ -7792,7 +7800,7 @@ int main(int argc, char *argv[])
 			rx_range=0.0, deg_range=0.0, deg_limit=0.0,
 			deg_range_lon, er_mult;
 
-	struct		site tx_site[32], rx_site;
+	Site    tx_site[32], rx_site;
 
 	FILE		*fd;
 
