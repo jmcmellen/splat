@@ -1,0 +1,15 @@
+*.o
+.gdbinit
+cscope.out
+hd-parms.h
+splat
+splat-hd
+splat.h
+std-parms.h
+tags
+utils/bearing
+utils/citydecoder
+utils/fontdata
+utils/srtm2sdf
+utils/srtm2sdf-hd
+utils/usgs2sdf

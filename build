@@ -33,7 +33,8 @@ build_splat()
 	fi
 
 	echo -n "Compiling SPLAT!... "
-	g++ -O2 -s -fomit-frame-pointer -ffast-math -pipe -march=$cpu $model itwom3.0.cpp splat.cpp -lm -lbz2 -o splat
+	#g++ -g -O2 -s -fomit-frame-pointer -ffast-math -pipe -march=$cpu $model itwom3.0.cpp splat.cpp -lm -lbz2 -o splat
+	g++ -g -fomit-frame-pointer -ffast-math -pipe -march=$cpu $model itwom3.0.cpp splat.cpp -lm -lbz2 -o splat
 
 	if [ -x splat ]; then
 		echo "Done!"
@@ -41,17 +42,17 @@ build_splat()
 		echo "Compilation failed!"
 	fi
 
-	if [ -r hd-parms.h ]; then
-		cp hd-parms.h splat.h
-		echo -n "Compiling SPLAT! HD... "
-		g++ -O2 -s -fomit-frame-pointer -ffast-math -pipe -march=$cpu $model itwom3.0.cpp splat.cpp -lm -lbz2 -o splat-hd
-
-		if [ -x splat-hd ]; then
-			echo "Done!"
-		else
-			echo "Compilation failed!"
-		fi
-	fi
+# if [ -r hd-parms.h ]; then
+#	cp hd-parms.h splat.h
+#	echo -n "Compiling SPLAT! HD... "
+#	g++ -g -O2 -s -fomit-frame-pointer -ffast-math -pipe -march=$cpu $model itwom3.0.cpp splat.cpp -lm -lbz2 -o splat-hd
+#
+#		if [ -x splat-hd ]; then
+#			echo "Done!"
+#		else
+#			echo "Compilation failed!"
+#		fi
+#	fi
 }
 
 build_utils()
