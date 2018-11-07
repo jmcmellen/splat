@@ -30,6 +30,12 @@
 #include "fontdata.h"
 #include "splat.h"
 
+#if USE_MT_WORKQUEUE
+#include <future>
+#include <chrono>
+#include "workqueue.hpp"
+#endif
+
 #define GAMMA 2.5
 #define BZBUFFER 65536
 
@@ -2723,7 +2729,7 @@ char ReadLRParm(Site txsite, char forced_read)
 	return (return_value);
 }
 
-void PlotPath(Site source, Site destination, char mask_value)
+int PlotPath(Site source, Site destination, char mask_value)
 {
 	/* This function analyzes the path between the source and
 	   destination locations.  It determines which points along
@@ -2780,9 +2786,10 @@ void PlotPath(Site source, Site destination, char mask_value)
 				OrMask(path.lat[y],path.lon[y],mask_value);
 		}
 	}
+    return 0;
 }
 
-void PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd)
+int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd)
 {
 	/* This function plots the RF path loss between source and
 	   destination points based on the ITWOM propagation model,
@@ -3033,7 +3040,9 @@ void PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *f
 			PutMask(path.lat[y],path.lon[y],(GetMask(path.lat[y],path.lon[y])&7)+(mask_value<<3));
 		}
 	}
+    return 0;
 }
+
 
 void PlotLOSMap(Site source, double altitude)
 {
@@ -3077,6 +3086,11 @@ void PlotLOSMap(Site source, double altitude)
 	minwest=dpp+(double)min_west;
 	maxnorth=(double)max_north-dpp;
 
+#if USE_MT_WORKQUEUE
+    // Create a work queue
+    WorkQueue wq;
+#endif
+
 	for (lon=minwest, x=0, y=0; (LonDiff(lon,(double)max_west)<=0.0); y++, lon=minwest+(dpp*(double)y))
 	{
 		if (lon>=360.0)
@@ -3086,7 +3100,11 @@ void PlotLOSMap(Site source, double altitude)
 		edge.lon=lon;
 		edge.alt=altitude;
 
+#if USE_MT_WORKQUEUE
+        wq.submit(std::bind(PlotPath, source, edge, mask_value));
+#else
 		PlotPath(source,edge,mask_value);
+#endif
 		count++;
 
 		if (count==z) 
@@ -3114,7 +3132,11 @@ void PlotLOSMap(Site source, double altitude)
 		edge.lon=min_west;
 		edge.alt=altitude;
 
+#if USE_MT_WORKQUEUE
+        wq.submit(std::bind(PlotPath, source, edge, mask_value));
+#else
 		PlotPath(source,edge,mask_value);
+#endif
 		count++;
 
 		if (count==z) 
@@ -3145,7 +3167,11 @@ void PlotLOSMap(Site source, double altitude)
 		edge.lon=lon;
 		edge.alt=altitude;
 
+#if USE_MT_WORKQUEUE
+        wq.submit(std::bind(PlotPath, source, edge, mask_value));
+#else
 		PlotPath(source,edge,mask_value);
+#endif
 		count++;
 
 		if (count==z)
@@ -3173,7 +3199,11 @@ void PlotLOSMap(Site source, double altitude)
 		edge.lon=max_west;
 		edge.alt=altitude;
 
+#if USE_MT_WORKQUEUE
+        wq.submit(std::bind(PlotPath, source, edge, mask_value));
+#else
 		PlotPath(source,edge,mask_value);
+#endif
 		count++;
 
 		if (count==z)
@@ -3188,6 +3218,10 @@ void PlotLOSMap(Site source, double altitude)
 				x++;
 		}
 	}
+
+#if USE_MT_WORKQUEUE
+    wq.waitForCompletion();
+#endif
 
 	fprintf(stdout,"\nDone!\n");
 	fflush(stdout);
@@ -3277,6 +3311,12 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
+
+#if USE_MT_WORKQUEUE
+    // Create a work queue
+    WorkQueue wq;
+#endif
+
 	for (lon=minwest, x=0, y=0; (LonDiff(lon,(double)max_west)<=0.0); y++, lon=minwest+(dpp*(double)y))
 	{
 		if (lon>=360.0)
@@ -3286,7 +3326,11 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		edge.lon=lon;
 		edge.alt=altitude;
 
+#if USE_MT_WORKQUEUE
+        wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
+#else
 		PlotLRPath(source,edge,mask_value,fd);
+#endif
 		count++;
 
 		if (count==z) 
@@ -3314,7 +3358,11 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		edge.lon=min_west;
 		edge.alt=altitude;
 
+#if USE_MT_WORKQUEUE
+        wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
+#else
 		PlotLRPath(source,edge,mask_value,fd);
+#endif
 		count++;
 
 		if (count==z) 
@@ -3345,7 +3393,11 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		edge.lon=lon;
 		edge.alt=altitude;
 
+#if USE_MT_WORKQUEUE
+        wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
+#else
 		PlotLRPath(source,edge,mask_value,fd);
+#endif
 		count++;
 
 		if (count==z)
@@ -3373,7 +3425,11 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		edge.lon=max_west;
 		edge.alt=altitude;
 
+#if USE_MT_WORKQUEUE
+        wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
+#else
 		PlotLRPath(source,edge,mask_value,fd);
+#endif
 		count++;
 
 		if (count==z)
@@ -3388,6 +3444,10 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 				x++;
 		}
 	}
+
+#if USE_MT_WORKQUEUE
+    wq.waitForCompletion();
+#endif
 
 	if (fd!=NULL)
 		fclose(fd);
