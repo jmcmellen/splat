@@ -43,12 +43,12 @@
 
 using namespace std;
 
-struct tcomplex
+typedef struct tcomplex_st
 {	double tcreal;
 	double tcimag;
-};
+} tcomplex;
 
-struct prop_type
+typedef struct prop_type_st
 {	double aref;
 	double dist;
 	double hg[2];
@@ -81,16 +81,16 @@ struct prop_type
 	int mdp;
 	int ptx;
 	int los;
-};
+} prop_type;
 
-struct propv_type
+typedef struct propv_type_st
 {	double sgc;
 	int lvar;
 	int mdvar;
 	int klim;
-};
+} propv_type;
 
-struct propa_type
+typedef struct propa_type_st
 {	double dlsa;
 	double dx;
 	double ael;
@@ -103,7 +103,7 @@ struct propa_type
 	double dls[2];
 	double dla;
 	double tha;
-};
+} propa_type;
 
 #define min(i, j) ( i < j ? i : j)
 
@@ -2029,7 +2029,9 @@ double d1thx(double pfl[], const double &x1, const double &x2)
 	n=10*ka-5;
 	kb=n-ka+1;
 	sn=n-1;
-	assert((s=new double[n+2])!=0);
+
+    s = (double*)calloc(n+2, sizeof(double));
+	assert(s!=NULL);
 	s[0]=sn;
 	s[1]=1.0;
 	xb=(xb-xa)/sn;
@@ -2059,7 +2061,7 @@ double d1thx(double pfl[], const double &x1, const double &x2)
 
 	d1thxv=qtile(n-1,s+2,ka-1)-qtile(n-1,s+2,kb-1);
 	d1thxv/=1.0-0.8*exp(-(x2-x1)/50.0e3);
-	delete[] s;
+    free(s);
 
 	return d1thxv;
 }
@@ -2085,7 +2087,8 @@ double d1thx2(double pfl[], const double &x1, const double &x2, propa_type &prop
 	n=10*ka-5;
 	kb=n-ka+1;
 	sn=n-1;
-	assert((s=new double[n+2])!=0);
+    s = (double*)calloc(n+2, sizeof(double));
+	assert(s!=NULL);
 	s[0]=sn;
 	s[1]=1.0;
 	xb=(xb-xa)/sn;
@@ -2115,7 +2118,8 @@ double d1thx2(double pfl[], const double &x1, const double &x2, propa_type &prop
 
 	d1thx2v=qtile(n-1,s+2,ka-1)-qtile(n-1,s+2,kb-1);
 	d1thx2v/=1.0-0.8*exp(-(x2-x1)/50.0e3);
-	delete[] s;
+    free(s);
+
 	return d1thx2v;
 }
 
