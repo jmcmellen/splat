@@ -193,8 +193,6 @@ typedef struct Region { unsigned char color[32][3];
 	      }	Region;
 Region region;
 
-double elev[ARRAYSIZE+10];
-
 void point_to_point(double elev[], double tht_m, double rht_m,
 	  double eps_dielect, double sgm_conductivity, double eno_ns_surfref,
 	  double frq_mhz, int radio_climate, int pol, double conf,
@@ -2810,10 +2808,13 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 		cos_test_angle=0.0, test_alt, elevation=0.0,
 		distance=0.0, four_thirds_earth, rxp, dBm,
 		field_strength=0.0;
+
 	Site temp;
 
     Path path = {0};
 	ReadPath(source,destination,path);
+
+    double elev[ARRAYSIZE+10];
 
 	four_thirds_earth=FOUR_THIRDS*EARTHRADIUS;
 
@@ -2923,7 +2924,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 				strmode, errnum);
 
 			else
-				point_to_point(elev,source.alt*METERS_PER_FOOT, 
+				point_to_point(elev,source.alt*METERS_PER_FOOT,
   	 			destination.alt*METERS_PER_FOOT, LR.eps_dielect,
 				LR.sgm_conductivity, LR.eno_ns_surfref, LR.frq_mhz,
 				LR.radio_climate, LR.pol, LR.conf, LR.rel, loss,
@@ -7036,6 +7037,8 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
         Path path = {0};
 		ReadPath(source,destination,path);  /* source=TX, destination=RX */
 
+        double elev[ARRAYSIZE+10];
+
 		/* Copy elevations plus clutter along
 		   path into the elev[] array. */
 
@@ -7929,7 +7932,7 @@ int main(int argc, char *argv[])
 		fprintf(stdout,"  -metric employ metric rather than imperial units for all user I/O\n");
 		fprintf(stdout,"  -olditm invoke Longley-Rice rather than the default ITWOM model\n\n");
 
-		fprintf(stdout,"Type 'man splat', or see the documentation for more details.\n\n");
+		fprintf(stdout,"See the documentation for more details.\n\n");
 
 		y=(int)sqrt((int)MAXPAGES);
 
