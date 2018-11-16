@@ -196,12 +196,12 @@ Region region;
 void point_to_point(double elev[], double tht_m, double rht_m,
 	  double eps_dielect, double sgm_conductivity, double eno_ns_surfref,
 	  double frq_mhz, int radio_climate, int pol, double conf,
-	  double rel, double &dbloss, char *strmode, int &errnum);
+	  double rel, double *dbloss, char *strmode, int *errnum);
 
 void point_to_point_ITM(double elev[], double tht_m, double rht_m,
 	  double eps_dielect, double sgm_conductivity, double eno_ns_surfref,
 	  double frq_mhz, int radio_climate, int pol, double conf,
-	  double rel, double &dbloss, char *strmode, int &errnum);
+	  double rel, double *dbloss, char *strmode, int *errnum);
 
 double ITWOMVersion();
 
@@ -2920,15 +2920,15 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 				point_to_point_ITM(elev,source.alt*METERS_PER_FOOT, 
   		 		destination.alt*METERS_PER_FOOT, LR.eps_dielect,
 				LR.sgm_conductivity, LR.eno_ns_surfref, LR.frq_mhz,
-				LR.radio_climate, LR.pol, LR.conf, LR.rel, loss,
-				strmode, errnum);
+				LR.radio_climate, LR.pol, LR.conf, LR.rel, &loss,
+				strmode, &errnum);
 
 			else
 				point_to_point(elev,source.alt*METERS_PER_FOOT,
   	 			destination.alt*METERS_PER_FOOT, LR.eps_dielect,
 				LR.sgm_conductivity, LR.eno_ns_surfref, LR.frq_mhz,
-				LR.radio_climate, LR.pol, LR.conf, LR.rel, loss,
-				strmode, errnum);
+				LR.radio_climate, LR.pol, LR.conf, LR.rel, &loss,
+				strmode, &errnum);
 
 			temp.lat=path.lat[y];
 			temp.lon=path.lon[y];
@@ -7116,14 +7116,14 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 				point_to_point_ITM(elev,source.alt*METERS_PER_FOOT, 
   		 		destination.alt*METERS_PER_FOOT, LR.eps_dielect,
 				LR.sgm_conductivity, LR.eno_ns_surfref, LR.frq_mhz,
-				LR.radio_climate, LR.pol, LR.conf, LR.rel, loss,
-				strmode, errnum);
+				LR.radio_climate, LR.pol, LR.conf, LR.rel, &loss,
+				strmode, &errnum);
 			else
 				point_to_point(elev,source.alt*METERS_PER_FOOT, 
   		 		destination.alt*METERS_PER_FOOT, LR.eps_dielect,
 				LR.sgm_conductivity, LR.eno_ns_surfref, LR.frq_mhz,
-				LR.radio_climate, LR.pol, LR.conf, LR.rel, loss,
-				strmode, errnum);
+				LR.radio_climate, LR.pol, LR.conf, LR.rel, &loss,
+				strmode, &errnum);
 
 			if (block)
 				elevation=((acos(cos_test_angle))/DEG2RAD)-90.0;
@@ -8843,7 +8843,7 @@ int main(int argc, char *argv[])
 
             std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::seconds>( t2 - t1 ).count();
-            fprintf(stdout, "Calculation time: %d sec\n", duration);
+            fprintf(stdout, "Calculation time: %ld sec\n", duration);
             fflush(stdout);
 
 			SiteReport(tx_site[x]);
