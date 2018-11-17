@@ -481,7 +481,7 @@ double adiff2(double d, prop_type *prop, propa_type *propa)
 		aht+=fht(q,pk);
 						
 
-		if ((int(prop->dl[1])==0.0) || (prop->the[1]>0.2))
+		if ((trunc(prop->dl[1])==0.0) || (prop->the[1]>0.2))
 		{ 
 			xht+=xht;
 			aht+=(aht-20.0);
@@ -547,9 +547,9 @@ double adiff2(double d, prop_type *prop, propa_type *propa)
 		rd=prop->dl[1];
 	
 		/* two obstacle diffraction calculation */ 
-		if (int(ds)>0)   /* there are 2 obstacles */ 
+		if (trunc(ds)>0)   /* there are 2 obstacles */ 
 		{
-			if(int(prop->dl[1])>0.0) /* receive site past 2nd peak */
+			if(trunc(prop->dl[1])>0.0) /* receive site past 2nd peak */
 			{
 					/* rounding attenuation */
 					q=(1.607-pk)*151.0*wa*th+xht;
@@ -642,7 +642,7 @@ double adiff2(double d, prop_type *prop, propa_type *propa)
 		else /* for single obstacle */
 		{
 
-			if(int(prop->dl[1])>0.0) /* receive site past 1st peak */
+			if(trunc(prop->dl[1])>0.0) /* receive site past 1st peak */
 			{
 
 				if(prop->the[1]<0.2) /* receive grazing angle less than .2 radians */
@@ -655,12 +655,12 @@ double adiff2(double d, prop_type *prop, propa_type *propa)
 						sdl=pow(10,(-sdl/20));
 						/* ke phase difference with respect to direct t-r line */
 						kedr=0.159155*prop->wn*abs(dto+dro-dtr);
-						arp=abs(kedr-(int(kedr)));
+						arp=abs(kedr-(trunc(kedr)));
 						kem=aknfe(vv);
 						kem= pow(10,(-kem/20));
 						/* scatter path phase with respect to direct t-r line */
 						sdr=0.5+0.159155*prop->wn*abs(dtof+drof-dtr);
-						srp=abs(sdr-(int(sdr)));
+						srp=abs(sdr-(trunc(sdr)));
 						/* difference between scatter and ke phase in radians */
 						pd=6.283185307*abs(srp-arp);
 						/* report pd prior to restriction 
@@ -1365,11 +1365,11 @@ void lrprop2(double d, prop_type *prop, propa_type *propa)
 			}
 			else
 			{			
-			 	if (int(prop->dist-prop->dl[0])==0)  /* if at 1st horiz */
+			 	if (trunc(prop->dist-prop->dl[0])==0)  /* if at 1st horiz */
 				{
 				prop->aref=5.8+alos2(pd1,prop,propa);
 				}
-				else if (int(prop->dist-prop->dl[0])>0.0)    /* if past 1st horiz */
+				else if (trunc(prop->dist-prop->dl[0])>0.0)    /* if past 1st horiz */
 				{
 				q=adiff2(0.0,prop,propa);
 				prop->aref=adiff2(pd1,prop,propa);
@@ -1794,7 +1794,7 @@ void hzns2(double pfl[], prop_type *prop)
 	{
 		dshh=prop->dist-prop->dl[0]-prop->dl[1];
 
-		if(int(dshh)==0) /* one obstacle */
+		if(trunc(dshh)==0) /* one obstacle */
 		{
 			dr=prop->dl[1]/(1+zb/prop->hht);		
 		}
@@ -1820,8 +1820,8 @@ void z1sq1 (double z[], const double x1, const double x2, double *z0, double *zn
 	int n, ja, jb;
 
 	xn=z[0];
-	xa=int(FORTRAN_DIM(x1/z[1],0.0));
-	xb=xn-int(FORTRAN_DIM(xn,x2/z[1]));
+	xa=trunc(FORTRAN_DIM(x1/z[1],0.0));
+	xb=xn-trunc(FORTRAN_DIM(xn,x2/z[1]));
 
 	if (xb<=xa)
 	{
@@ -1859,8 +1859,8 @@ void z1sq2(double z[], const double x1, const double x2, double *z0, double *zn)
 	int n, ja, jb;
 
 	xn=z[0];
-	xa=int(FORTRAN_DIM(x1/z[1],0.0));
-	xb=xn-int(FORTRAN_DIM(xn,x2/z[1]));
+	xa=trunc(FORTRAN_DIM(x1/z[1],0.0));
+	xb=xn-trunc(FORTRAN_DIM(xn,x2/z[1]));
 		
 	if (xb<=xa)
 	{
@@ -1870,7 +1870,7 @@ void z1sq2(double z[], const double x1, const double x2, double *z0, double *zn)
 
 	ja=(int)xa;
 	jb=(int)xb;
-	xa=(2*int((xb-xa)/2))-1;
+	xa=(2*trunc((xb-xa)/2))-1;
 	x=-0.5*(xa+1);
 	xb+=x;
 	ja=jb-1-(int)xa;
@@ -2071,7 +2071,7 @@ double d1thx2(double pfl[], const double x1, const double x2)
 	s[0]=sn;
 	s[1]=1.0;
 	xb=(xb-xa)/sn;
-	k=(int(xa+1.0));
+	k=(trunc(xa+1.0));
 	xc=xa-(double(k));
 	
 	for (j=0; j<n; j++)
@@ -2364,14 +2364,14 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 	fs=32.45+20.0*log10(frq_mhz)+20.0*log10(prop.dist/1000.0);
 	q=prop.dist-propa.dla;
 
-	if (int(q)<0.0)
+	if (trunc(q)<0.0)
 		strcpy(strmode,"Line-Of-Sight Mode");
 	else
 	{
-		if (int(q)==0.0)
+		if (trunc(q)==0.0)
 			strcpy(strmode,"Single Horizon");
 
-		else if (int(q)>0.0)
+		else if (trunc(q)>0.0)
 			strcpy(strmode,"Double Horizon");
 
 		if (prop.dist<=propa.dlsa || prop.dist <= propa.dx)
@@ -2501,19 +2501,19 @@ void point_to_point(double elev[], double tht_m, double rht_m, double eps_dielec
 	fs=32.45+20.0*log10(frq_mhz)+20.0*log10(tpd/1000.0);	
 	q=prop.dist-propa.dla;	
 			
-	if (int(q)<0.0)
+	if (trunc(q)<0.0)
 		strcpy(strmode,"L-o-S");
 	else
 	{
-		if (int(q)==0.0)
+		if (trunc(q)==0.0)
 			strcpy(strmode,"1_Hrzn");
 
-		else if (int(q)>0.0)
+		else if (trunc(q)>0.0)
 			strcpy(strmode,"2_Hrzn");
 
 		if (prop.dist<=propa.dlsa || prop.dist<=propa.dx)
 	
-			if(int(prop.dl[1])==0.0)
+			if(trunc(prop.dl[1])==0.0)
 				strcat(strmode,"_Peak");			
 			
 			else	
@@ -2617,12 +2617,12 @@ void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
   
   *deltaH = prop.dh;
   q = prop.dist - propa.dla;
-  if(int(q)<0.0)
+  if(trunc(q)<0.0)
     *propmode = 0;  // L-of-S 
   else
-    { if(int(q)==0.0)
+    { if(trunc(q)==0.0)
         *propmode = 4;  // 1-Hrzn
-      else if(int(q)>0.0)
+      else if(trunc(q)>0.0)
         *propmode = 8;  // 2-Hrzn
       if(prop.dist<=propa.dlsa || prop.dist<=propa.dx)
         *propmode += 1; // Diff
@@ -2711,12 +2711,12 @@ void point_to_pointDH (double elev[], double tht_m, double rht_m,
   fs=32.45+20.0*log10(frq_mhz)+20.0*log10(prop.dist/1000.0);
   *deltaH = prop.dh;
   q = prop.dist - propa.dla;
-  if(int(q)<0.0)
+  if(trunc(q)<0.0)
     strcpy(strmode,"Line-Of-Sight Mode");
   else
-    { if(int(q)==0.0)
+    { if(trunc(q)==0.0)
         strcpy(strmode,"Single Horizon");
-      else if(int(q)>0.0)
+      else if(trunc(q)>0.0)
         strcpy(strmode,"Double Horizon");
       if(prop.dist<=propa.dlsa || prop.dist<=propa.dx)
         strcat(strmode,", Diffraction Dominant");
