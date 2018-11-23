@@ -1,12 +1,12 @@
-CC=gcc
-CXX=g++
+CC=gcc -g
+CXX=g++ -g
 
 ARCH := $(shell getconf LONG_BIT)
 CPPFLAGS_32 := 
 CPPFLAGS_64 := -march=x86-64 -mcmodel=medium
 
 #CPPFLAGS=-g -std=c++11 -fomit-frame-pointer -ffast-math -pipe $(CPPFLAGS_$(ARCH)) -DUSE_MT_WORKQUEUE
-CPPFLAGS=-O2 -fomit-frame-pointer -ffast-math -pipe $(CPPFLAGS_$(ARCH))
+CPPFLAGS= -fomit-frame-pointer -ffast-math -pipe $(CPPFLAGS_$(ARCH))
 
 SRCS = splat.cpp
 C_SRCS = itwom3.0.c
@@ -32,7 +32,7 @@ clean:
 
 .SUFFIXES: .c .cpp .o
 .c.o:
-	$(CXX) $(CPPFLAGS) -std=c99 -pedantic $(INCLUDES) -c $<
+	$(CC) $(CPPFLAGS) -std=c99 -pedantic $(INCLUDES) -c $<
 
 .cpp.o:
 	$(CXX) $(CPPFLAGS) -std=c++11 $(INCLUDES) -c $<

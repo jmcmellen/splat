@@ -37,17 +37,11 @@
 ********************************************************************************/
 
 #include <math.h>
-#include <complex>
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
-using namespace std;
-
-typedef struct tcomplex_st
-{	double tcreal;
-	double tcimag;
-} tcomplex;
 
 typedef struct prop_type_st
 {	double aref;
@@ -113,6 +107,57 @@ typedef struct propa_type_st
 #define FORTRAN_DIM(x, y) ( (x) > (y) ? ((x)-(y)) : (0.0) )
 
 #define THIRD (1.0/3.0)
+
+/* mini complex number library */
+typedef struct tcomplex {
+    double _real;
+    double _imag;
+} tcomplex;
+
+double tcreal(tcomplex tc)
+{
+    return tc._real;
+}
+
+tcomplex tcadd(float r, tcomplex tc) {
+    tc._real = r + tc._real;
+    return tc;
+}
+
+tcomplex tcsubtract(float r, tcomplex tc) {
+    tc._real = r - tc._real;
+    return tc;
+}
+double tcimag(tcomplex tc)
+{
+    return tc._imag;
+}
+
+double tcarg(tcomplex tc){
+    return atan2(tc._imag, tc._real);
+}
+
+double tcabs(tcomplex tc)
+{
+    return sqrt(tcreal(tc)*tcreal(tc) + tcimag(tc)*tcimag(tc));
+}
+
+tcomplex tcmult(tcomplex a, tcomplex b){
+    tcomplex ret = { a._real*b._real - a._imag*b._imag,
+                    a._real*b._imag + a._imag*b._real };
+    return ret;
+}
+
+tcomplex tcdiv(tcomplex a, tcomplex b){
+    tcomplex ret = { (a._real*b._real + a._imag*b._imag)/(b._real*b._real + b._imag*b._imag),
+            (a._imag*b._real - a._real*b._imag)/(b._real*b._real + b._imag*b._imag) };
+    return ret;
+}
+
+tcomplex tcsqrt(tcomplex tc){
+    tcomplex ret = { sqrt(tcabs(tc)) * cos(tcarg(tc)/2),  sqrt(tcabs(tc)) * sin(tcarg(tc)/2)};
+    return ret;
+}
 
 
 double aknfe(const double v2)
@@ -215,9 +260,9 @@ double ahd(double td)
 	return a[i]+b[i]*td+c[i]*log(td);
 }
 
-double abq_alos(complex<double> r)
+double abq_alos(tcomplex r)
 {
-	return r.real()*r.real()+r.imag()*r.imag();
+    return tcreal(r)*tcreal(r) + tcimag(r)*tcimag(r);
 }
 
 double saalos(double d, prop_type *prop)
@@ -386,7 +431,7 @@ double saalos(double d, prop_type *prop)
 // Used only with ITM 1.2.2
 double adiff(double d, prop_type *prop, propa_type *propa)
 {
-	complex<double> prop_zgnd(prop->zgndreal,prop->zgndimag);
+	tcomplex prop_zgnd = {prop->zgndreal, prop->zgndimag};
 	static double wd1, xd1, afo, qk, aht, xht;
 	double a, q, pk, ds, th, wa, ar, wd, adiffv;
 
@@ -403,7 +448,7 @@ double adiff(double d, prop_type *prop, propa_type *propa)
 		q=(1.0-0.8*exp(-propa->dlsa/50e3))*prop->dh;
 		q*=0.78*exp(-pow(q/16.0,0.25));
 		afo=min(15.0,2.171*log(1.0+4.77e-4*prop->hg[0]*prop->hg[1]*prop->wn*q));
-		qk=1.0/abs(prop_zgnd);
+		qk=1.0/tcabs(prop_zgnd);
 		aht=20.0;
 		xht=0.0;
 
@@ -443,7 +488,7 @@ double adiff(double d, prop_type *prop, propa_type *propa)
 
 double adiff2(double d, prop_type *prop, propa_type *propa)
 {
-	complex<double> prop_zgnd(prop->zgndreal,prop->zgndimag);
+	tcomplex prop_zgnd = { prop->zgndreal, prop->zgndimag };
 	static double wd1, xd1, qk, aht, xht, toh, toho, roh, roho, dto, dto1, dtro, dro, 
 	dro2, drto, dtr, dhh1, dhh2, /* dhec, */ dtof, dto1f, drof, dro2f;
 	double a, q, pk, rd, ds, dsl, /* dfdh, */ th, wa, /* ar, wd, sf1, */ sf2, /* ec, */ vv, kedr=0.0, arp=0.0,
@@ -470,7 +515,7 @@ double adiff2(double d, prop_type *prop, propa_type *propa)
 		xd1=propa->dla+propa->tha/prop->gme;
 		q=(1.0-0.8*exp(-propa->dlsa/50e3))*prop->dh;
 		q*=0.78*exp(-pow(q/16.0,0.25));
-		qk=1.0/abs(prop_zgnd);
+		qk=1.0/tcabs(prop_zgnd);
 		aht=20.0;
 		xht=0.0;
 		a=0.5*(prop->dl[0]*prop->dl[0])/prop->he[0];
@@ -552,7 +597,7 @@ double adiff2(double d, prop_type *prop, propa_type *propa)
 			if(trunc(prop->dl[1])>0.0) /* receive site past 2nd peak */
 			{
 					/* rounding attenuation */
-					q=(1.607-pk)*151.0*wa*th+xht;
+					/* q=(1.607-pk)*151.0*wa*th+xht; */  /* XXX superfluous extra calculation */
 					/* ar=0.05751*q-10*log10(q)-aht; */
 
 					/* knife edge vs round weighting */
@@ -568,23 +613,23 @@ double adiff2(double d, prop_type *prop, propa_type *propa)
 
 					if(prop->hht < 3400)  /* if below tree line, foliage top loss */
 					{
-						vv=q*abs(dto1+dhh1-dtro);
+						vv=q*fabs(dto1+dhh1-dtro);
 						adiffv2=-18.0+sf2*aknfe(vv);
 					}
 					else
 					{
-						vv=q*abs(dto1+dhh1-dtro);					
+						vv=q*fabs(dto1+dhh1-dtro);
 						adiffv2=aknfe(vv);
 					}
 
 					if(prop->hhr < 3400)
 					{
-						vv=q*abs(dro2+dhh2-drto);
+						vv=q*fabs(dro2+dhh2-drto);
 						adiffv2+=(-18.0+sf2*aknfe(vv));
 					}
 					else
 					{
-						vv=q*abs(dro2+dhh2-drto);					
+						vv=q*fabs(dro2+dhh2-drto);
 						adiffv2+=aknfe(vv);
 					}
 					/* finally, add clutter loss */					
@@ -598,12 +643,12 @@ double adiff2(double d, prop_type *prop, propa_type *propa)
 
 					if(prop->hht < 3400)
 					{
-						vv=q*abs(dto1+dhh1-dtro);
+						vv=q*fabs(dto1+dhh1-dtro);
 						adiffv2=-18.0+sf2*aknfe(vv);
 					}
 					else
 					{	
-						vv=q*abs(dto1+dhh1-dtro);
+						vv=q*fabs(dto1+dhh1-dtro);
 						adiffv2=aknfe(vv);
 					}
 
@@ -621,7 +666,7 @@ double adiff2(double d, prop_type *prop, propa_type *propa)
 						}
 						else	/* close to foliage, rcvr in foliage downslope */
 						{
-							vv=0.6365*prop->wn*abs(dro2+dhh2-drto);
+							vv=0.6365*prop->wn*fabs(dro2+dhh2-drto);
 						}
 						adiffv2+=aknfe(vv);
 						closs=saalos(rd, prop);
@@ -635,7 +680,7 @@ double adiff2(double d, prop_type *prop, propa_type *propa)
 			}
 			else /* receive site is atop a 2nd peak */
 			{			
-				vv=0.6365*prop->wn*abs(dto+dro-dtr);
+				vv=0.6365*prop->wn*fabs(dto+dro-dtr);
 				adiffv2=5.8 + aknfe(vv);
 			}
 		}
@@ -647,32 +692,36 @@ double adiff2(double d, prop_type *prop, propa_type *propa)
 
 				if(prop->the[1]<0.2) /* receive grazing angle less than .2 radians */
 				{
-					vv=0.6365*prop->wn*abs(dto+dro-dtr);
+					vv=0.6365*prop->wn*fabs(dto+dro-dtr);
 
 					if(prop->hht < 3400)
 					{
 						sdl=18.0;
 						sdl=pow(10,(-sdl/20));
 						/* ke phase difference with respect to direct t-r line */
-						kedr=0.159155*prop->wn*abs(dto+dro-dtr);
-						arp=abs(kedr-(trunc(kedr)));
+						kedr=0.159155*prop->wn*fabs(dto+dro-dtr);
+						arp=fabs(kedr-(trunc(kedr)));
 						kem=aknfe(vv);
 						kem= pow(10,(-kem/20));
 						/* scatter path phase with respect to direct t-r line */
-						sdr=0.5+0.159155*prop->wn*abs(dtof+drof-dtr);
-						srp=abs(sdr-(trunc(sdr)));
+						sdr=0.5+0.159155*prop->wn*fabs(dtof+drof-dtr);
+						srp=fabs(sdr-(trunc(sdr)));
 						/* difference between scatter and ke phase in radians */
-						pd=6.283185307*abs(srp-arp);
+						pd=6.283185307*fabs(srp-arp);
 						/* report pd prior to restriction 
 						   keep pd between 0 and pi radians and adjust for 3&4 quadrant */ 
 						if(pd>=3.141592654)
 						{
 							pd=6.283185307-pd;
-							csd=abq_alos(complex<double>(sdl,0)+complex<double>(kem*-cos(pd), kem*-sin(pd))); 
+                            /* csd=abq_alos(complex<double>(sdl,0)+complex<double>(kem*-cos(pd), kem*-sin(pd)));  */
+							tcomplex val = { sdl + kem*-cos(pd), kem*-sin(pd) };
+							csd=abq_alos(val);
 						} 
 						else						
 						{
-							csd=abq_alos(complex<double>(sdl,0)+complex<double>(kem*cos(pd), kem*sin(pd))); 
+                            /* csd=abq_alos(complex<double>(sdl,0)+complex<double>(kem*cos(pd), kem*sin(pd))); */
+							tcomplex val = { sdl + kem*cos(pd), kem*sin(pd) };
+							csd=abq_alos(val);
 						}
 						/*csd=max(csd,0.0009); limits maximum loss value to 30.45 db */
 						adiffv2=-3.71-10*log10(csd);
@@ -697,7 +746,7 @@ double adiff2(double d, prop_type *prop, propa_type *propa)
 						}							
 						else	/* downhill slope just above foliage  */
 						{
-							vv=0.6365*prop->wn*abs(dto+dro-dtr);
+							vv=0.6365*prop->wn*fabs(dto+dro-dtr);
 							adiffv2=aknfe(vv);	
 						}
 						closs=saalos(rd, prop);
@@ -752,7 +801,7 @@ double ascat( double d, prop_type *prop, propa_type *propa)
 			r2*=prop->he[1];
 
 			if (r1<0.2 && r2<0.2)
-				return 1001.0;  // <==== early return
+				return 1001.0;
 
 			ss=(d-ad)/(d+ad);
 			q=rr/ss;
@@ -823,24 +872,29 @@ void qlrps(double fmhz, double zsys, double en0, int ipol, double eps, double sg
 		prop->ens*=exp(-zsys/9460.0);
 
 	prop->gme=gma*(1.0-0.04665*exp(prop->ens/179.3));
-	complex<double> zq, prop_zgnd(prop->zgndreal,prop->zgndimag);
-	zq=complex<double> (eps,376.62*sgm/prop->wn);
-	prop_zgnd=sqrt(zq-1.0);
 
-	if (ipol!=0.0)
-		prop_zgnd=prop_zgnd/zq;
+    /*complex<double> zq, prop_zgnd(prop->zgndreal,prop->zgndimag); */
+    /*zq=complex<double> (eps,376.62*sgm/prop->wn); */
+    /*prop_zgnd=sqrt(zq-1.0); */
+    tcomplex prop_zgnd = { prop->zgndreal, prop->zgndimag };
+	tcomplex zq = { eps, 376.62*sgm/prop->wn };
+	prop_zgnd=tcsqrt(tcadd(-1.0, zq));
+
+	if (ipol!=0.0) {
+        /* prop_zgnd=prop_zgnd/zq; */
+		prop_zgnd=tcdiv(prop_zgnd, zq);
+    }
 	
-	prop->zgndreal=prop_zgnd.real();
-	prop->zgndimag=prop_zgnd.imag();
-	
+	prop->zgndreal=tcreal(prop_zgnd);
+	prop->zgndimag=tcimag(prop_zgnd);
 }
 
-// Used only with ITM 1.2.2
+/* Used only with ITM 1.2.2 */
 double alos(double d, prop_type *prop, propa_type *propa)
 {
-	complex<double> prop_zgnd(prop->zgndreal,prop->zgndimag);
+    tcomplex prop_zgnd = { prop->zgndreal, prop->zgndimag };
 	static double wls;
-	complex<double> r;
+	tcomplex r = { 0.0, 0.0 };
 	double s, sps, q;
 	double alosv;
 
@@ -856,11 +910,16 @@ double alos(double d, prop_type *prop, propa_type *propa)
 		s=0.78*q*exp(-pow(q/16.0,0.25));
 		q=prop->he[0]+prop->he[1];
 		sps=q/sqrt(d*d+q*q);
-		r=(sps-prop_zgnd)/(sps+prop_zgnd)*exp(-min(10.0,prop->wn*s*sps));
+        /* r=(sps-prop_zgnd)/(sps+prop_zgnd)*exp(-min(10.0,prop->wn*s*sps)); */
+        double numerator = sps-tcreal(prop_zgnd);
+        double denominator = sps+tcreal(prop_zgnd);
+        r._real = (numerator / denominator) * exp(-min(10.0,prop->wn*s*sps));
 		q=abq_alos(r);
 
-		if (q<0.25 || q<sps)
-			r=r*sqrt(sps/q);
+		if (q<0.25 || q<sps) {
+            /* r=r*sqrt(sps/q); */
+			r._real = r._real * sqrt(sps/q);
+        }
 
 		alosv=propa->emd*d+propa->aed;
 		q=prop->wn*prop->he[0]*prop->he[1]*2.0/d;
@@ -868,7 +927,11 @@ double alos(double d, prop_type *prop, propa_type *propa)
 		if (q>1.57)
 			q=3.14-2.4649/q;
 
-		alosv=(-4.343*log(abq_alos(complex<double>(cos(q),-sin(q))+r))-alosv)*wls+alosv;
+        /*alosv=(-4.343*log(abq_alos(complex<double>(cos(q),-sin(q))+r))-alosv)*wls+alosv; */
+        tcomplex val = { cos(q) , -sin(q) };
+        val._real += r._real;
+        val._imag += r._imag;
+		alosv=(-4.343*log(abq_alos(val))-alosv)*wls+alosv;
 
 	}
 	return alosv;
@@ -876,8 +939,8 @@ double alos(double d, prop_type *prop, propa_type *propa)
 
 double alos2(double d, prop_type *prop, propa_type *propa)
 {
-	complex<double> prop_zgnd(prop->zgndreal,prop->zgndimag);
-	complex<double> r;
+    tcomplex prop_zgnd = { prop->zgndreal, prop->zgndimag };
+	tcomplex r = { 0.0, 0.0 };
 	double cd, cr, dr, hr, hrg, ht, htg, hrp, re, s, sps, q, pd, drh;
 	/* int rp; */
 	double alosv;
@@ -926,13 +989,15 @@ double alos2(double d, prop_type *prop, propa_type *propa)
 	
 		s=0.78*q*exp(-pow(q/16.0,0.25));
 		q=exp(-min(10.0,prop->wn*s*sps));
-		r=q*(sps-prop_zgnd)/(sps+prop_zgnd);
+		/*r=q*(sps-prop_zgnd)/(sps+prop_zgnd); */
+		r._real=q*(sps-prop_zgnd._real)/(sps+prop_zgnd._real);
 		q=abq_alos(r);
 		q=min(q,1.0);		
 	
 		if (q<0.25 || q<sps)
 		{
-			r=r*sqrt(sps/q);
+			/*r=r*sqrt(sps/q); */
+			r._real=r._real*sqrt(sps/q);
 		}	
 		q=prop->wn*prop->he[0]*prop->he[1]/(pd*3.1415926535897);		
 			
@@ -953,7 +1018,11 @@ double alos2(double d, prop_type *prop, propa_type *propa)
 			}
 		/* no longer valid complex conjugate removed 
 		   by removing minus sign from in front of sin function */
-		re=abq_alos(complex<double>(cos(q),sin(q))+r);
+        /* re=abq_alos(complex<double>(cos(q),sin(q))+r); */
+        tcomplex val = { cos(q), sin(q) };
+        val._real += r._real;
+        val._imag += r._imag;
+		re=abq_alos(val);
 		alosv=-10*log10(re);
 		prop->tgh=prop->hg[0];  /*tx above gnd hgt set to antenna height AGL */	
 		prop->tsgh=prop->rch[0]-prop->hg[0]; /* tsgh set to tx site gl AMSL */		
@@ -974,7 +1043,7 @@ double alos2(double d, prop_type *prop, propa_type *propa)
 	return alosv;
 }
 
-// Used only with ITM 1.2.2
+/* Used only with ITM 1.2.2 */
 void qlra(int kst[], int klimx, int mdvarx, prop_type *prop, propv_type *propv)
 {
 	double q;
@@ -1018,13 +1087,13 @@ void qlra(int kst[], int klimx, int mdvarx, prop_type *prop, propv_type *propv)
 }
 
 
-// Used only with ITM 1.2.2
+/* Used only with ITM 1.2.2 */
 void lrprop (double d, prop_type *prop, propa_type *propa)
 {
 	/* PaulM_lrprop used for ITM */
 	static bool wlos, wscat;
 	static double dmin, xae;
-	complex<double> prop_zgnd(prop->zgndreal,prop->zgndimag);
+	tcomplex prop_zgnd = {prop->zgndreal, prop->zgndimag};
 	double a0, a1, a2, a3, a4, a5, a6;
 	double d0, d1, d2, d3, d4, d5, d6;
 	bool wq;
@@ -1050,17 +1119,17 @@ void lrprop (double d, prop_type *prop, propa_type *propa)
 				prop->kwx=max(prop->kwx,1);
 
 		for (j=0; j<2; j++)
-			if (abs(prop->the[j]) >200e-3 || prop->dl[j]<0.1*propa->dls[j] || prop->dl[j]>3.0*propa->dls[j] )
+			if (fabs(prop->the[j]) >200e-3 || prop->dl[j]<0.1*propa->dls[j] || prop->dl[j]>3.0*propa->dls[j] )
 				prop->kwx=max(prop->kwx,3);
 
-		if (prop->ens < 250.0 || prop->ens > 400.0 || prop->gme < 75e-9 || prop->gme > 250e-9 || prop_zgnd.real() <= abs(prop_zgnd.imag()) || prop->wn < 0.419 || prop->wn > 420.0)
+		if (prop->ens < 250.0 || prop->ens > 400.0 || prop->gme < 75e-9 || prop->gme > 250e-9 || (tcreal(prop_zgnd) <= fabs(tcimag(prop_zgnd))) || prop->wn < 0.419 || prop->wn > 420.0)
 			prop->kwx=4;
 
 		for (j=0; j<2; j++)
 			if (prop->hg[j]<0.5 || prop->hg[j]>3000.0)
 				prop->kwx=4;
 
-		dmin=abs(prop->he[0]-prop->he[1])/200e-3;
+		dmin=fabs(prop->he[0]-prop->he[1])/200e-3;
 		q=adiff(0.0,prop,propa);
 		/* xae=pow(prop->wn*pow(prop->gme,2.),-THIRD); -- JDM made argument 2 a double */
 		xae=pow(prop->wn*(prop->gme*prop->gme),-THIRD);  /* No 2nd pow() */
@@ -1202,7 +1271,7 @@ void lrprop2(double d, prop_type *prop, propa_type *propa)
 	/* ITWOM_lrprop2 */
 	static bool wlos, wscat;
 	static double dmin, xae;
-	complex<double> prop_zgnd(prop->zgndreal,prop->zgndimag);
+	tcomplex prop_zgnd = {prop->zgndreal, prop->zgndimag };
 	double pd1;	
 	double a0, a1, a2, a3, a4, a5, a6, iw;
 	double d0, d1, d2, d3, d4, d5, d6;
@@ -1235,17 +1304,17 @@ void lrprop2(double d, prop_type *prop, propa_type *propa)
 			if (prop->hg[j]<1.0 || prop->hg[j]>1000.0)
 				prop->kwx=max(prop->kwx,1);
 		
-		if(abs(prop->the[0])>200e-3)
+		if(fabs(prop->the[0])>200e-3)
 			prop->kwx=max(prop->kwx,3);
 
-		if(abs(prop->the[1])>1.220)
+		if(fabs(prop->the[1])>1.220)
 			prop->kwx=max(prop->kwx,3);
 
 		/*for (j=0; j<2; j++)
 		     if (prop->dl[j]<0.1*propa->dls[j] || prop->dl[j]>3.0*propa->dls[j])
 				prop->kwx=max(prop->kwx,3);  */
 
-		if (prop->ens<250.0 || prop->ens>400.0 || prop->gme<75e-9 || prop->gme>250e-9 || prop_zgnd.real() <=abs(prop_zgnd.imag()) || prop->wn<0.419 || prop->wn>420.0)
+		if (prop->ens<250.0 || prop->ens>400.0 || prop->gme<75e-9 || prop->gme>250e-9 || (tcreal(prop_zgnd)<=fabs(tcimag(prop_zgnd))) || prop->wn<0.419 || prop->wn>420.0)
 			prop->kwx=4;
 
 		for (j=0; j<2; j++)
@@ -1253,7 +1322,7 @@ void lrprop2(double d, prop_type *prop, propa_type *propa)
 			if (prop->hg[j]<0.5 || prop->hg[j]>3000.0)
 				prop->kwx=4;
 
-		dmin=abs(prop->he[0]-prop->he[1])/200e-3;
+		dmin=fabs(prop->he[0]-prop->he[1])/200e-3;
 		q=adiff2(0.0,prop,propa);
 		xae=pow(prop->wn*(prop->gme*prop->gme),-THIRD);  
 		d3=max(propa->dlsa,1.3787*xae+propa->dla);
@@ -1671,10 +1740,9 @@ double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *pro
 	return avarv;
 }
 
-// Used only with ITM 1.2.2
+/* Used only with ITM 1.2.2 */
 void hzns(double pfl[], prop_type *prop)
 {
-	/* Used only with ITM 1.2.2 */
 	bool wq;
 	int np;
 	double xi, za, zb, qc, q, sb, sa;
@@ -1812,10 +1880,9 @@ void hzns2(double pfl[], prop_type *prop)
 	prop->rph=pfl[rp];
 }
 
-// Used only with ITM 1.2.2
+/* Used only with ITM 1.2.2 */
 void z1sq1 (double z[], const double x1, const double x2, double *z0, double *zn)
 {
-	/* Used only with ITM 1.2.2 */
 	double xn, xa, xb, x, a, b;
 	int n, ja, jb;
 
@@ -1964,7 +2031,7 @@ double qtile (const int nn, double a[], const int ir)
 	return q;
 }
 
-// Used only with ITM 1.2.2
+/* Used only with ITM 1.2.2 */
 double qerf(const double z)
 {
 	double b1=0.319381530, b2=-0.356563782, b3=1.781477937;
@@ -1989,7 +2056,7 @@ double qerf(const double z)
 	return qerfv;
 }
 
-// Used only with ITM 1.2.2
+/* Used only with ITM 1.2.2 */
 double d1thx(double pfl[], const double x1, const double x2)
 {
 	int np, ka, kb, n, k, j;
@@ -2001,7 +2068,7 @@ double d1thx(double pfl[], const double x1, const double x2)
 	xb=x2/pfl[1];
 	d1thxv=0.0;
 
-	if (xb-xa<2.0)  // exit out
+	if (xb-xa<2.0)
 		return d1thxv;
 
 	ka=(int)(0.1*(xb-xa+8.0));
@@ -2057,7 +2124,7 @@ double d1thx2(double pfl[], const double x1, const double x2)
 	xb=x2/pfl[1];
 	d1thx2v=0.0;
 
-	if (xb-xa<2.0)  // exit out
+	if (xb-xa<2.0)
 		return d1thx2v;
 
 	ka=(int)(0.1*(xb-xa+8.0));
@@ -2072,7 +2139,7 @@ double d1thx2(double pfl[], const double x1, const double x2)
 	s[1]=1.0;
 	xb=(xb-xa)/sn;
 	k=(trunc(xa+1.0));
-	xc=xa-(double(k));
+	xc=xa-((double)k);
 	
 	for (j=0; j<n; j++)
 	{
@@ -2102,7 +2169,7 @@ double d1thx2(double pfl[], const double x1, const double x2)
 	return d1thx2v;
 }
 
-// Used only with ITM 1.2.2
+/* Used only with ITM 1.2.2 */
 void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
 {
 	int np, j;
@@ -2254,7 +2321,7 @@ void qlrpfl2(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *p
 		rae2=0.0;
 		}
 
-		prop->thera=atan(abs(rae2-rae1)/prop->dist);
+		prop->thera=atan(fabs(rae2-rae1)/prop->dist);
 		
 		if (rae2<rae1)	
 		{
@@ -2284,9 +2351,9 @@ void qlrpfl2(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *p
 }
 
 
-//***************************************************************************************
-//* Point-To-Point Mode Calculations 
-//***************************************************************************************
+/***************************************************************************************
+ * Point-To-Point Mode Calculations 
+***************************************************************************************/
 
 
 void point_to_point_ITM(double elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
@@ -2321,9 +2388,9 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 
 *****************************************************************************/
 {
-	prop_type   prop;
-	propv_type  propv;
-	propa_type  propa;
+	prop_type   prop = {0};
+	propv_type  propv = {0};
+	propa_type  propa = {0};
 	double zsys=0;
 	double zc, zr;
 	double eno, enso, q;
@@ -2385,8 +2452,6 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 	*errnum=prop.kwx;
 }
 
-// used
-
 void point_to_point(double elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
 
 /******************************************************************************
@@ -2443,9 +2508,9 @@ void point_to_point(double elev[], double tht_m, double rht_m, double eps_dielec
 
 *****************************************************************************/
 {
-	prop_type   prop;
-	propv_type  propv;
-	propa_type  propa;
+	prop_type   prop = {0};
+	propv_type  propv = {0};
+	propa_type  propa = {0};
 
 	double zsys=0;
 	double zc, zr;
@@ -2560,9 +2625,9 @@ void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
 *************************************************************************************************/
 {
 
-  prop_type   prop;
-  propv_type  propv;
-  propa_type  propa;
+  prop_type   prop = {0};
+  propv_type  propv = {0};
+  propa_type  propa = {0};
   double zsys=0;
   double ztime, zloc, zconf;
   double eno, enso, q;
@@ -2570,7 +2635,7 @@ void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
   /* double dkm, xkm; */
   double fs;
 
-  *propmode = -1;  // mode is undefined
+  *propmode = -1;  /* mode is undefined */
   prop.hg[0] = tht_m;   
   prop.hg[1] = rht_m;
   propv.klim = radio_climate;
@@ -2618,18 +2683,18 @@ void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
   *deltaH = prop.dh;
   q = prop.dist - propa.dla;
   if(trunc(q)<0.0)
-    *propmode = 0;  // L-of-S 
+    *propmode = 0;  /* L-of-S  */
   else
     { if(trunc(q)==0.0)
-        *propmode = 4;  // 1-Hrzn
+        *propmode = 4;  /* 1-Hrzn */
       else if(trunc(q)>0.0)
-        *propmode = 8;  // 2-Hrzn
+        *propmode = 8;  /* 2-Hrzn */
       if(prop.dist<=propa.dlsa || prop.dist<=propa.dx)
-        *propmode += 1; // Diff
+        *propmode += 1; /* Diff */
       else if(prop.dist>propa.dx)
-        *propmode += 2; // Tropo
+        *propmode += 2; /* Tropo */
     }
-  *dbloss = avar(ztime, zloc, zconf, &prop, &propv) + fs;      //avar(time,location,confidence)
+  *dbloss = avar(ztime, zloc, zconf, &prop, &propv) + fs;      /*avar(time,location,confidence) */
   *errnum = prop.kwx;
 }
 
@@ -2658,9 +2723,9 @@ void point_to_pointDH (double elev[], double tht_m, double rht_m,
 {
 
   char strmode[100];
-  prop_type   prop;
-  propv_type  propv;
-  propa_type  propa;
+  prop_type   prop = {0};
+  propv_type  propv = {0};
+  propa_type  propa = {0};
   double zsys=0;
   double zc, zr;
   double eno, enso, q;
@@ -2723,43 +2788,45 @@ void point_to_pointDH (double elev[], double tht_m, double rht_m,
       else if(prop.dist>propa.dx)
         strcat(strmode, ", Troposcatter Dominant");
     }
-  *dbloss = avar(zr,0.0,zc,&prop,&propv)+fs;      //avar(time,location,confidence)
+  *dbloss = avar(zr,0.0,zc,&prop,&propv)+fs;      /*avar(time,location,confidence) */
   *errnum = prop.kwx;
 }
 
 
-//********************************************************
-//* Area Mode Calculations                               *
-//********************************************************
+/********************************************************
+ * Area Mode Calculations                               *
+ ********************************************************/
 
 void area(long ModVar, double deltaH, double tht_m, double rht_m, double dist_km, int TSiteCriteria, int RSiteCriteria, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double enc_ncc_clcref, double clutter_height, double clutter_density, double delta_h_diff, double frq_mhz, int radio_climate, int pol, int mode_var,
 double pctTime, double pctLoc, double pctConf, double *dbloss, char *strmode, int *errnum)
 {
-	// pol: 0-Horizontal, 1-Vertical
-	// TSiteCriteria, RSiteCriteria:
-	//		   0 - random, 1 - careful, 2 - very careful
+/*************************************************************************************************
+	pol: 0-Horizontal, 1-Vertical
+	TSiteCriteria, RSiteCriteria:
+		   0 - random, 1 - careful, 2 - very careful
 
-	// radio_climate: 1-Equatorial, 2-Continental Subtropical, 3-Maritime Tropical,
-	//                4-Desert, 5-Continental Temperate, 6-Maritime Temperate, Over Land,
-	//                7-Maritime Temperate, Over Sea
-	// ModVar: 0 - Single: pctConf is "Time/Situation/Location", pctTime, pctLoc not used
-    //         1 - Individual: pctTime is "Situation/Location", pctConf is "Confidence", pctLoc not used
-    //         2 - Mobile: pctTime is "Time/Locations (Reliability)", pctConf is "Confidence", pctLoc not used
-    //         3 - Broadcast: pctTime is "Time", pctLoc is "Location", pctConf is "Confidence"
-	// pctTime, pctLoc, pctConf: .01 to .99
-	// errnum: 0- No Error.
-	//         1- Warning: Some parameters are nearly out of range.
-	//                     Results should be used with caution.
-	//         2- Note: Default parameters have been substituted for impossible ones.
-	//         3- Warning: A combination of parameters is out of range.
-	//                     Results are probably invalid.
-	//         Other-  Warning: Some parameters are out of range.
-	//                          Results are probably invalid.
-	// NOTE: strmode is not used at this time.
+	radio_climate: 1-Equatorial, 2-Continental Subtropical, 3-Maritime Tropical,
+	               4-Desert, 5-Continental Temperate, 6-Maritime Temperate, Over Land,
+	               7-Maritime Temperate, Over Sea
+	ModVar: 0 - Single: pctConf is "Time/Situation/Location", pctTime, pctLoc not used
+            1 - Individual: pctTime is "Situation/Location", pctConf is "Confidence", pctLoc not used
+            2 - Mobile: pctTime is "Time/Locations (Reliability)", pctConf is "Confidence", pctLoc not used
+            3 - Broadcast: pctTime is "Time", pctLoc is "Location", pctConf is "Confidence"
+	pctTime, pctLoc, pctConf: .01 to .99
+	errnum: 0- No Error.
+	        1- Warning: Some parameters are nearly out of range.
+	                    Results should be used with caution.
+	        2- Note: Default parameters have been substituted for impossible ones.
+	        3- Warning: A combination of parameters is out of range.
+	                    Results are probably invalid.
+	        Other-  Warning: Some parameters are out of range.
+	                         Results are probably invalid.
+	NOTE: strmode is not used at this time.
+*************************************************************************************************/
 
-	prop_type prop;
-	propv_type propv;
-	propa_type propa;
+	prop_type prop = {0};
+	propv_type propv = {0};
+	propa_type propa = {0};
 	double zt, zl, zc, xlb;
 	double fs;
 	long ivar;

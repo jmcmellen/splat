@@ -193,6 +193,8 @@ typedef struct Region { unsigned char color[32][3];
 	      }	Region;
 Region region;
 
+#ifdef __cplusplus
+extern "C" {
 void point_to_point(double elev[], double tht_m, double rht_m,
 	  double eps_dielect, double sgm_conductivity, double eno_ns_surfref,
 	  double frq_mhz, int radio_climate, int pol, double conf,
@@ -204,6 +206,8 @@ void point_to_point_ITM(double elev[], double tht_m, double rht_m,
 	  double rel, double *dbloss, char *strmode, int *errnum);
 
 double ITWOMVersion();
+}
+#endif
 
 int interpolate(int y0, int y1, int x0, int x1, int n)
 {
@@ -1799,7 +1803,7 @@ int LoadSDF_SDF(char *name)
 
 			else
 			{
-				if (fabs(dem[indx].min_west-min_west)<180.0)
+				if (abs(dem[indx].min_west-min_west)<180)
 				{
  					if (dem[indx].min_west<min_west)
 						min_west=dem[indx].min_west;
