@@ -32,7 +32,7 @@
 
 #include <chrono>
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
 #include "workqueue.hpp"
 #endif
 
@@ -109,7 +109,7 @@
     #define SPLAT_NAME_BASE "SPLAT!"
 #endif
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
     #define SPLAT_NAME SPLAT_NAME_BASE " (MT)"
 #else
     #define SPLAT_NAME SPLAT_NAME_BASE
@@ -3099,7 +3099,7 @@ void PlotLOSMap(Site source, double altitude)
 	minwest=dpp+(double)min_west;
 	maxnorth=(double)max_north-dpp;
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
     // Create a work queue
     WorkQueue wq;
 #endif
@@ -3113,7 +3113,7 @@ void PlotLOSMap(Site source, double altitude)
 		edge.lon=lon;
 		edge.alt=altitude;
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
         wq.submit(std::bind(PlotPath, source, edge, mask_value));
 #else
 		PlotPath(source,edge,mask_value);
@@ -3145,7 +3145,7 @@ void PlotLOSMap(Site source, double altitude)
 		edge.lon=min_west;
 		edge.alt=altitude;
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
         wq.submit(std::bind(PlotPath, source, edge, mask_value));
 #else
 		PlotPath(source,edge,mask_value);
@@ -3180,7 +3180,7 @@ void PlotLOSMap(Site source, double altitude)
 		edge.lon=lon;
 		edge.alt=altitude;
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
         wq.submit(std::bind(PlotPath, source, edge, mask_value));
 #else
 		PlotPath(source,edge,mask_value);
@@ -3212,7 +3212,7 @@ void PlotLOSMap(Site source, double altitude)
 		edge.lon=max_west;
 		edge.alt=altitude;
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
         wq.submit(std::bind(PlotPath, source, edge, mask_value));
 #else
 		PlotPath(source,edge,mask_value);
@@ -3232,7 +3232,7 @@ void PlotLOSMap(Site source, double altitude)
 		}
 	}
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
     wq.waitForCompletion();
 #endif
 
@@ -3325,7 +3325,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
     // Create a work queue
     WorkQueue wq;
 #endif
@@ -3339,7 +3339,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		edge.lon=lon;
 		edge.alt=altitude;
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
         wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
 #else
 		PlotLRPath(source,edge,mask_value,fd);
@@ -3371,7 +3371,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		edge.lon=min_west;
 		edge.alt=altitude;
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
         wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
 #else
 		PlotLRPath(source,edge,mask_value,fd);
@@ -3406,7 +3406,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		edge.lon=lon;
 		edge.alt=altitude;
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
         wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
 #else
 		PlotLRPath(source,edge,mask_value,fd);
@@ -3438,7 +3438,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		edge.lon=max_west;
 		edge.alt=altitude;
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
         wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
 #else
 		PlotLRPath(source,edge,mask_value,fd);
@@ -3458,7 +3458,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		}
 	}
 
-#if USE_MT_WORKQUEUE
+#ifdef USE_MT_WORKQUEUE
     wq.waitForCompletion();
 #endif
 
