@@ -272,7 +272,7 @@ double abq_alos(tcomplex r)
  *
  * See Sid Shumate's description in ITWOM-SUB-ROUTINES.pdf
  */
-double saalos(double d, prop_type *prop)
+double saalos(double dist, prop_type *prop)
 {
 	double ensa, encca, q, dp, dx, tde, hc, ucrpc, ctip, tip, tic, stic, ctic, sta;	
 	double ttc, cttc, crpc, ssnps, d1a, rsp, tsp, arte, zi, pd, pdk, hone, tvsr;
@@ -280,7 +280,7 @@ double saalos(double d, prop_type *prop)
 	
 	q=0.0;
 
-	if (d==0.0)
+	if (dist==0.0)
 	{
 		tsp=1.0;	
 		rsp=0.0;
@@ -293,7 +293,7 @@ double saalos(double d, prop_type *prop)
 	}
 	else
 	{
-	pd=d;
+	pd=dist;
 	pdk=pd/1000.0;
 	tsp=1.0;
 	rsp=0.0;
@@ -476,12 +476,12 @@ void adiff_init(adiff_state *state, prop_type *prop, propa_type *propa)
     }
 }
 
-double adiff(adiff_state *state, double d, prop_type *prop, propa_type *propa)
+double adiff(adiff_state *state, double dist, prop_type *prop, propa_type *propa)
 {
 	double a, q, pk, ds, th, wa, ar, wd, adiffv;
 
-    th=propa->tha+d*prop->gme;
-    ds=d-propa->dla;
+    th=propa->tha+dist*prop->gme;
+    ds=dist-propa->dla;
     /* q=0.0795775*prop->wn*ds*pow(th,2.0); */
     q=0.0795775*prop->wn*ds*th*th;
     adiffv=aknfe(q*prop->dl[0]/(ds+prop->dl[0]))+aknfe(q*prop->dl[1]/(ds+prop->dl[1]));
@@ -490,7 +490,7 @@ double adiff(adiff_state *state, double d, prop_type *prop, propa_type *propa)
     pk=state->qk/wa;
     q=(1.607-pk)*151.0*wa*th+state->xht;
     ar=0.05751*q-4.343*log(q)-state->aht;
-    q=(state->wd1+state->xd1/d)*min(((1.0-0.8*exp(-d/50e3))*prop->dh*prop->wn),6283.2);
+    q=(state->wd1+state->xd1/dist)*min(((1.0-0.8*exp(-dist/50e3))*prop->dh*prop->wn),6283.2);
     wd=25.1/(25.1+sqrt(q));
     adiffv=ar*wd+(1.0-wd)*adiffv+state->afo;
 
@@ -549,7 +549,7 @@ void adiff2_init(adiff2_state *state, prop_type *prop, propa_type *propa)
     }
 }
 
-double adiff2(adiff2_state *state, double d, prop_type *prop, propa_type *propa)
+double adiff2(adiff2_state *state, double dist, prop_type *prop, propa_type *propa)
 {
     double toh, toho, roh, roho;
     double dtr, dtro, dto, dto1, dtof, dto1f;
@@ -562,8 +562,8 @@ double adiff2(adiff2_state *state, double d, prop_type *prop, propa_type *propa)
 	/* sf1=1.0; */ /* average empirical hilltop foliage scatter factor for 1 obstruction  */
 	sf2=1.0;  /* average empirical hilltop foliage scatter factor for 2 obstructions */
 	
-    dsl=max(d-propa->dla,0.0);
-    ds=d-propa->dla;
+    dsl=max(dist-propa->dla,0.0);
+    ds=dist-propa->dla;
     toh=prop->hht-(prop->rch[0]-prop->dl[0]*((prop->rch[1]-prop->rch[0])/prop->dist));		
     roh=prop->hhr-(prop->rch[0]-(prop->dist-prop->dl[1])*((prop->rch[1]-prop->rch[0])/prop->dist));		
     toho=prop->hht-(prop->rch[0]-(prop->dl[0]+dsl)*((prop->hhr-prop->rch[0])/(prop->dist-prop->dl[1])));		
@@ -608,8 +608,8 @@ double adiff2(adiff2_state *state, double d, prop_type *prop, propa_type *propa)
         if(trunc(prop->dl[1])>0.0) /* receive site past 2nd peak */
         {
                 /* knife edge vs round weighting */
-                q=(1.0-0.8*exp(-d/50e3))*prop->dh;	
-                q=(state->wd1+state->xd1/d)*min((q*prop->wn),6283.2);
+                q=(1.0-0.8*exp(-dist/50e3))*prop->dh;	
+                q=(state->wd1+state->xd1/dist)*min((q*prop->wn),6283.2);
                 /* wd=25.1/(25.1+sqrt(q)); */
 
                 q=0.6365*prop->wn;			
@@ -810,7 +810,7 @@ void ascat_init(ascat_state *state, prop_type *prop)
  * Before using, ascat_init must be called to set up the initial constants for the
  * ascat state.
  */
-double ascat(ascat_state *state, double d, prop_type *prop, propa_type *propa)
+double ascat(ascat_state *state, double dist, prop_type *prop, propa_type *propa)
 {
 	double h0, r1, r2, z0, ss, et, ett, th, q;
 	double ascatv, temp;
@@ -819,7 +819,7 @@ double ascat(ascat_state *state, double d, prop_type *prop, propa_type *propa)
         h0=state->h0s;
     else
     {
-        th=prop->the[0]+prop->the[1]+d*prop->gme;
+        th=prop->the[0]+prop->the[1]+dist*prop->gme;
         r2=2.0*prop->wn*th;
         r1=r2*prop->he[0];
         r2*=prop->he[1];
@@ -827,11 +827,11 @@ double ascat(ascat_state *state, double d, prop_type *prop, propa_type *propa)
         if (r1<0.2 && r2<0.2)
             return 1001.0;
 
-        ss=(d-(state->ad))/(d+(state->ad));
+        ss=(dist-(state->ad))/(dist+(state->ad));
         q=state->rr/ss;
         ss=max(0.1,ss);
         q=min(max(0.1,q),10.0);
-        z0=(d-(state->ad))*(d+(state->ad))*th*0.25/d;
+        z0=(dist-(state->ad))*(dist+(state->ad))*th*0.25/dist;
         /* et=(etq*exp(-pow(min(1.7,z0/8.0e3),6.0))+1.0)*z0/1.7556e3; */
 
         temp=min(1.7,z0/8.0e3);
@@ -856,9 +856,9 @@ double ascat(ascat_state *state, double d, prop_type *prop, propa_type *propa)
     }
 
     state->h0s=h0;
-    th=propa->tha+d*prop->gme;
+    th=propa->tha+dist*prop->gme;
     /* ascatv=ahd(th*d)+4.343*log(47.7*prop->wn*pow(th,4.0))-0.1*(prop->ens-301.0)*exp(-th*d/40e3)+h0; */
-    ascatv=ahd(th*d)+4.343*log(47.7*prop->wn*(th*th*th*th))-0.1*(prop->ens-301.0)*exp(-th*d/40e3)+h0;
+    ascatv=ahd(th*dist)+4.343*log(47.7*prop->wn*(th*th*th*th))-0.1*(prop->ens-301.0)*exp(-th*dist/40e3)+h0;
 	
 	return ascatv;
 }
@@ -929,17 +929,17 @@ void alos_init(alos_state *state, prop_type *prop, propa_type *propa)
  *
  */
 /* Used only with ITM 1.2.2 */
-double alos(alos_state *state, double d, prop_type *prop, propa_type *propa)
+double alos(alos_state *state, double dist, prop_type *prop, propa_type *propa)
 {
     tcomplex prop_zgnd = { prop->zgndreal, prop->zgndimag };
 	tcomplex r = { 0.0, 0.0 };
 	double s, sps, q;
 	double alosv;
 
-    q=(1.0-0.8*exp(-d/50e3))*prop->dh;
+    q=(1.0-0.8*exp(-dist/50e3))*prop->dh;
     s=0.78*q*exp(-pow(q/16.0,0.25));
     q=prop->he[0]+prop->he[1];
-    sps=q/sqrt(d*d+q*q);
+    sps=q/sqrt(dist*dist+q*q);
     /* r=(sps-prop_zgnd)/(sps+prop_zgnd)*exp(-min(10.0,prop->wn*s*sps)); */
     double numerator = sps-tcreal(prop_zgnd);
     double denominator = sps+tcreal(prop_zgnd);
@@ -951,8 +951,8 @@ double alos(alos_state *state, double d, prop_type *prop, propa_type *propa)
         r._real = r._real * sqrt(sps/q);
     }
 
-    alosv=propa->emd*d+propa->aed;
-    q=prop->wn*prop->he[0]*prop->he[1]*2.0/d;
+    alosv=propa->emd*dist+propa->aed;
+    q=prop->wn*prop->he[0]*prop->he[1]*2.0/dist;
 
     if (q>1.57)
         q=3.14-2.4649/q;
@@ -966,7 +966,7 @@ double alos(alos_state *state, double d, prop_type *prop, propa_type *propa)
 	return alosv;
 }
 
-double alos2(double d, prop_type *prop, propa_type *propa)
+double alos2(prop_type *prop, propa_type *propa)
 {
     tcomplex prop_zgnd = { prop->zgndreal, prop->zgndimag };
 	tcomplex r = { 0.0, 0.0 };
@@ -1109,8 +1109,19 @@ void qlra(int kst[], int klimx, int mdvarx, prop_type *prop, propv_type *propv)
 }
 
 
-/* Used only with ITM 1.2.2 */
-void lrprop (double d, prop_type *prop, propa_type *propa)
+/*
+ * Longley-Rice Propagation
+ *
+ * This is the PaulM version of lrprop.
+ *
+ * This was replaced by lrprop2 because no provision was made to accommodate the changes
+ * required in the computational procedure that must occur when the line-of-sight and
+ * diffraction ranges no longer gently merge, but are, instead, abruptly separated by a major
+ * obstruction.
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, page 185.
+ */
+void lrprop(double dist, prop_type *prop, propa_type *propa)
 {
 	/* PaulM_lrprop used for ITM */
 	static bool wlos, wscat;
@@ -1169,7 +1180,7 @@ void lrprop (double d, prop_type *prop, propa_type *propa)
 	if (prop->mdp>=0)
 	{
 		prop->mdp=0;
-		prop->dist=d;
+		prop->dist=dist;
 	}
 
 	if (prop->dist>0.0)
@@ -1295,7 +1306,12 @@ void lrprop (double d, prop_type *prop, propa_type *propa)
 }
 
 
-void lrprop2(double d, prop_type *prop, propa_type *propa)
+/*
+ * Longley-Rice Propagation, the updated version.
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, page 186.
+ */
+void lrprop2(double dist, prop_type *prop, propa_type *propa)
 {
 	/* ITWOM_lrprop2 */
 	static bool wlos, wscat;
@@ -1368,7 +1384,7 @@ void lrprop2(double d, prop_type *prop, propa_type *propa)
 	if (prop->mdp>=0) /* if initializing the area mode */
 	{
 		prop->mdp=0;   /* area mode is initialized */
-		prop->dist=d;
+		prop->dist=dist;
 	}
 
 	if (prop->dist>0.0)
@@ -1410,13 +1426,13 @@ void lrprop2(double d, prop_type *prop, propa_type *propa)
 					{
 						d1=max(-propa->aed/propa->emd,0.25*propa->dla);
 					}
-					a1=alos2(d1,prop,propa);
+					a1=alos2(prop,propa);
 					wq=false;
 
 					if (d0<d1)
 					{
-						a0=alos2(d0,prop,propa);
-						a2=min(a2,alos2(d2,prop,propa));
+						a0=alos2(prop,propa);
+						a2=min(a2,alos2(prop,propa));
 						q=log(d2/d0);
 			propa->ak2=max(0.0,((d2-d0)*(a1-a0)-(d1-d0)*(a2-a0))/((d2-d0)*log(d1/d0)-(d1-d0)*q));
 						wq=propa->aed>=0.0 || propa->ak2>0.0;
@@ -1455,19 +1471,19 @@ void lrprop2(double d, prop_type *prop, propa_type *propa)
 
 			if (!wlos)
 			{
-				q=alos2(0.0,prop,propa); /* coefficient setup */	
+				q=alos2(prop,propa); /* coefficient setup */	
 				wlos=true;
 			}
 
 			if (prop->los==1)	/* if line of sight */
 			{
-				prop->aref=alos2(pd1,prop,propa);
+				prop->aref=alos2(prop,propa);
 			}
 			else
 			{			
 			 	if (trunc(prop->dist-prop->dl[0])==0)  /* if at 1st horiz */
 				{
-				prop->aref=5.8+alos2(pd1,prop,propa);
+                    prop->aref=5.8+alos2(prop,propa);
 				}
 				else if (trunc(prop->dist-prop->dl[0])>0.0)    /* if past 1st horiz */
 				{
@@ -1476,7 +1492,7 @@ void lrprop2(double d, prop_type *prop, propa_type *propa)
 				}			
 				else
 				{
-				prop->aref=1.0;
+                    prop->aref=1.0;
 				}
 
 			}
@@ -2206,7 +2222,13 @@ double d1thx2(double pfl[], const double x1, const double x2)
 	return d1thx2v;
 }
 
-/* Used only with ITM 1.2.2 */
+/*
+ * qlrpfl()
+ *
+ * Quick Longley-Rice Profile
+ *
+ * See ITWOM-SUB-ROUTINES.pdf p233
+ */
 void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
 {
 	int np, j;
@@ -2279,6 +2301,14 @@ void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *pr
 	lrprop(0.0,prop,propa);
 }
 
+
+/*
+ * qlrpfl2()
+ *
+ * Quick Longley-Rice Profile
+ *
+ * See ITWOM-SUB-ROUTINES.pdf p247
+ */
 void qlrpfl2(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
 {
 	int np, j;
@@ -2393,11 +2423,10 @@ void qlrpfl2(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *p
 ***************************************************************************************/
 
 
-void point_to_point_ITM(double elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
-
 /******************************************************************************
+    point_to_point_ITM()
 
-Note that point_to_point has become point_to_point_ITM for use as the old ITM 
+    Note that point_to_point has become point_to_point_ITM for use as the old ITM 
 
 	pol:
 		0-Horizontal, 1-Vertical
@@ -2424,6 +2453,8 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 			Results are probably invalid.
 
 *****************************************************************************/
+void point_to_point_ITM(double elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
+
 {
 	prop_type   prop = {0};
 	propv_type  propv = {0};
@@ -2489,9 +2520,9 @@ Note that point_to_point has become point_to_point_ITM for use as the old ITM
 	*errnum=prop.kwx;
 }
 
-void point_to_point(double elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
 
 /******************************************************************************
+    point_to_point()
 
 	Note that point_to_point_two has become point_to_point 
 	for drop-in interface to splat.cpp.  
@@ -2544,6 +2575,7 @@ void point_to_point(double elev[], double tht_m, double rht_m, double eps_dielec
 			Results are probably invalid.
 
 *****************************************************************************/
+void point_to_point(double elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
 {
 	prop_type   prop = {0};
 	propv_type  propv = {0};
@@ -2630,14 +2662,9 @@ void point_to_point(double elev[], double tht_m, double rht_m, double eps_dielec
 }
 
 
-void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
-          double eps_dielect, double sgm_conductivity, double eno_ns_surfref, 
-	  double enc_ncc_clcref, double clutter_height, double clutter_density, 
-	  double delta_h_diff, double frq_mhz, int radio_climate, int pol, int mode_var, 
-	  double timepct, double locpct, double confpct, 
-	  double *dbloss, int *propmode, double *deltaH, int *errnum)
-
 /*************************************************************************************************
+     point_to_pointMDH_two()
+
 	 pol: 0-Horizontal, 1-Vertical
 	 radio_climate: 1-Equatorial, 2-Continental Subtropical, 3-Maritime Tropical,
 	                4-Desert, 5-Continental Temperate, 6-Maritime Temperate, Over Land,
@@ -2660,6 +2687,13 @@ void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
 	         Other-  Warning: Some parameters are out of range.
 	                          Results are probably invalid.
 *************************************************************************************************/
+void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
+          double eps_dielect, double sgm_conductivity, double eno_ns_surfref, 
+	  double enc_ncc_clcref, double clutter_height, double clutter_density, 
+	  double delta_h_diff, double frq_mhz, int radio_climate, int pol, int mode_var, 
+	  double timepct, double locpct, double confpct, 
+	  double *dbloss, int *propmode, double *deltaH, int *errnum)
+
 {
 
   prop_type   prop = {0};
@@ -2735,20 +2769,17 @@ void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
   *errnum = prop.kwx;
 }
 
-void point_to_pointDH (double elev[], double tht_m, double rht_m, 
-		  double eps_dielect, double sgm_conductivity, double eno_ns_surfref,
-		  double enc_ncc_clcref, double clutter_height, double clutter_density, 
-		  double delta_h_diff, double frq_mhz, int radio_climate, int pol, 
-		  double conf, double rel, double loc,double *dbloss, double *deltaH,
-		  int *errnum)
+
 /*************************************************************************************************
-	 pol: 0-Horizontal, 1-Vertical
-	 radio_climate: 1-Equatorial, 2-Continental Subtropical, 3-Maritime Tropical,
+    point_to_pointDH()
+
+	pol: 0-Horizontal, 1-Vertical
+	radio_climate: 1-Equatorial, 2-Continental Subtropical, 3-Maritime Tropical,
 	                4-Desert, 5-Continental Temperate, 6-Maritime Temperate, Over Land,
 	                7-Maritime Temperate, Over Sea
-	 conf, rel: .01 to .99
-	 elev[]: [num points - 1], [delta dist(meters)], [height(meters) point 1], ..., [height(meters) point n]
-	 errnum: 0- No Error.
+	conf, rel: .01 to .99
+	elev[]: [num points - 1], [delta dist(meters)], [height(meters) point 1], ..., [height(meters) point n]
+	errnum: 0- No Error.
 	         1- Warning: Some parameters are nearly out of range.
 	                     Results should be used with caution.
 	         2- Note: Default parameters have been substituted for impossible ones.
@@ -2757,6 +2788,12 @@ void point_to_pointDH (double elev[], double tht_m, double rht_m,
 	         Other-  Warning: Some parameters are out of range.
 	                          Results are probably invalid.
 *************************************************************************************************/
+void point_to_pointDH (double elev[], double tht_m, double rht_m, 
+		  double eps_dielect, double sgm_conductivity, double eno_ns_surfref,
+		  double enc_ncc_clcref, double clutter_height, double clutter_density, 
+		  double delta_h_diff, double frq_mhz, int radio_climate, int pol, 
+		  double conf, double rel, double loc,double *dbloss, double *deltaH,
+		  int *errnum)
 {
 
   char strmode[100];
@@ -2834,10 +2871,9 @@ void point_to_pointDH (double elev[], double tht_m, double rht_m,
  * Area Mode Calculations                               *
  ********************************************************/
 
-void area(long ModVar, double deltaH, double tht_m, double rht_m, double dist_km, int TSiteCriteria, int RSiteCriteria, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double enc_ncc_clcref, double clutter_height, double clutter_density, double delta_h_diff, double frq_mhz, int radio_climate, int pol, int mode_var,
-double pctTime, double pctLoc, double pctConf, double *dbloss, char *strmode, int *errnum)
-{
 /*************************************************************************************************
+    area()
+
 	pol: 0-Horizontal, 1-Vertical
 	TSiteCriteria, RSiteCriteria:
 		   0 - random, 1 - careful, 2 - very careful
@@ -2860,6 +2896,9 @@ double pctTime, double pctLoc, double pctConf, double *dbloss, char *strmode, in
 	                         Results are probably invalid.
 	NOTE: strmode is not used at this time.
 *************************************************************************************************/
+void area(long ModVar, double deltaH, double tht_m, double rht_m, double dist_km, int TSiteCriteria, int RSiteCriteria, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double enc_ncc_clcref, double clutter_height, double clutter_density, double delta_h_diff, double frq_mhz, int radio_climate, int pol, int mode_var,
+double pctTime, double pctLoc, double pctConf, double *dbloss, char *strmode, int *errnum)
+{
 
 	prop_type prop = {0};
 	propv_type propv = {0};
