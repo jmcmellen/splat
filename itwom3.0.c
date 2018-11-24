@@ -43,7 +43,7 @@
 #include <stdbool.h>
 
 
-typedef struct prop_type_st
+typedef struct prop_type
 {	double aref;
 	double dist;
 	double hg[2];
@@ -78,14 +78,14 @@ typedef struct prop_type_st
 	int los;
 } prop_type;
 
-typedef struct propv_type_st
+typedef struct propv_type
 {	double sgc;
 	int lvar;
 	int mdvar;
 	int klim;
 } propv_type;
 
-typedef struct propa_type_st
+typedef struct propa_type
 {	double dlsa;
 	double dx;
 	double ael;
@@ -427,7 +427,7 @@ double saalos(double d, prop_type *prop)
 	return saalosv;
 }
 
-typedef struct adiff_state_st
+typedef struct adiff_state
 {
 	double wd1;
     double xd1;
@@ -490,7 +490,7 @@ double adiff(adiff_state *state, double d, prop_type *prop, propa_type *propa)
 	return adiffv;
 }
 
-typedef struct adiff2_state_st {
+typedef struct adiff2_state {
 	double wd1;
     double xd1;
     double qk;
@@ -767,75 +767,91 @@ double adiff2(adiff2_state *state, double d, prop_type *prop, propa_type *propa)
 	return adiffv2;
 }
 
-double ascat( double d, prop_type *prop, propa_type *propa)
+typedef struct ascat_state {
+    double ad;
+    double rr;
+    double etq;
+    double h0s;
+} ascat_state;
+
+/* Initialize state variables for ascat() below.
+ *
+ * Before using, ascat_init must be called to set up the initial constants for the
+ * ascat state.
+ */
+void ascat_init(ascat_state *state, prop_type *prop)
 {
-	static double ad, rr, etq, h0s;
+    state->ad=prop->dl[0]-prop->dl[1];
+    state->rr=prop->he[1]/prop->rch[0];
+
+    if (state->ad<0.0)
+    {
+        state->ad=-state->ad;
+        state->rr=1.0/state->rr;
+    }
+
+    state->etq=(5.67e-6*prop->ens-2.32e-3)*prop->ens+0.031;
+    state->h0s=-15.0;
+}
+
+/* Attenuation From Scatter
+ *
+ * The function ascat finds the "scatter attenuation" for the path distance d. It uses an
+ * approximation to the methods of NBS TN101 with checks for inadmissible situations.
+ * For proper operation, the larger distance (d = d6 must be the first called).
+ *
+ * Before using, ascat_init must be called to set up the initial constants for the
+ * ascat state.
+ */
+double ascat(ascat_state *state, double d, prop_type *prop, propa_type *propa)
+{
 	double h0, r1, r2, z0, ss, et, ett, th, q;
 	double ascatv, temp;
 
-	if (d==0.0)
-	{
-		ad=prop->dl[0]-prop->dl[1];
-		rr=prop->he[1]/prop->rch[0];
+    if (state->h0s>15.0)
+        h0=state->h0s;
+    else
+    {
+        th=prop->the[0]+prop->the[1]+d*prop->gme;
+        r2=2.0*prop->wn*th;
+        r1=r2*prop->he[0];
+        r2*=prop->he[1];
 
-		if (ad<0.0)
-		{
-			ad=-ad;
-			rr=1.0/rr;
-		}
+        if (r1<0.2 && r2<0.2)
+            return 1001.0;
 
-		etq=(5.67e-6*prop->ens-2.32e-3)*prop->ens+0.031;
-		h0s=-15.0;
-		ascatv=0.0;
-	}
+        ss=(d-(state->ad))/(d+(state->ad));
+        q=state->rr/ss;
+        ss=max(0.1,ss);
+        q=min(max(0.1,q),10.0);
+        z0=(d-(state->ad))*(d+(state->ad))*th*0.25/d;
+        /* et=(etq*exp(-pow(min(1.7,z0/8.0e3),6.0))+1.0)*z0/1.7556e3; */
 
-	else
-	{
-		if (h0s>15.0)
-			h0=h0s;
-		else
-		{
-			th=prop->the[0]+prop->the[1]+d*prop->gme;
-			r2=2.0*prop->wn*th;
-			r1=r2*prop->he[0];
-			r2*=prop->he[1];
+        temp=min(1.7,z0/8.0e3);
+        temp=temp*temp*temp*temp*temp*temp;
+        et=(state->etq*exp(-temp)+1.0)*z0/1.7556e3;
 
-			if (r1<0.2 && r2<0.2)
-				return 1001.0;
+        ett=max(et,1.0);
+        h0=(h0f(r1,ett)+h0f(r2,ett))*0.5;
+        h0+=min(h0,(1.38-log(ett))*log(ss)*log(q)*0.49);
+        h0=FORTRAN_DIM(h0,0.0);
 
-			ss=(d-ad)/(d+ad);
-			q=rr/ss;
-			ss=max(0.1,ss);
-			q=min(max(0.1,q),10.0);
-			z0=(d-ad)*(d+ad)*th*0.25/d;
-			/* et=(etq*exp(-pow(min(1.7,z0/8.0e3),6.0))+1.0)*z0/1.7556e3; */
+        if (et<1.0)
+        {
+            /* h0=et*h0+(1.0-et)*4.343*log(pow((1.0+1.4142/r1)*(1.0+1.4142/r2),2.0)*(r1+r2)/(r1+r2+2.8284)); */
 
-			temp=min(1.7,z0/8.0e3);
-			temp=temp*temp*temp*temp*temp*temp;
-			et=(etq*exp(-temp)+1.0)*z0/1.7556e3;
+            temp=((1.0+1.4142/r1)*(1.0+1.4142/r2));
+            h0=et*h0+(1.0-et)*4.343*log((temp*temp)*(r1+r2)/(r1+r2+2.8284));
+        }
 
-			ett=max(et,1.0);
-			h0=(h0f(r1,ett)+h0f(r2,ett))*0.5;
-			h0+=min(h0,(1.38-log(ett))*log(ss)*log(q)*0.49);
-			h0=FORTRAN_DIM(h0,0.0);
+        if (h0>15.0 && state->h0s>=0.0)
+            h0=state->h0s;
+    }
 
-			if (et<1.0)
-			{
-				/* h0=et*h0+(1.0-et)*4.343*log(pow((1.0+1.4142/r1)*(1.0+1.4142/r2),2.0)*(r1+r2)/(r1+r2+2.8284)); */
-
-				temp=((1.0+1.4142/r1)*(1.0+1.4142/r2));
-				h0=et*h0+(1.0-et)*4.343*log((temp*temp)*(r1+r2)/(r1+r2+2.8284));
-			}
-
-			if (h0>15.0 && h0s>=0.0)
-				h0=h0s;
-		}
-
-		h0s=h0;
-		th=propa->tha+d*prop->gme;
-		/* ascatv=ahd(th*d)+4.343*log(47.7*prop->wn*pow(th,4.0))-0.1*(prop->ens-301.0)*exp(-th*d/40e3)+h0; */
-		ascatv=ahd(th*d)+4.343*log(47.7*prop->wn*(th*th*th*th))-0.1*(prop->ens-301.0)*exp(-th*d/40e3)+h0;
-	}
+    state->h0s=h0;
+    th=propa->tha+d*prop->gme;
+    /* ascatv=ahd(th*d)+4.343*log(47.7*prop->wn*pow(th,4.0))-0.1*(prop->ens-301.0)*exp(-th*d/40e3)+h0; */
+    ascatv=ahd(th*d)+4.343*log(47.7*prop->wn*(th*th*th*th))-0.1*(prop->ens-301.0)*exp(-th*d/40e3)+h0;
 	
 	return ascatv;
 }
@@ -1236,11 +1252,13 @@ void lrprop (double d, prop_type *prop, propa_type *propa)
 	{
 		if(!wscat)
 		{ 
-			q=ascat(0.0,prop,propa);
+            ascat_state scatterstate = {0};
+            ascat_init(&scatterstate, prop);
+
 			d5=propa->dla+200e3;
 			d6=d5+200e3;
-			a6=ascat(d6,prop,propa);
-			a5=ascat(d5,prop,propa);
+			a6=ascat(&scatterstate, d6,prop,propa);
+			a5=ascat(&scatterstate, d5,prop,propa);
 
 			if (a5<1000.0)
 			{
@@ -1465,11 +1483,13 @@ void lrprop2(double d, prop_type *prop, propa_type *propa)
 		{
 			if(!wscat)
 			{ 
-				q=ascat(0.0,prop,propa);
+                ascat_state scatterstate = {0};
+                ascat_init(&scatterstate, prop);
+
 				d5=propa->dla+200e3;
 				d6=d5+200e3;
-				a6=ascat(d6,prop,propa);
-				a5=ascat(d5,prop,propa);
+				a6=ascat(&scatterstate, d6,prop,propa);
+				a5=ascat(&scatterstate, d5,prop,propa);
 			
 				if (a5<1000.0)
 				{
@@ -1503,8 +1523,10 @@ void lrprop2(double d, prop_type *prop, propa_type *propa)
 			{ 
 				d5=0.0;
 				d6=0.0;
-				q=ascat(0.0,prop,propa);
-				a6=ascat(pd1,prop,propa);
+                ascat_state scatterstate = {0};
+                ascat_init(&scatterstate, prop);
+
+				a6=ascat(&scatterstate, pd1,prop,propa);
 
                 adiff2_init(&state, prop, propa);
 				a5=adiff2(&state, pd1,prop,propa);
@@ -1519,7 +1541,8 @@ void lrprop2(double d, prop_type *prop, propa_type *propa)
 					propa->dx=propa->dlsa;
 					prop->aref=a6;
 				}
-			wscat=true;
+
+                wscat=true;
 			}			
 		}
 	}
@@ -1548,6 +1571,7 @@ double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *pro
 		gm, gp, cv1, cv2, yv1, yv2, yv3, csm1, csm2, ysm1, ysm2,
 		ysm3, csp1, csp2, ysp1, ysp2, ysp3, csd1, zd, cfm1, cfm2,
 		cfm3, cfp1, cfp2, cfp3;
+	static bool ws, w1;
 
 	double bv1[7]={-9.67,-0.62,1.26,-9.21,-0.62,-0.39,3.15};
 	double bv2[7]={12.7,9.19,15.5,9.05,9.19,2.86,857.9};
@@ -1572,7 +1596,6 @@ double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *pro
 	double bfp1[7]={1.0,0.93,1.0,0.93,0.93,1.0,1.0};
 	double bfp2[7]={0.0,0.31,0.0,0.19,0.31,0.0,0.0};
 	double bfp3[7]={0.0,2.00,0.0,1.79,2.00,0.0,0.0};
-	static bool ws, w1;
 	double rt=7.8, rl=24.0, avarv, q, vs, zt, zl, zc;
 	double sgt, yr, temp1, temp2;
 	int temp_klim=propv->klim-1;
