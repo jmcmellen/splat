@@ -265,6 +265,13 @@ double abq_alos(tcomplex r)
     return tcreal(r)*tcreal(r) + tcimag(r)*tcimag(r);
 }
 
+/* saalos()
+ *
+ * Shumate's Approximations of Attenuation in the Line Of Sight prior to
+ * an obstruction.
+ *
+ * See Sid Shumate's description in ITWOM-SUB-ROUTINES.pdf
+ */
 double saalos(double d, prop_type *prop)
 {
 	double ensa, encca, q, dp, dx, tde, hc, ucrpc, ctip, tip, tic, stic, ctic, sta;	
@@ -905,51 +912,57 @@ void qlrps(double fmhz, double zsys, double en0, int ipol, double eps, double sg
 	prop->zgndimag=tcimag(prop_zgnd);
 }
 
+
+typedef struct alos_state {
+    double wls;
+} alos_state;
+
+void alos_init(alos_state *state, prop_type *prop, propa_type *propa)
+{
+    state->wls=0.021/(0.021+prop->wn*prop->dh/max(10e3,propa->dlsa));
+}
+
+/*
+ * alos()
+ *
+ * Attenuation, Line Of Sight
+ *
+ */
 /* Used only with ITM 1.2.2 */
-double alos(double d, prop_type *prop, propa_type *propa)
+double alos(alos_state *state, double d, prop_type *prop, propa_type *propa)
 {
     tcomplex prop_zgnd = { prop->zgndreal, prop->zgndimag };
-	static double wls;
 	tcomplex r = { 0.0, 0.0 };
 	double s, sps, q;
 	double alosv;
 
-	if (d==0.0)
-	{
-		wls=0.021/(0.021+prop->wn*prop->dh/max(10e3,propa->dlsa));
-		alosv=0.0;
-	}
+    q=(1.0-0.8*exp(-d/50e3))*prop->dh;
+    s=0.78*q*exp(-pow(q/16.0,0.25));
+    q=prop->he[0]+prop->he[1];
+    sps=q/sqrt(d*d+q*q);
+    /* r=(sps-prop_zgnd)/(sps+prop_zgnd)*exp(-min(10.0,prop->wn*s*sps)); */
+    double numerator = sps-tcreal(prop_zgnd);
+    double denominator = sps+tcreal(prop_zgnd);
+    r._real = (numerator / denominator) * exp(-min(10.0,prop->wn*s*sps));
+    q=abq_alos(r);
 
-	else
-	{
-		q=(1.0-0.8*exp(-d/50e3))*prop->dh;
-		s=0.78*q*exp(-pow(q/16.0,0.25));
-		q=prop->he[0]+prop->he[1];
-		sps=q/sqrt(d*d+q*q);
-        /* r=(sps-prop_zgnd)/(sps+prop_zgnd)*exp(-min(10.0,prop->wn*s*sps)); */
-        double numerator = sps-tcreal(prop_zgnd);
-        double denominator = sps+tcreal(prop_zgnd);
-        r._real = (numerator / denominator) * exp(-min(10.0,prop->wn*s*sps));
-		q=abq_alos(r);
+    if (q<0.25 || q<sps) {
+        /* r=r*sqrt(sps/q); */
+        r._real = r._real * sqrt(sps/q);
+    }
 
-		if (q<0.25 || q<sps) {
-            /* r=r*sqrt(sps/q); */
-			r._real = r._real * sqrt(sps/q);
-        }
+    alosv=propa->emd*d+propa->aed;
+    q=prop->wn*prop->he[0]*prop->he[1]*2.0/d;
 
-		alosv=propa->emd*d+propa->aed;
-		q=prop->wn*prop->he[0]*prop->he[1]*2.0/d;
+    if (q>1.57)
+        q=3.14-2.4649/q;
 
-		if (q>1.57)
-			q=3.14-2.4649/q;
+    /*alosv=(-4.343*log(abq_alos(complex<double>(cos(q),-sin(q))+r))-alosv)*wls+alosv; */
+    tcomplex val = { cos(q) , -sin(q) };
+    val._real += r._real;
+    val._imag += r._imag;
+    alosv=(-4.343*log(abq_alos(val))-alosv)*(state->wls)+alosv;
 
-        /*alosv=(-4.343*log(abq_alos(complex<double>(cos(q),-sin(q))+r))-alosv)*wls+alosv; */
-        tcomplex val = { cos(q) , -sin(q) };
-        val._real += r._real;
-        val._imag += r._imag;
-		alosv=(-4.343*log(abq_alos(val))-alosv)*wls+alosv;
-
-	}
 	return alosv;
 }
 
@@ -971,90 +984,83 @@ double alos2(double d, prop_type *prop, propa_type *propa)
 	hrp=prop->rph;
 	pd=prop->dist;
 
-	if (d==0.0)
-	{
-		alosv=0.0;
-	}
+    q=prop->he[0]+prop->he[1];
+    sps=q/sqrt(pd*pd+q*q);
+    q=(1.0-0.8*exp(-pd/50e3))*prop->dh;
+    
+    if (prop->mdp<0)
+    {
+        dr=pd/(1+hrg/htg);
+        
+        if (dr<(0.5*pd))
+        {
+            drh=6378137.0-sqrt(-(0.5*pd)*(0.5*pd)+6378137.0*6378137.0+(0.5*pd-dr)*(0.5*pd-dr));  
+        }
+        else
+        {
+            drh=6378137.0-sqrt(-(0.5*pd)*(0.5*pd)+6378137.0*6378137.0+(dr-0.5*pd)*(dr-0.5*pd));  
+        }
+                
+        if ((sps<0.05) && (prop->cch>hrg) && (prop->dist< prop->dl[0])) /* if far from transmitter and receiver below canopy */  
+        {
+            cd=max(0.01,pd*(prop->cch-hrg)/(htg-hrg));
+            cr=max(0.01,pd-dr+dr*(prop->cch-drh)/htg);
+            q=((1.0-0.8*exp(-pd/50e3))*prop->dh*(min(-20*log10(cd/cr),1.0)));	
+        }
+    }
 
-	else
-	{
-		q=prop->he[0]+prop->he[1];
-		sps=q/sqrt(pd*pd+q*q);
-		q=(1.0-0.8*exp(-pd/50e3))*prop->dh;
-		
-		if (prop->mdp<0)
-		{
-			dr=pd/(1+hrg/htg);
-			
-			if (dr<(0.5*pd))
-			{
-				drh=6378137.0-sqrt(-(0.5*pd)*(0.5*pd)+6378137.0*6378137.0+(0.5*pd-dr)*(0.5*pd-dr));  
-			}
-			else
-			{
-				drh=6378137.0-sqrt(-(0.5*pd)*(0.5*pd)+6378137.0*6378137.0+(dr-0.5*pd)*(dr-0.5*pd));  
-			}
-					
-			if ((sps<0.05) && (prop->cch>hrg) && (prop->dist< prop->dl[0])) /* if far from transmitter and receiver below canopy */  
-			{
-				cd=max(0.01,pd*(prop->cch-hrg)/(htg-hrg));
-				cr=max(0.01,pd-dr+dr*(prop->cch-drh)/htg);
-				q=((1.0-0.8*exp(-pd/50e3))*prop->dh*(min(-20*log10(cd/cr),1.0)));	
-			}
-		}
-	
-		s=0.78*q*exp(-pow(q/16.0,0.25));
-		q=exp(-min(10.0,prop->wn*s*sps));
-		/*r=q*(sps-prop_zgnd)/(sps+prop_zgnd); */
-		r._real=q*(sps-prop_zgnd._real)/(sps+prop_zgnd._real);
-		q=abq_alos(r);
-		q=min(q,1.0);		
-	
-		if (q<0.25 || q<sps)
-		{
-			/*r=r*sqrt(sps/q); */
-			r._real=r._real*sqrt(sps/q);
-		}	
-		q=prop->wn*prop->he[0]*prop->he[1]/(pd*3.1415926535897);		
-			
-		if (prop->mdp<0)	
-		{		
-			q=prop->wn*((ht-hrp)*(hr-hrp))/(pd*3.1415926535897);
-		}
-		q-=floor(q);
-		
-			if (q<0.5)
-			{
-				q*=3.1415926535897;
-			}
+    s=0.78*q*exp(-pow(q/16.0,0.25));
+    q=exp(-min(10.0,prop->wn*s*sps));
+    /*r=q*(sps-prop_zgnd)/(sps+prop_zgnd); */
+    r._real=q*(sps-prop_zgnd._real)/(sps+prop_zgnd._real);
+    q=abq_alos(r);
+    q=min(q,1.0);		
 
-			else
-			{
-				q=(1-q)*3.1415926535897;		
-			}
-		/* no longer valid complex conjugate removed 
-		   by removing minus sign from in front of sin function */
-        /* re=abq_alos(complex<double>(cos(q),sin(q))+r); */
-        tcomplex val = { cos(q), sin(q) };
-        val._real += r._real;
-        val._imag += r._imag;
-		re=abq_alos(val);
-		alosv=-10*log10(re);
-		prop->tgh=prop->hg[0];  /*tx above gnd hgt set to antenna height AGL */	
-		prop->tsgh=prop->rch[0]-prop->hg[0]; /* tsgh set to tx site gl AMSL */		
-							
-		if ((prop->hg[1]<prop->cch) && (prop->thera<0.785) && (prop->thenr<0.785))
-		{					
-			if (sps<0.05)
-			{			
-				alosv=alosv+saalos(pd, prop);
-			}					
-			else
-			{
-				alosv=saalos(pd, prop);
-			}
-		}
-	}
+    if (q<0.25 || q<sps)
+    {
+        /*r=r*sqrt(sps/q); */
+        r._real=r._real*sqrt(sps/q);
+    }	
+    q=prop->wn*prop->he[0]*prop->he[1]/(pd*3.1415926535897);		
+        
+    if (prop->mdp<0)	
+    {		
+        q=prop->wn*((ht-hrp)*(hr-hrp))/(pd*3.1415926535897);
+    }
+    q-=floor(q);
+    
+        if (q<0.5)
+        {
+            q*=3.1415926535897;
+        }
+
+        else
+        {
+            q=(1-q)*3.1415926535897;		
+        }
+    /* no longer valid complex conjugate removed 
+       by removing minus sign from in front of sin function */
+    /* re=abq_alos(complex<double>(cos(q),sin(q))+r); */
+    tcomplex val = { cos(q), sin(q) };
+    val._real += r._real;
+    val._imag += r._imag;
+    re=abq_alos(val);
+    alosv=-10*log10(re);
+    prop->tgh=prop->hg[0];  /*tx above gnd hgt set to antenna height AGL */	
+    prop->tsgh=prop->rch[0]-prop->hg[0]; /* tsgh set to tx site gl AMSL */		
+                        
+    if ((prop->hg[1]<prop->cch) && (prop->thera<0.785) && (prop->thenr<0.785))
+    {					
+        if (sps<0.05)
+        {			
+            alosv=alosv+saalos(pd, prop);
+        }					
+        else
+        {
+            alosv=saalos(pd, prop);
+        }
+    }
+
 	alosv = min(22.0,alosv);
 	return alosv;
 }
@@ -1182,7 +1188,9 @@ void lrprop (double d, prop_type *prop, propa_type *propa)
 	{
 		if (!wlos)
 		{
-			q=alos(0.0,prop,propa);
+            alos_state alosstate = {0};
+            alos_init(&alosstate, prop, propa);
+
 			d2=propa->dlsa;
 			a2=propa->aed+d2*propa->emd;
 			d0=1.908*prop->wn*prop->he[0]*prop->he[1];
@@ -1196,12 +1204,12 @@ void lrprop (double d, prop_type *prop, propa_type *propa)
 			else
 				d1=max(-propa->aed/propa->emd,0.25*propa->dla);
 
-			a1=alos(d1,prop,propa);
+			a1=alos(&alosstate, d1,prop,propa);
 			wq=false;
 
 			if (d0<d1)
 			{
-				a0=alos(d0,prop,propa);
+				a0=alos(&alosstate, d0,prop,propa);
 				q=log(d2/d0);
 				propa->ak2=max(0.0,((d2-d0)*(a1-a0)-(d1-d0)*(a2-a0))/((d2-d0)*log(d1/d0)-(d1-d0)*q));
 				wq=propa->aed>=0.0 || propa->ak2>0.0;
@@ -1383,7 +1391,6 @@ void lrprop2(double d, prop_type *prop, propa_type *propa)
 		
 			if (!wlos)
 			{
-				q=alos2(0.0,prop,propa);
 				d2=propa->dlsa;
 				a2=propa->aed+d2*propa->emd;
 				d0=1.908*prop->wn*prop->he[0]*prop->he[1];
