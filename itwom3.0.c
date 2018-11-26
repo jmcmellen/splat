@@ -42,52 +42,92 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-
+/* 
+ * prop_type
+ *
+ * This is used as the main state container throughout all these calls. It
+ * is initialized in the main call to point_to_point() or area() and used
+ * until those calls return.
+ *
+ * Heights and distances are in meters, except where noted.
+ * Notes/Questions:
+ *     What's the difference between rch and he? What about tgh?
+ */
 typedef struct prop_type
-{	double aref;
-	double dist;
-	double hg[2];
-	double rch[2];
-	double wn;
-	double dh;
-	double dhd;
-	double ens;
-	double encc;
-	double cch;
-	double cd;
-	double gme;
-	double zgndreal;
-	double zgndimag;
-	double he[2];
-	double dl[2];
-	double the[2];
-	double tiw;
-	double ght;
-	double ghr;
-	double rph;
-	double hht;
-	double hhr;
-	double tgh;
-	double tsgh;
-	double thera;
-	double thenr;
-	int rpl;	
-	int kwx;
-	int mdp;
-	int ptx;
-	int los;
+{
+	double aref;     /* reference attenuation                                  */
+	double dist;     /* propagation path distance (in km?) */
+	double hg[2];    /* hg[0] = transmitter site tx height, AGL                */
+	                 /* hg[1] = receive site tx height, AGL                    */
+	double rch[2];   /* rch[0] = effective height of tx antenna                */
+	                 /* rch[1] = effective height of rx antenna                */
+	double wn;       /* wave number: freq/47.7MHz*meter; units are 1/meters    */
+	double dh;       /* delta H, terrain irregularity factor                   */
+	double dhd;      /* override for dh, passed in when calling into library   */
+	                 /* in point_to_point() or area(). If >1, this will be     */
+	                 /* used instead of the calculated dh.                     */
+	double ens;      /* refractivity of the atmosphere at sea level            */
+	double encc;     /* average clutter canopy refractivity constant. Default  */
+	                 /* setting is 1000 (parts per million).                   */
+	double cch;      /* average height of clutter, AGL                         */
+	double cd;       /* direct signal clutter exposure distance                */
+	double gme;      /* effective earth curvature (actual + refraction)        */
+	double zgndreal; /* resistive component of earth impedance                 */
+	double zgndimag; /* reactive component of earth impedance                  */
+	double he[2];    /* he[0] = effective height of tx antenna                 */
+	                 /* he[1] = effective height ot rx antenna                 */
+	double dl[2];    /* dl[0] = tx antenna horizon or highest obstacle dist    */
+	                 /* dl[1] = rx antenna horizon or highest obstacle dist    */
+	double the[2];   /* the[0] = take-off angle from tx ant to dl[0]           */
+	                 /* the[1] = take-off angle from rx ant to dl[1]           */
+	double tiw;      /* incremental distance between pts in pfl[] elev array   */
+	double ght;      /* tx antenna height above MSL                            */
+	double ghr;      /* rx antenna height above MSL                            */
+	double rph;      /* height of 2-ray reflection point                       */
+	double hht;      /* height of horizon or highest obstacle visible to tx    */
+	double hhr;      /* height of horizon or highest obstacle visible to rx    */
+	double tgh;      /* tx antenna height, AGL                                 */
+	double tsgh;     /*  the transmitter site ground height (AMSL) of either   */
+	                 /* the main transmitter in a call from alos2, or of an    */
+	                 /* obstruction peak in a call from adiff2.                */
+	double thera;    /* receive approach angle, radians                        */
+	double thenr;    /* theta near receiver, slope of line from last elev pt   */
+	                 /* to receiver                                            */
+	int rpl;         /* loc of 2-ray reflection point in pfl[] elev array      */
+	int kwx;         /* error indicator                                        */
+	int mdp;         /* propagation model:                                     */
+                     /*      -1   point-to-point                               */
+                     /*       0   initializing area prediction mode            */
+                     /*       1   area prediction mode                         */
+	int ptx;         /* polarity of transmitted signal, passed in main call    */
+	                 /* to point_to_point() or area().                         */
+                     /*       0   horizontal                                   */
+                     /*       1   vertical                                     */
+                     /*       2   circular                                     */
+	int los;         /* boolean value indicating line-of-site (1) or not (0)   */
 } prop_type;
 
 typedef struct propv_type
-{	double sgc;
-	int lvar;
-	int mdvar;
-	int klim;
+{
+	double sgc;      /* stddev of situation variability (confidence)           */
+	int lvar;        /* Flow control switch. See avar() and qlra().            */
+	int mdvar;       /* mode of variability. Range 0-23. Preset to 12.         */
+	int klim;        /* radio climate, set by the user from a preset list:     */
+                     /* 1. Equatorial; (Africa, along the equator)             */
+                     /* 2. Continental Subtropical; (Sudan region)             */
+                     /* 3. Subtropical (a.k.a. Maritime Subtropical (West      */
+                     /*    Coast of Africa);                                   */
+                     /* 4. Desert (Death Valley, NV; Sahara);                  */
+                     /* 5. Continental Temperate (usual general U.S. default); */
+                     /* 6. Maritime Temperate Over Land (California to State   */
+                     /*    of Washington; West Coast of Europe including U.K.) */
+                     /* 7. Maritime Temperate, Over Sea.                       */
 } propv_type;
 
 typedef struct propa_type
-{	double dlsa;
-	double dx;
+{
+	double dlsa;   /* the sum of the smooth-earth horizon distance           */
+	double dx;     /* distance where diffraction mode gives way to scatter mode */
 	double ael;
 	double ak1;
 	double ak2;
@@ -95,9 +135,10 @@ typedef struct propa_type
 	double emd;
 	double aes;
 	double ems;
-	double dls[2];
-	double dla;
-	double tha;
+	double dls[2]; /* dls[0] = smooth earth horizon distance for tx antenna   */
+	               /* dls[1] = smooth earth horizon distance for rx antenna   */
+	double dla;    /* sum of the two horizon distances                        */
+	double tha;    /* total bending angle in radians                          */
 } propa_type;
 
 #define min(i, j) ( i < j ? i : j)
@@ -436,9 +477,9 @@ double saalos(double dist, prop_type *prop)
 
 typedef struct adiff_state
 {
-	double wd1;
-    double xd1;
-    double afo;
+	double wd1;     /* 1/wd, the inverse of the weighting factor wd */
+    double xd1;     /* dla added to a curvature adjustment tha/gme  */
+    double afo;     /* attenuation from absorption/scattering from oxygen, water vapor, and terrain clutter */
     double qk;
     double aht;
     double xht;
@@ -1124,8 +1165,10 @@ void qlra(int kst[], int klimx, int mdvarx, prop_type *prop, propv_type *propv)
 void lrprop(double dist, prop_type *prop, propa_type *propa)
 {
 	/* PaulM_lrprop used for ITM */
-	static bool wlos, wscat;
-	static double dmin, xae;
+    static bool wlos;       /* true if line-of-sight coefficients have been calculated */
+    static bool wscat;      /* true if troposcatter coefficients have been calculated  */
+    static double dmin;     /* minimum acceptable path distance length (meters)        */
+    static double xae;      /* relationship of frequency to earth's curvature          */
 	tcomplex prop_zgnd = {prop->zgndreal, prop->zgndimag};
     adiff_state state = {0};
 	double a0, a1, a2, a3, a4, a5, a6;
@@ -1269,7 +1312,7 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 
 	if (prop->dist<=0.0 || prop->dist>=propa->dlsa)
 	{
-		if(!wscat)
+		if (!wscat)
 		{ 
             ascat_state scatterstate = {0};
             ascat_init(&scatterstate, prop);
@@ -1314,8 +1357,10 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 void lrprop2(double dist, prop_type *prop, propa_type *propa)
 {
 	/* ITWOM_lrprop2 */
-	static bool wlos, wscat;
-	static double dmin, xae;
+    static bool wlos;       /* true if line-of-sight coefficients have been calculated */
+    static bool wscat;      /* true if troposcatter coefficients have been calculated  */
+    static double dmin;     /* minimum acceptable path distance length (meters)        */
+    static double xae;      /* relationship of frequency to earth's curvature          */
 	tcomplex prop_zgnd = {prop->zgndreal, prop->zgndimag };
     adiff2_state state = {0};
 	double pd1;	
@@ -1587,6 +1632,20 @@ double curve (double const c1, double const c2, double const x1,
 	return (c1+c2/(1.0+temp1))*temp2/(1.0+temp2);
 }
 
+/*
+ * avar()
+ *
+ * Analysis of Variants
+ *
+ * This subroutine calculates the additional loss resulting from statistical analysis
+ * of long term variability due to time (reliability), location, and/or situational
+ * variability (confidence), depending upon the operating mode determined by the mode of
+ * variability code input. The subroutine reports out a single value of loss, avarv, in
+ * decibels (dB), which includes aref, the "reference attenuation" summed with the
+ * additional statistical loss.
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, page 444
+ */
 double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *propv)
 {
 	static	int kdv;
@@ -2495,7 +2554,7 @@ void point_to_point_ITM(double elev[], double tht_m, double rht_m, double eps_di
 
 	propv.mdvar=12;
 	qlrps(frq_mhz,zsys,q,pol,eps_dielect,sgm_conductivity,&prop);
-	qlrpfl(elev,propv.klim,propv.mdvar,&prop,&propa,&propv);
+	qlrpfl(elev,propv.klim,propv.mdvar,&prop,&propa,&propv);  /* calls lrprop */
 	fs=32.45+20.0*log10(frq_mhz)+20.0*log10(prop.dist/1000.0);
 	q=prop.dist-propa.dla;
 
