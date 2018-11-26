@@ -93,24 +93,28 @@ typedef struct prop_type
 	double thera;    /* receive approach angle, radians                        */
 	double thenr;    /* theta near receiver, slope of line from last elev pt   */
 	                 /* to receiver                                            */
+    double xae;      /* relationship of frequency to earth's curvature         */
 	int rpl;         /* loc of 2-ray reflection point in pfl[] elev array      */
 	int kwx;         /* error indicator                                        */
 	int mdp;         /* propagation model:                                     */
                      /*      -1   point-to-point                               */
-                     /*       0   initializing area prediction mode            */
-                     /*       1   area prediction mode                         */
+                     /*       0   area prediction mode                         */
+                     /*       1   initializing area prediction mode            */
 	int ptx;         /* polarity of transmitted signal, passed in main call    */
 	                 /* to point_to_point() or area().                         */
                      /*       0   horizontal                                   */
                      /*       1   vertical                                     */
                      /*       2   circular                                     */
-	int los;         /* boolean value indicating line-of-site (1) or not (0)   */
+	bool los;        /* true if line-of-sight mode                             */
+	bool wlos;       /* true if line-if-sight coefficients have been calculated */
+	bool wscat;      /* true if troposcatter coefficients have been calculated */
 } prop_type;
 
 typedef struct propv_type
 {
 	double sgc;      /* stddev of situation variability (confidence)           */
-	int lvar;        /* Flow control switch. See avar() and qlra().            */
+	int lvar;        /* Flow control switch - the level to which coefficents   */
+	                 /* in avar() must be redefined.                           */
 	int mdvar;       /* mode of variability. Range 0-23. Preset to 12.         */
 	int klim;        /* radio climate, set by the user from a preset list:     */
                      /* 1. Equatorial; (Africa, along the equator)             */
@@ -1165,10 +1169,6 @@ void qlra(int kst[], int klimx, int mdvarx, prop_type *prop, propv_type *propv)
 void lrprop(double dist, prop_type *prop, propa_type *propa)
 {
 	/* PaulM_lrprop used for ITM */
-    static bool wlos;       /* true if line-of-sight coefficients have been calculated */
-    static bool wscat;      /* true if troposcatter coefficients have been calculated  */
-    static double dmin;     /* minimum acceptable path distance length (meters)        */
-    static double xae;      /* relationship of frequency to earth's curvature          */
 	tcomplex prop_zgnd = {prop->zgndreal, prop->zgndimag};
     adiff_state state = {0};
 	double a0, a1, a2, a3, a4, a5, a6;
@@ -1177,6 +1177,9 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 	double q;
 	int j;
 
+    /* if the propagation model is not in area mode we're either initializing
+     * area mode or we're running one-shot in point-to-point mode. Either way,
+     * set up some coefficients in prop. */
 	if (prop->mdp!=0)
   	{
 		for (j=0; j<2; j++)
@@ -1185,8 +1188,8 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 		propa->dlsa=propa->dls[0]+propa->dls[1];
 		propa->dla=prop->dl[0]+prop->dl[1];
 		propa->tha=max(prop->the[0]+prop->the[1],-propa->dla*prop->gme);
-		wlos=false;
-		wscat=false;
+		prop->wlos=false;
+		prop->wscat=false;
 
 		if (prop->wn<0.838 || prop->wn>210.0)
 			prop->kwx=max(prop->kwx,1);
@@ -1206,20 +1209,20 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 			if (prop->hg[j]<0.5 || prop->hg[j]>3000.0)
 				prop->kwx=4;
 
-		dmin=fabs(prop->he[0]-prop->he[1])/200e-3;
 
         adiff_init(&state, prop, propa);
 
 		/* xae=pow(prop->wn*pow(prop->gme,2.),-THIRD); -- JDM made argument 2 a double */
-		xae=pow(prop->wn*(prop->gme*prop->gme),-THIRD);  /* No 2nd pow() */
-		d3=max(propa->dlsa,1.3787*xae+propa->dla);
-		d4=d3+2.7574*xae;
+		prop->xae=pow(prop->wn*(prop->gme*prop->gme),-THIRD);  /* No 2nd pow() */
+		d3=max(propa->dlsa,1.3787*prop->xae+propa->dla);
+		d4=d3+2.7574*prop->xae;
 		a3=adiff(&state, d3,prop,propa);  // use
 		a4=adiff(&state, d4,prop,propa);  // use
 		propa->emd=(a4-a3)/(d4-d3);
 		propa->aed=a3-propa->emd*d3;
 	}
 
+    /* if the propagation model is in "initializing area mode", reset it to normal running */
 	if (prop->mdp>=0)
 	{
 		prop->mdp=0;
@@ -1231,6 +1234,7 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 		if (prop->dist>1000e3)
 			prop->kwx=max(prop->kwx,1);
 
+		double dmin=fabs(prop->he[0]-prop->he[1])/200e-3; /* minimum acceptable path distance length (meters) */
 		if (prop->dist<dmin)
 			prop->kwx=max(prop->kwx,3);
 
@@ -1238,9 +1242,12 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 			prop->kwx=4;
 	}
 
-	if (prop->dist<propa->dlsa)
+    /* if the distance is less than the smooth earth horizon distance, we
+     * do some line-of-site setup calculations. Otherwise we skip that
+     * and go to scattering. */
+	if (prop->dist < propa->dlsa)
 	{
-		if (!wlos)
+		if (!prop->wlos)
 		{
             alos_state alosstate = {0};
             alos_init(&alosstate, prop, propa);
@@ -1302,7 +1309,7 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 			}
 
 			propa->ael=a2-propa->ak1*d2-propa->ak2*log(d2);
-			wlos=true;
+			prop->wlos=true;
 		}
 
 		if (prop->dist>0.0)
@@ -1310,9 +1317,9 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 
 	}
 
-	if (prop->dist<=0.0 || prop->dist>=propa->dlsa)
+	if (prop->dist <= 0.0 || prop->dist>=propa->dlsa)
 	{
-		if (!wscat)
+		if (!prop->wscat)
 		{ 
             ascat_state scatterstate = {0};
             ascat_init(&scatterstate, prop);
@@ -1325,7 +1332,7 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 			if (a5<1000.0)
 			{
 				propa->ems=(a6-a5)/200e3;
-				propa->dx=max(propa->dlsa,max(propa->dla+0.3*xae*log(47.7*prop->wn),(a5-propa->aed-propa->ems*d5)/(propa->emd-propa->ems)));
+				propa->dx=max(propa->dlsa,max(propa->dla+0.3*prop->xae*log(47.7*prop->wn),(a5-propa->aed-propa->ems*d5)/(propa->emd-propa->ems)));
 				propa->aes=(propa->emd-propa->ems)*propa->dx+propa->aed;
 			}
 
@@ -1336,7 +1343,7 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 				propa->dx=10.e6;
 			}
 
-			wscat=true;
+			prop->wscat=true;
 		}
 
 		if (prop->dist>propa->dx)
@@ -1357,10 +1364,6 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 void lrprop2(double dist, prop_type *prop, propa_type *propa)
 {
 	/* ITWOM_lrprop2 */
-    static bool wlos;       /* true if line-of-sight coefficients have been calculated */
-    static bool wscat;      /* true if troposcatter coefficients have been calculated  */
-    static double dmin;     /* minimum acceptable path distance length (meters)        */
-    static double xae;      /* relationship of frequency to earth's curvature          */
 	tcomplex prop_zgnd = {prop->zgndreal, prop->zgndimag };
     adiff2_state state = {0};
 	double pd1;	
@@ -1374,7 +1377,10 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 	pd1=prop->dist;
 	propa->dx=2000000.0;
 		
-	if (prop->mdp!=0) /* if oper. mode is not 0, i.e. not area mode ongoing */
+    /* if the propagation model is not in area mode we're either initializing
+     * area mode or we're running one-shot in point-to-point mode. Either way,
+     * set up some coefficients in prop. */
+	if (prop->mdp!=0)
   	{
 		for (j=0; j<2; j++)
 			propa->dls[j]=sqrt(2.0*prop->he[j]/prop->gme);
@@ -1383,8 +1389,8 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 		propa->dlsa=min(propa->dlsa,1000000.0);
 		propa->dla=prop->dl[0]+prop->dl[1];	
 		propa->tha=max(prop->the[0]+prop->the[1],-propa->dla*prop->gme);		
-		wlos=false;
-		wscat=false;
+		prop->wlos=false;
+		prop->wscat=false;
 
 		/*checking for parameters-in-range, error codes set if not */
 
@@ -1413,13 +1419,12 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 			if (prop->hg[j]<0.5 || prop->hg[j]>3000.0)
 				prop->kwx=4;
 
-		dmin=fabs(prop->he[0]-prop->he[1])/200e-3;
 
         adiff2_init(&state, prop, propa);
 
-		xae=pow(prop->wn*(prop->gme*prop->gme),-THIRD);  
-		d3=max(propa->dlsa,1.3787*xae+propa->dla);
-		d4=d3+2.7574*xae;
+		prop->xae=pow(prop->wn*(prop->gme*prop->gme),-THIRD);  
+		d3=max(propa->dlsa,1.3787*prop->xae+propa->dla);
+		d4=d3+2.7574*prop->xae;
 		a3=adiff2(&state, d3,prop,propa);
 		a4=adiff2(&state, d4,prop,propa);
 		propa->emd=(a4-a3)/(d4-d3);
@@ -1437,6 +1442,7 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 		if (prop->dist>1000e3)   /* prop->dist being in meters, if greater than 1000 km, kwx=1 */
 			prop->kwx=max(prop->kwx,1);
 
+		double dmin=fabs(prop->he[0]-prop->he[1])/200e-3; /* minimum acceptable path distance length (meters) */
 		if (prop->dist<dmin)
 			prop->kwx=max(prop->kwx,3);
 
@@ -1450,7 +1456,7 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 		if (iw<=0.0)   /* if interval width is zero or less, used for area mode */
 		{
 		
-			if (!wlos)
+			if (!prop->wlos)
 			{
 				d2=propa->dlsa;
 				a2=propa->aed+d2*propa->emd;
@@ -1507,20 +1513,20 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 						
 					}
 					propa->ael=a2-propa->ak1*d2-propa->ak2*log(d2);
-					wlos=true;
+					prop->wlos=true;
 				}
 			}
 		}		
 		else	/* for ITWOM point-to-point mode */	
 		{		
 
-			if (!wlos)
+			if (!prop->wlos)
 			{
 				q=alos2(prop,propa); /* coefficient setup */	
-				wlos=true;
+				prop->wlos=true;
 			}
 
-			if (prop->los==1)	/* if line of sight */
+			if (prop->los==true)	/* if line of sight */
 			{
 				prop->aref=alos2(prop,propa);
 			}
@@ -1549,7 +1555,7 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 	{
 		if (iw==0.0)  /* area mode */
 		{
-			if(!wscat)
+			if(!prop->wscat)
 			{ 
                 ascat_state scatterstate = {0};
                 ascat_init(&scatterstate, prop);
@@ -1562,7 +1568,7 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 				if (a5<1000.0)
 				{
 					propa->ems=(a6-a5)/200e3;
-					propa->dx=max(propa->dlsa,max(propa->dla+0.3*xae*log(47.7*prop->wn),(a5-propa->aed-propa->ems*d5)/(propa->emd-propa->ems)));
+					propa->dx=max(propa->dlsa,max(propa->dla+0.3*prop->xae*log(47.7*prop->wn),(a5-propa->aed-propa->ems*d5)/(propa->emd-propa->ems)));
 					
 					propa->aes=(propa->emd-propa->ems)*propa->dx+propa->aed;
 				}
@@ -1573,7 +1579,7 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 					propa->aes=propa->aed;
 					propa->dx=10000000;
 				}
-				wscat=true;
+				    prop->wscat=true;
 				}	
 	
 			if (prop->dist>propa->dx)
@@ -1587,7 +1593,7 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 		}	
 		else   /* ITWOM mode  q used to preset coefficients with zero input */
 		{				
-			if(!wscat)
+			if(!prop->wscat)
 			{ 
 				d5=0.0;
 				d6=0.0;
@@ -1610,7 +1616,7 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 					prop->aref=a6;
 				}
 
-                wscat=true;
+                prop->wscat=true;
 			}			
 		}
 	}
@@ -1926,7 +1932,7 @@ void hzns2(double pfl[], prop_type *prop)
 	prop->dl[1]=prop->dist;
 	prop->hht=0.0;
 	prop->hhr=0.0;
-	prop->los=1;
+	prop->los=true;
     	
 	if(np>=2)
 	{
@@ -1941,7 +1947,7 @@ void hzns2(double pfl[], prop_type *prop)
           		
 			if(q>0.0)
 			{
-				prop->los=0;
+				prop->los=false;
 				prop->the[0]+=q/sa;
 				prop->dl[0]=sa;
 				prop->the[0]=min(prop->the[0],1.569);
