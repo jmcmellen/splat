@@ -908,6 +908,12 @@ double ascat(ascat_state *state, double dist, prop_type *prop, propa_type *propa
 	return ascatv;
 }
 
+/*
+ * qerfi()
+ *
+ * Inverse of qerf(), the standard normal complementary probability.
+ *
+ */
 double qerfi(double q)
 {
 	double x, t, v;
@@ -1138,18 +1144,18 @@ void qlra(int kst[], int klimx, int mdvarx, prop_type *prop, propv_type *propv)
 	}
 
 	prop->mdp=1;
-	propv->lvar=max(propv->lvar,3);
+	propv->lvar=max(propv->lvar,3); /* need to have avar() recalculate to at least level 3 */
   
 	if (mdvarx>=0)
 	{
 		propv->mdvar=mdvarx;
-		propv->lvar=max(propv->lvar,4);
+		propv->lvar=max(propv->lvar,4); /* now we need recalculate to at least level 4 */
 	}
 
 	if (klimx>0)
 	{
 		propv->klim=klimx;
-		propv->lvar=5;
+		propv->lvar=5;  /* recalculate all the variables in avar() */
 	}
 }
 
@@ -1654,12 +1660,23 @@ double curve (double const c1, double const c2, double const x1,
  */
 double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *propv)
 {
+#ifdef USE_STATIC
 	static	int kdv;
+	static bool ws, w1;
 	static	double dexa, de, vmd, vs0, sgl, sgtm, sgtp, sgtd, tgtd,
 		gm, gp, cv1, cv2, yv1, yv2, yv3, csm1, csm2, ysm1, ysm2,
 		ysm3, csp1, csp2, ysp1, ysp2, ysp3, csd1, zd, cfm1, cfm2,
 		cfm3, cfp1, cfp2, cfp3;
-	static bool ws, w1;
+#else
+	int kdv;
+	bool ws, w1;
+	double dexa, de, vmd, vs0, sgl, sgtm, sgtp, sgtd, tgtd,
+		gm, gp, cv1, cv2, yv1, yv2, yv3, csm1, csm2, ysm1, ysm2,
+		ysm3, csp1, csp2, ysp1, ysp2, ysp3, csd1, zd, cfm1, cfm2,
+		cfm3, cfp1, cfp2, cfp3;
+
+    propv->lvar = 5; /* force a full recalculation */
+#endif
 
 	double bv1[7]={-9.67,-0.62,1.26,-9.21,-0.62,-0.39,3.15};
 	double bv2[7]={12.7,9.19,15.5,9.05,9.19,2.86,857.9};
@@ -1688,7 +1705,7 @@ double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *pro
 	double sgt, yr, temp1, temp2;
 	int temp_klim=propv->klim-1;
 
-	if (propv->lvar>0)
+	if (propv->lvar > 0)
 	{
 		switch (propv->lvar)
 		{
@@ -1785,7 +1802,7 @@ double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *pro
 
 		}
 
-		propv->lvar=0;
+		propv->lvar=0; /* everything's been recalculated. make a note of it so we don't have to do it again */
 	}
 
 	zt=zzt;
@@ -1795,16 +1812,16 @@ double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *pro
 	switch (kdv)
 	{
 		case 0:
-		zt=zc;
-		zl=zc;
-		break;
+            zt=zc;
+            zl=zc;
+            break;
 
 		case 1:
-		zl=zc;
-		break;
+            zl=zc;
+            break;
 
 		case 2:
-		zl=zt;
+            zl=zt;
 	}
 
 	if (fabs(zt)>3.1 || fabs(zl)>3.1 || fabs(zc)>3.1)
@@ -2149,7 +2166,15 @@ double qtile (const int nn, double a[], const int ir)
 	return q;
 }
 
-/* Used only with ITM 1.2.2 */
+/*
+ * qerf()
+ *
+ * Standard normal complementary probability.
+ *
+ * qerfi() is the inverse of this.
+ *
+ * Used only with ITM 1.2.2
+ */
 double qerf(const double z)
 {
 	double b1=0.319381530, b2=-0.356563782, b3=1.781477937;
@@ -2349,18 +2374,18 @@ void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *pr
 	}
 
 	prop->mdp=-1;
-	propv->lvar=max(propv->lvar,3);
+	propv->lvar=max(propv->lvar,3); /* need to have avar() recalculate to at least level 3 */
 
 	if (mdvarx>=0)
 	{
 		propv->mdvar=mdvarx;
-		propv->lvar=max(propv->lvar,4);
+		propv->lvar=max(propv->lvar,4); /* need to have avar() recalculate to at least level 4 */
 	}
 
 	if (klimx>0)
 	{
 		propv->klim=klimx;
-		propv->lvar=5;
+		propv->lvar=5; /* need to have avar() recalculate everything */
 	}
 
 	lrprop(0.0,prop,propa);
@@ -2465,18 +2490,18 @@ void qlrpfl2(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *p
 	}	
 	
 	prop->mdp=-1;
-	propv->lvar=max(propv->lvar,3);
+	propv->lvar=max(propv->lvar,3); /* need to have avar() recalculate to at least lvl 3 */
 
 	if (mdvarx>=0)
 	{
 		propv->mdvar=mdvarx;
-		propv->lvar=max(propv->lvar,4);
+		propv->lvar=max(propv->lvar,4); /* need to have avar() recalculate to level 4 */
 	}
 
 	if (klimx>0)
 	{
 		propv->klim=klimx;
-		propv->lvar=5;
+		propv->lvar=5; /* need to have avar() recalculate to level 4 */
 	}
 
 	lrprop2(0.0,prop,propa);
@@ -2960,6 +2985,8 @@ void point_to_pointDH (double elev[], double tht_m, double rht_m,
 	        Other-  Warning: Some parameters are out of range.
 	                         Results are probably invalid.
 	NOTE: strmode is not used at this time.
+
+    See ITWOM-SUB-ROUTINES.pdf p460
 *************************************************************************************************/
 void area(long ModVar, double deltaH, double tht_m, double rht_m, double dist_km, int TSiteCriteria, int RSiteCriteria, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double enc_ncc_clcref, double clutter_height, double clutter_density, double delta_h_diff, double frq_mhz, int radio_climate, int pol, int mode_var,
 double pctTime, double pctLoc, double pctConf, double *dbloss, char *strmode, int *errnum)
@@ -3003,8 +3030,10 @@ double pctTime, double pctLoc, double pctConf, double *dbloss, char *strmode, in
 
 	lrprop2(dist_km*1000.0, &prop, &propa);
 	fs=32.45+20.0*log10(frq_mhz)+20.0*log10(prop.dist/1000.0);
+
 	xlb=fs+avar(zt, zl, zc, &prop, &propv);
 	*dbloss=xlb;
+
 	if (prop.kwx==0)
 		*errnum=0;
 	else
