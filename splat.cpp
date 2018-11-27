@@ -594,7 +594,7 @@ double ElevationAngle(Site source, Site destination)
 	   (downtilt), as referenced to a normal to the center of
 	   the earth. */
 	   
-	register double a, b, dx;
+	double a, b, dx;
 
 	a=GetElevation(destination)+destination.alt+earthradius;
 	b=GetElevation(source)+source.alt+earthradius;
@@ -736,7 +736,7 @@ double ElevationAngle2(Site source, Site destination, double er)
 		cos_test_angle, test_alt, elevation, distance,
 		source_alt2, first_obstruction_angle=0.0;
 
-	Path path = {0};
+	Path path = {{0}};
 	ReadPath(source,destination,path);
 
 	distance=5280.0*Distance(source,destination);
@@ -852,7 +852,7 @@ double AverageTerrain(Site source, double azimuthx, double start_distance, doubl
 		return (-9999.0);
 	else
 	{
-        Path path = {0};
+        Path path = {{0}};
 		ReadPath(source,destination,path);
 
 		endpoint=path.length;
@@ -2449,7 +2449,7 @@ void LoadBoundaries(char *filename)
 
 			do
 			{
-                Path path = {0};
+                Path path = {{0}};
 				sscanf(string,"%lf %lf", &lon1, &lat1);
 
 				source.lat=lat0;
@@ -2752,10 +2752,10 @@ int PlotPath(Site source, Site destination, char mask_value)
 
 	char block;
 	int x, y;
-	register double cos_xmtr_angle, cos_test_angle, test_alt;
+	double cos_xmtr_angle, cos_test_angle, test_alt;
 	double distance, rx_alt, tx_alt;
 
-    Path path = {0};
+    Path path = {{0}};
 	ReadPath(source,destination,path);
 
 	for (y=0; y<path.length; y++)
@@ -2815,7 +2815,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 
 	Site temp;
 
-    Path path = {0};
+    Path path = {{0}};
 	ReadPath(source,destination,path);
 
     double elev[ARRAYSIZE+10];
@@ -5839,7 +5839,7 @@ void GraphTerrain(Site source, Site destination, char *name)
 	double	minheight=100000.0, maxheight=-100000.0;
 	FILE	*fd=NULL, *fd1=NULL;
 
-    Path path = {0};
+    Path path = {{0}};
 	ReadPath(destination,source,path); // XXX is this backwards?
 
 	fd=fopen("profile.gp","wb");
@@ -6003,7 +6003,7 @@ void GraphElevation(Site source, Site destination, char *name)
 	Site    remote, remote2;
 	FILE	*fd=NULL, *fd1=NULL, *fd2=NULL;
 
-    Path path = {0};
+    Path path = {{0}};
 	ReadPath(destination,source,path);  /* destination=RX, source=TX */
 	refangle=ElevationAngle(destination,source);
 	distance=Distance(source,destination);
@@ -6211,7 +6211,7 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 	Site    remote;
 	FILE	*fd=NULL, *fd1=NULL, *fd2=NULL, *fd3=NULL, *fd4=NULL, *fd5=NULL;
 
-    Path path = {0};
+    Path path = {{0}};
 	ReadPath(destination,source,path);  /* destination=RX, source=TX */
 	azimuth=Azimuth(destination,source);
 	distance=Distance(destination,source);
@@ -6583,7 +6583,7 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 		h_r_f1, h_r_fpt6, h_f, h_los, lambda=0.0;
 	char	string[255], string_fpt6[255], string_f1[255];
 
-    Path path = {0};
+    Path path = {{0}};
 	ReadPath(xmtr,rcvr,path);
 	h_r=GetElevation(rcvr)+rcvr.alt+earthradius;
 	h_r_f1=h_r;
@@ -7038,7 +7038,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		if (patterndB!=0.0)
 			fprintf(fd2,"%s antenna pattern towards %s: %.3f (%.2f dB)\n", source.name, destination.name, pattern, patterndB);
 
-        Path path = {0};
+        Path path = {{0}};
 		ReadPath(source,destination,path);  /* source=TX, destination=RX */
 
         double elev[ARRAYSIZE+10];
@@ -7660,7 +7660,7 @@ void WriteKML(Site source, Site destination)
 		azimuth, cos_test_angle, test_alt;
 	FILE	*fd=NULL;
 
-    Path path = {0};
+    Path path = {{0}};
 	ReadPath(source,destination,path);
 
 	sprintf(report_name,"%s-to-%s.kml",source.name,destination.name);
