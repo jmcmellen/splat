@@ -1,0 +1,39 @@
+
+Compute times (in seconds):
+
+new ITM
+-------
+                     Splat 1.4.2     Single thread     Multithread
+Atom D510                272              300             112
+Avoton C2550              99              108              40
+Core I3-8100              25               27               9
+
+This stays under 0.1 difference in its calculations.
+
+
+
+old ITM
+-------
+                     Splat 1.4.2     Single thread     Multithread
+Atom D510                196              224              89
+Avoton C2550              74               82              33
+Core I3-8100              19               20               7
+
+With the modifications, this mostly stays under 0.1 difference in its calculations,
+with a few exceptions. Those mostly stay under 0.5, although there are 13 out of 1.5M
+points that exceeded that in my test area.
+
+
+
+Accuracy:
+
+Sample system: Core I3-8100, comparing splat-1.4.2 to reworked version:
+All misses are less than 2, in all cases
+gcc/g++, regular: 21 sec, 123 misses
+gcc/g++, fastmath: 18 sec, 12 misses
+clang/clang++ regular:  20 sec, 134 misses
+clang/clang++ fastmath: 17 sec, 354 misses
+
+
+
+hoche, 11/28/18
