@@ -27,14 +27,12 @@
 #include <ctype.h>
 #include <bzlib.h>
 #include <unistd.h>
-#include "fontdata.h"
-#include "splat.h"
-
 #include <chrono>
 
-#ifdef USE_MT_WORKQUEUE
+#include "fontdata.h"
+#include "splat.h"
 #include "workqueue.hpp"
-#endif
+
 
 #define GAMMA 2.5
 #define BZBUFFER 65536
@@ -74,7 +72,7 @@
 
 	#define IPPD 3600
 
-    #define SPLAT_NAME_BASE "SPLAT! HD"
+    #define SPLAT_NAME "SPLAT! HD"
 #else
 	#if MAXPAGES==4
 	#define ARRAYSIZE 4950
@@ -106,14 +104,9 @@
 
 	#define IPPD 1200
 
-    #define SPLAT_NAME_BASE "SPLAT!"
+    #define SPLAT_NAME "SPLAT!"
 #endif
 
-#ifdef USE_MT_WORKQUEUE
-    #define SPLAT_NAME SPLAT_NAME_BASE " (MT)"
-#else
-    #define SPLAT_NAME SPLAT_NAME_BASE
-#endif
 
 #ifndef PI
 #define PI 3.141592653589793
@@ -173,6 +166,7 @@ typedef struct Dem {	int min_north;
 		unsigned char signal[IPPD][IPPD];
            } Dem;
 Dem dem[MAXPAGES];
+std::mutex dem_mutex;
 
 typedef struct LongleyRiceData {	double eps_dielect; 
 		double sgm_conductivity; 
@@ -208,6 +202,8 @@ void point_to_point_ITM(double elev[], double tht_m, double rht_m,
 double ITWOMVersion();
 }
 #endif
+
+
 
 int interpolate(int y0, int y1, int x0, int x1, int n)
 {
@@ -376,6 +372,8 @@ int OrMask(double lat, double lon, int value)
 	int	x, y, indx;
 	char	found;
 
+    std::lock_guard<std::mutex> lock(dem_mutex);
+
 	for (indx=0, found=0; indx<MAXPAGES && found==0;)
 	{
 		x=(int)rint(ppd*(lat-dem[indx].min_north));
@@ -413,6 +411,8 @@ int PutSignal(double lat, double lon, unsigned char signal)
 	int	x, y, indx;
 	char	found;
 
+    std::lock_guard<std::mutex> lock(dem_mutex);
+
 	for (indx=0, found=0; indx<MAXPAGES && found==0;)
 	{
 		x=(int)rint(ppd*(lat-dem[indx].min_north));
@@ -442,6 +442,8 @@ unsigned char GetSignal(double lat, double lon)
 
 	int	x, y, indx;
 	char	found;
+
+    std::lock_guard<std::mutex> lock(dem_mutex);
 
 	for (indx=0, found=0; indx<MAXPAGES && found==0;)
 	{
@@ -2799,6 +2801,7 @@ int PlotPath(Site source, Site destination, char mask_value)
     return 0;
 }
 
+#define MAX_TEXT_LEN 128
 int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd)
 {
 	/* This function plots the RF path loss between source and
@@ -2814,6 +2817,8 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 		field_strength=0.0;
 
 	Site temp;
+    char textout[MAX_TEXT_LEN];
+    size_t textlen = 0;
 
     Path path = {{0}};
 	ReadPath(source,destination,path);
@@ -2939,15 +2944,18 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 
 			azimuth=(Azimuth(source,temp));
 
-			if (fd!=NULL)
-				fprintf(fd,"%.7f, %.7f, %.3f, %.3f, ",path.lat[y], path.lon[y], azimuth, elevation);
+			if (fd!=NULL) {
+				textlen = snprintf(textout, MAX_TEXT_LEN, "%.7f, %.7f, %.3f, %.3f, ",
+                            path.lat[y], path.lon[y], azimuth, elevation);
+            }
 
 			/* If ERP==0, write path loss to alphanumeric
 			   output file.  Otherwise, write field strength
 			   or received power level (below), as appropriate. */
 
-			if (fd!=NULL && LR.erp==0.0)
-				fprintf(fd,"%.2f",loss);
+			if (fd!=NULL && LR.erp==0.0) {
+                textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.2f",loss);
+            }
 
 			/* Integrate the antenna's radiation
 			   pattern into the overall path loss. */
@@ -2977,8 +2985,9 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 
 					dBm=10.0*(log10(rxp*1000.0));
 
-					if (fd!=NULL)
-						fprintf(fd,"%.3f",dBm);
+					if (fd!=NULL) {
+                        textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.3f",dBm);
+                    }
 
 					/* Scale roughly between 0 and 255 */
 
@@ -3019,8 +3028,9 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
                     // writes to dem
 					PutSignal(path.lat[y],path.lon[y],(unsigned char)ifs);
 	
-					if (fd!=NULL)
-						fprintf(fd,"%.3f",field_strength);
+					if (fd!=NULL) {
+                        textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.3f",field_strength);
+                    }
 				}
 			}
 
@@ -3040,13 +3050,12 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 				PutSignal(path.lat[y],path.lon[y],(unsigned char)ifs);
 			}
 
-			if (fd!=NULL)
-			{
-				if (block)
-					fprintf(fd," *");
-
-				fprintf(fd,"\n");
+			if (fd!=NULL) {
+                textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%s",
+                    block ? " *\n" : "\n");
 			}
+
+            fwrite(textout, 1, textlen, fd);
 
 			/* Mark this point as having been analyzed */
 
@@ -3057,7 +3066,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 }
 
 
-void PlotLOSMap(Site source, double altitude)
+void PlotLOSMap(Site source, double altitude, bool multithread)
 {
 	/* This function performs a 360 degree sweep around the
 	   transmitter site (source location), and plots the
@@ -3086,8 +3095,6 @@ void PlotLOSMap(Site source, double altitude)
 	if (clutter>0.0)
 		fprintf(stdout," and %.2f %s of ground clutter",metric?clutter*METERS_PER_FOOT:clutter,metric?"meters":"feet");
 
-	fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
-	fflush(stdout);
 
 	/* th=pixels/degree divided by 64 loops per
 	   progress indicator symbol (.oOo) printed. */
@@ -3099,10 +3106,15 @@ void PlotLOSMap(Site source, double altitude)
 	minwest=dpp+(double)min_west;
 	maxnorth=(double)max_north-dpp;
 
-#ifdef USE_MT_WORKQUEUE
-    // Create a work queue
-    WorkQueue wq;
-#endif
+    WorkQueue *wq = nullptr;
+    if (multithread) {
+        wq = new WorkQueue();;
+    }
+
+    if (!multithread) {
+        fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
+        fflush(stdout);
+    }
 
 	for (lon=minwest, x=0, y=0; (LonDiff(lon,(double)max_west)<=0.0); y++, lon=minwest+(dpp*(double)y))
 	{
@@ -3113,29 +3125,30 @@ void PlotLOSMap(Site source, double altitude)
 		edge.lon=lon;
 		edge.alt=altitude;
 
-#ifdef USE_MT_WORKQUEUE
-        wq.submit(std::bind(PlotPath, source, edge, mask_value));
-#else
-		PlotPath(source,edge,mask_value);
-#endif
-		count++;
+        if (multithread) {
+            wq->submit(std::bind(PlotPath, source, edge, mask_value));
+        } else {
+            PlotPath(source,edge,mask_value);
 
-		if (count==z) 
-		{
-			fprintf(stdout,"%c",symbol[x]);
-			fflush(stdout);
-			count=0;
+            if (++count==z) 
+            {
+                fprintf(stdout,"%c",symbol[x]);
+                fflush(stdout);
+                count=0;
 
-			if (x==3)
-				x=0;
-			else
-				x++;
-		}
+                if (x==3)
+                    x=0;
+                else
+                    x++;
+            }
+        }
 	}
 
-	count=0;
-	fprintf(stdout,"\n25%c to  50%c ",37,37);
-	fflush(stdout);
+    if (!multithread) {
+        count=0;
+        fprintf(stdout,"\n25%c to  50%c ",37,37);
+        fflush(stdout);
+    }
 	
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3145,29 +3158,30 @@ void PlotLOSMap(Site source, double altitude)
 		edge.lon=min_west;
 		edge.alt=altitude;
 
-#ifdef USE_MT_WORKQUEUE
-        wq.submit(std::bind(PlotPath, source, edge, mask_value));
-#else
-		PlotPath(source,edge,mask_value);
-#endif
-		count++;
+        if (multithread) {
+            wq->submit(std::bind(PlotPath, source, edge, mask_value));
+        } else {
+            PlotPath(source,edge,mask_value);
 
-		if (count==z) 
-		{
-			fprintf(stdout,"%c",symbol[x]);
-			fflush(stdout);
-			count=0;
+            if (++count==z) 
+            {
+                fprintf(stdout,"%c",symbol[x]);
+                fflush(stdout);
+                count=0;
 
-			if (x==3)
-				x=0;
-			else
-				x++;
-		}
+                if (x==3)
+                    x=0;
+                else
+                    x++;
+            }
+        }
 	}
 
-	count=0;
-	fprintf(stdout,"\n50%c to  75%c ",37,37);
-	fflush(stdout);
+    if (!multithread) {
+        count=0;
+        fprintf(stdout,"\n50%c to  75%c ",37,37);
+        fflush(stdout);
+    }
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
@@ -3180,29 +3194,30 @@ void PlotLOSMap(Site source, double altitude)
 		edge.lon=lon;
 		edge.alt=altitude;
 
-#ifdef USE_MT_WORKQUEUE
-        wq.submit(std::bind(PlotPath, source, edge, mask_value));
-#else
-		PlotPath(source,edge,mask_value);
-#endif
-		count++;
+        if (multithread) {
+            wq->submit(std::bind(PlotPath, source, edge, mask_value));
+        } else {
+            PlotPath(source,edge,mask_value);
 
-		if (count==z)
-		{
-			fprintf(stdout,"%c",symbol[x]);
-			fflush(stdout);
-			count=0;
+            if (++count==z)
+            {
+                fprintf(stdout,"%c",symbol[x]);
+                fflush(stdout);
+                count=0;
 
-			if (x==3)
-				x=0;
-			else
-				x++;
-		}
+                if (x==3)
+                    x=0;
+                else
+                    x++;
+            }
+        }
 	}
 
-	count=0;
-	fprintf(stdout,"\n75%c to 100%c ",37,37);
-	fflush(stdout);
+    if (!multithread) {
+        count=0;
+        fprintf(stdout,"\n75%c to 100%c ",37,37);
+        fflush(stdout);
+    }
 	
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3212,29 +3227,29 @@ void PlotLOSMap(Site source, double altitude)
 		edge.lon=max_west;
 		edge.alt=altitude;
 
-#ifdef USE_MT_WORKQUEUE
-        wq.submit(std::bind(PlotPath, source, edge, mask_value));
-#else
-		PlotPath(source,edge,mask_value);
-#endif
-		count++;
+        if (multithread) {
+            wq->submit(std::bind(PlotPath, source, edge, mask_value));
+        } else {
+            PlotPath(source,edge,mask_value);
 
-		if (count==z)
-		{
-			fprintf(stdout,"%c",symbol[x]);
-			fflush(stdout);
-			count=0;
+            if (++count==z)
+            {
+                fprintf(stdout,"%c",symbol[x]);
+                fflush(stdout);
+                count=0;
 
-			if (x==3)
-				x=0;
-			else
-				x++;
-		}
+                if (x==3)
+                    x=0;
+                else
+                    x++;
+            }
+        }
 	}
 
-#ifdef USE_MT_WORKQUEUE
-    wq.waitForCompletion();
-#endif
+    if (multithread) {
+        wq->waitForCompletion();
+        delete wq;
+    }
 
 	fprintf(stdout,"\nDone!\n");
 	fflush(stdout);
@@ -3256,7 +3271,7 @@ void PlotLOSMap(Site source, double altitude)
 	}
 }
 
-void PlotLRMap(Site source, double altitude, char *plo_filename)
+void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithread)
 {
 	/* This function performs a 360 degree sweep around the
 	   transmitter site (source location), and plots the
@@ -3304,9 +3319,6 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 	if (clutter>0.0)
 		fprintf(stdout,"\nand %.2f %s of ground clutter",metric?clutter*METERS_PER_FOOT:clutter,metric?"meters":"feet");
 
-	fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
-	fflush(stdout);
-
 	if (plo_filename[0]!=0)
 		fd=fopen(plo_filename,"wb");
 
@@ -3325,10 +3337,15 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
 
-#ifdef USE_MT_WORKQUEUE
-    // Create a work queue
-    WorkQueue wq;
-#endif
+    WorkQueue *wq = nullptr;
+    if (multithread) {
+        wq = new WorkQueue();
+    }
+
+    if (!multithread) {
+        fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
+        fflush(stdout);
+    }
 
 	for (lon=minwest, x=0, y=0; (LonDiff(lon,(double)max_west)<=0.0); y++, lon=minwest+(dpp*(double)y))
 	{
@@ -3339,29 +3356,30 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		edge.lon=lon;
 		edge.alt=altitude;
 
-#ifdef USE_MT_WORKQUEUE
-        wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
-#else
-		PlotLRPath(source,edge,mask_value,fd);
-#endif
-		count++;
+        if (multithread) {
+            wq->submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
+        } else {
+            PlotLRPath(source,edge,mask_value,fd);
 
-		if (count==z) 
-		{
-			fprintf(stdout,"%c",symbol[x]);
-			fflush(stdout);
-			count=0;
+            if (++count==z) 
+            {
+                fprintf(stdout,"%c",symbol[x]);
+                fflush(stdout);
+                count=0;
 
-			if (x==3)
-				x=0;
-			else
-				x++;
-		}
+                if (x==3)
+                    x=0;
+                else
+                    x++;
+            }
+        }
 	}
 
-	count=0;
-	fprintf(stdout,"\n25%c to  50%c ",37,37);
-	fflush(stdout);
+    if (!multithread) {
+        count=0;
+        fprintf(stdout,"\n25%c to  50%c ",37,37);
+        fflush(stdout);
+    }
 	
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3371,29 +3389,30 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		edge.lon=min_west;
 		edge.alt=altitude;
 
-#ifdef USE_MT_WORKQUEUE
-        wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
-#else
-		PlotLRPath(source,edge,mask_value,fd);
-#endif
-		count++;
+        if (multithread) {
+            wq->submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
+        } else {
+            PlotLRPath(source,edge,mask_value,fd);
 
-		if (count==z) 
-		{
-			fprintf(stdout,"%c",symbol[x]);
-			fflush(stdout);
-			count=0;
+            if (++count==z) 
+            {
+                fprintf(stdout,"%c",symbol[x]);
+                fflush(stdout);
+                count=0;
 
-			if (x==3)
-				x=0;
-			else
-				x++;
-		}
+                if (x==3)
+                    x=0;
+                else
+                    x++;
+            }
+        }
 	}
 
-	count=0;
-	fprintf(stdout,"\n50%c to  75%c ",37,37);
-	fflush(stdout);
+    if (!multithread) {
+        count=0;
+        fprintf(stdout,"\n50%c to  75%c ",37,37);
+        fflush(stdout);
+    }
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
@@ -3406,30 +3425,31 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		edge.lon=lon;
 		edge.alt=altitude;
 
-#ifdef USE_MT_WORKQUEUE
-        wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
-#else
-		PlotLRPath(source,edge,mask_value,fd);
-#endif
-		count++;
+        if (multithread) {
+            wq->submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
+        } else {
+            PlotLRPath(source,edge,mask_value,fd);
 
-		if (count==z)
-		{
-			fprintf(stdout,"%c",symbol[x]);
-			fflush(stdout);
-			count=0;
+            if (++count==z)
+            {
+                fprintf(stdout,"%c",symbol[x]);
+                fflush(stdout);
+                count=0;
 
-			if (x==3)
-				x=0;
-			else
-				x++;
-		}
+                if (x==3)
+                    x=0;
+                else
+                    x++;
+            }
+        }
 	}
 
-	count=0;
-	fprintf(stdout,"\n75%c to 100%c ",37,37);
-	fflush(stdout);
-	
+    if (!multithread) {
+        count=0;
+        fprintf(stdout,"\n75%c to 100%c ",37,37);
+        fflush(stdout);
+    }
+        
 	z=(int)(th*(double)(max_north-min_north));
 
 	for (lat=(double)min_north, x=0, y=0; lat<(double)max_north; y++, lat=(double)min_north+(dpp*(double)y))
@@ -3438,29 +3458,29 @@ void PlotLRMap(Site source, double altitude, char *plo_filename)
 		edge.lon=max_west;
 		edge.alt=altitude;
 
-#ifdef USE_MT_WORKQUEUE
-        wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
-#else
-		PlotLRPath(source,edge,mask_value,fd);
-#endif
-		count++;
+        if (multithread) {
+            wq->submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
+        } else {
+            PlotLRPath(source,edge,mask_value,fd);
 
-		if (count==z)
-		{
-			fprintf(stdout,"%c",symbol[x]);
-			fflush(stdout);
-			count=0;
+            if (++count==z)
+            {
+                fprintf(stdout,"%c",symbol[x]);
+                fflush(stdout);
+                count=0;
 
-			if (x==3)
-				x=0;
-			else
-				x++;
-		}
+                if (x==3)
+                    x=0;
+                else
+                    x++;
+            }
+        }
 	}
 
-#ifdef USE_MT_WORKQUEUE
-    wq.waitForCompletion();
-#endif
+    if (multithread) {
+        wq->waitForCompletion();
+        delete wq;
+    }
 
 	if (fd!=NULL)
 		fclose(fd);
@@ -7887,6 +7907,8 @@ int main(int argc, char *argv[])
 			rx_range=0.0, deg_range=0.0, deg_limit=0.0,
 			deg_range_lon, er_mult;
 
+    bool    multithread = false;
+
 	Site    tx_site[32], rx_site;
 
 	FILE		*fd;
@@ -7918,6 +7940,7 @@ int main(int argc, char *argv[])
 		fprintf(stdout,"       -N do not produce unnecessary site or obstruction reports\n");	
 		fprintf(stdout,"       -f frequency for Fresnel zone calculation (MHz)\n");
 		fprintf(stdout,"       -R modify default range for -c or -L (miles/kilometers)\n");
+		fprintf(stdout,"      -mt use multiple CPU threads for faster speed\n");
 		fprintf(stdout,"      -sc display smooth rather than quantized contour levels\n");
 		fprintf(stdout,"      -db threshold beyond which contours will not be displayed\n");
 		fprintf(stdout,"      -nf do not plot Fresnel zones in height plots\n");
@@ -8191,6 +8214,9 @@ int main(int argc, char *argv[])
 
 		if (strcmp(argv[x],"-sc")==0)
 			smooth_contours=1;
+
+		if (strcmp(argv[x],"-mt")==0)
+			multithread=true;
 
 		if (strcmp(argv[x],"-olditm")==0)
 			olditm=1;
@@ -8840,10 +8866,10 @@ int main(int argc, char *argv[])
             std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
 			if (coverage)
-				PlotLOSMap(tx_site[x],altitude);
+				PlotLOSMap(tx_site[x],altitude, multithread);
 
 			else if (ReadLRParm(tx_site[x],1))
-					PlotLRMap(tx_site[x],altitudeLR,ano_filename);
+					PlotLRMap(tx_site[x],altitudeLR,ano_filename, multithread);
 
             std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::seconds>( t2 - t1 ).count();
