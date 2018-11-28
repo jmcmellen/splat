@@ -36,9 +36,7 @@ while (my $line = <$fh1>) {
     chop $lat;
     chop $long;
 
-    my $key = $lat."-".$long;
-
-    $ano1{$key} = $loss;
+    $ano1{$lat}{$long} = $loss;
 
     if ($lineno % 20000 == 0) {
         printf(".", $lineno);
@@ -49,9 +47,9 @@ close($fh1);
 
 
 printf("\nComparing to second file...\n");
-printf("\nLines Errors (>0.02%%)\n");
 
 $lineno = 0;
+$unfound = 0;
 my $errcount = 0;
 while (my $line = <$fh2>) {
     chomp $line;
@@ -59,32 +57,73 @@ while (my $line = <$fh2>) {
     chop $lat;
     chop $long;
 
+    # we can be off by 0.000001 in either latitude or longitude and it's ok.
+    # So we need to look at the available values and see if there's anything near.
+    # first, find exact matches, cuz that's fastest
+    if (!exists $ano1{$lat}{$long}) {
+        my $found = false;
 
-    my $key = $lat."-".$long;
-    if (!exists $ano1{$key}) {
-        printf("%s %s not found\n", $lat, $long);
-        next;
+        #printf("%s %s not found\n", $lat, $long);
+
+        # search at this exact latitude
+        foreach my $testlong (keys %{ $ano1{$lat} } ) {
+            #printf("trying %s %s: ", $lat, $testlong);
+            if (abs($testlong - $long) < 0.000002) {
+                #printf("yup!\n");
+                $long = $testlong;
+                $found = true;
+                break;
+            }
+            #printf("nope\n");
+        }
+
+        # search slightly above
+        if ($found == false) {
+            my $testlat = $lat + 0.000001;
+            foreach my $testlong (keys %{ $ano1{$lat} } ) {
+                #printf("trying %s %s: ", $lat, $testlong);
+                if (abs($testlong - $long) < 0.000002) {
+                    #printf("yup!\n");
+                    $lat = $testlat;
+                    $long = $testlong;
+                    $found = true;
+                    break;
+                }
+                #printf("nope\n");
+            }
+        }
+
+        # search slightly below
+        if ($found == false) {
+            my $testlat = $lat - 0.000001;
+            foreach my $testlong (keys %{ $ano1{$lat} } ) {
+                #printf("trying %s %s: ", $lat, $testlong);
+                if (abs($testlong - $long) < 0.000002) {
+                    #printf("yup!\n");
+                    $lat = $testlat;
+                    $long = $testlong;
+                    $found = true;
+                    break;
+                }
+                #printf("nope\n");
+            }
+        }
+
+        if ($found == false) {
+            printf("%s %s not found\n", $lat, $long);
+            $unfound++;
+            next;
+        }
+
+        #printf("using %s %s\n", $lat, $long);
     }
 
-    my $loss1 = $ano1{$key};
+    my $loss1 = $ano1{$lat}{$long};
 
-    my $pct = 0;
-    # prevent divide by zero errors
-    if ($loss1 == 0) {
-        $loss1 = 0.0001;
-    }
-    if ($loss2 == 0) {
-        $loss2 = 0.0001;
-    }
+    my $delta = abs($loss1 - $loss2);
 
-    if ($loss1 >= $loss2) {
-        $pct = 100 - (($loss1/$loss2) * 100);
-    } else {
-        $pct = 100 - (($loss2/$loss1) * 100);
-    }
-
-    if (abs($loss1 - $loss2) > 0.02) {
-        printf("%s %s: %s <-> %s    %0.2f%%\n", $lat, $long, $loss1, $loss2, abs($pct));
+    if ($delta > 0.5) {
+        printf("%s %s: %s <-> %s    %0.2f\n", $lat, $long, $loss1, $loss2, $delta);
         $errcount++;
     }
 
@@ -95,6 +134,10 @@ while (my $line = <$fh2>) {
 
 }
 printf("\n");
+
+printf("%s         %s          %s\n", "total", ">0.5 off", "missing");
+printf("%d         %d          %d\n", $lineno, $errcount, $unfound);
+
 
 close($fh2);
 
