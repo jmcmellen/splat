@@ -113,8 +113,6 @@ typedef struct prop_type
 typedef struct propv_type
 {
 	double sgc;      /* stddev of situation variability (confidence)           */
-	int lvar;        /* Flow control switch - the level to which coefficents   */
-	                 /* in avar() must be redefined.                           */
 	int mdvar;       /* mode of variability. Range 0-23. Preset to 12.         */
 	int klim;        /* radio climate, set by the user from a preset list:     */
                      /* 1. Equatorial; (Africa, along the equator)             */
@@ -1144,18 +1142,15 @@ void qlra(int kst[], int klimx, int mdvarx, prop_type *prop, propv_type *propv)
 	}
 
 	prop->mdp=1;
-	propv->lvar=max(propv->lvar,3); /* need to have avar() recalculate to at least level 3 */
   
 	if (mdvarx>=0)
 	{
 		propv->mdvar=mdvarx;
-		propv->lvar=max(propv->lvar,4); /* now we need recalculate to at least level 4 */
 	}
 
 	if (klimx>0)
 	{
 		propv->klim=klimx;
-		propv->lvar=5;  /* recalculate all the variables in avar() */
 	}
 }
 
@@ -1660,23 +1655,12 @@ double curve (double const c1, double const c2, double const x1,
  */
 double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *propv)
 {
-#ifdef USE_STATIC
-	static	int kdv;
-	static bool ws, w1;
-	static	double dexa, de, vmd, vs0, sgl, sgtm, sgtp, sgtd, tgtd,
-		gm, gp, cv1, cv2, yv1, yv2, yv3, csm1, csm2, ysm1, ysm2,
-		ysm3, csp1, csp2, ysp1, ysp2, ysp3, csd1, zd, cfm1, cfm2,
-		cfm3, cfp1, cfp2, cfp3;
-#else
 	int kdv;
 	bool ws, w1;
 	double dexa, de, vmd, vs0, sgl, sgtm, sgtp, sgtd, tgtd,
 		gm, gp, cv1, cv2, yv1, yv2, yv3, csm1, csm2, ysm1, ysm2,
 		ysm3, csp1, csp2, ysp1, ysp2, ysp3, csd1, zd, cfm1, cfm2,
 		cfm3, cfp1, cfp2, cfp3;
-
-    propv->lvar = 5; /* force a full recalculation */
-#endif
 
 	double bv1[7]={-9.67,-0.62,1.26,-9.21,-0.62,-0.39,3.15};
 	double bv2[7]={12.7,9.19,15.5,9.05,9.19,2.86,857.9};
@@ -1705,105 +1689,92 @@ double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *pro
 	double sgt, yr, temp1, temp2;
 	int temp_klim=propv->klim-1;
 
-	if (propv->lvar > 0)
-	{
-		switch (propv->lvar)
-		{
-			default:
-			if (propv->klim<=0 || propv->klim>7)
-			{
-				propv->klim=5;
-				temp_klim=4;
-				prop->kwx=max(prop->kwx,2);
-			}
+    if (propv->klim<=0 || propv->klim>7)
+    {
+        propv->klim=5;
+        temp_klim=4;
+        prop->kwx=max(prop->kwx,2);
+    }
 
-			cv1=bv1[temp_klim];
-			cv2=bv2[temp_klim];
-			yv1=xv1[temp_klim];
-			yv2=xv2[temp_klim];
-			yv3=xv3[temp_klim];
-			csm1=bsm1[temp_klim];
-			csm2=bsm2[temp_klim];
-			ysm1=xsm1[temp_klim];
-			ysm2=xsm2[temp_klim];
-			ysm3=xsm3[temp_klim];
-			csp1=bsp1[temp_klim];
-			csp2=bsp2[temp_klim];
-			ysp1=xsp1[temp_klim];
-			ysp2=xsp2[temp_klim];
-			ysp3=xsp3[temp_klim];
-			csd1=bsd1[temp_klim];
-			zd=bzd1[temp_klim];
-			cfm1=bfm1[temp_klim];
-			cfm2=bfm2[temp_klim];
-			cfm3=bfm3[temp_klim];
-			cfp1=bfp1[temp_klim];
-			cfp2=bfp2[temp_klim];
-			cfp3=bfp3[temp_klim];
+    cv1=bv1[temp_klim];
+    cv2=bv2[temp_klim];
+    yv1=xv1[temp_klim];
+    yv2=xv2[temp_klim];
+    yv3=xv3[temp_klim];
+    csm1=bsm1[temp_klim];
+    csm2=bsm2[temp_klim];
+    ysm1=xsm1[temp_klim];
+    ysm2=xsm2[temp_klim];
+    ysm3=xsm3[temp_klim];
+    csp1=bsp1[temp_klim];
+    csp2=bsp2[temp_klim];
+    ysp1=xsp1[temp_klim];
+    ysp2=xsp2[temp_klim];
+    ysp3=xsp3[temp_klim];
+    csd1=bsd1[temp_klim];
+    zd=bzd1[temp_klim];
+    cfm1=bfm1[temp_klim];
+    cfm2=bfm2[temp_klim];
+    cfm3=bfm3[temp_klim];
+    cfp1=bfp1[temp_klim];
+    cfp2=bfp2[temp_klim];
+    cfp3=bfp3[temp_klim];
 
-			case 4:
-			kdv=propv->mdvar;
-			ws=kdv>=20;
+    kdv=propv->mdvar;
+    ws=kdv>=20;
 
-			if (ws)
-				kdv-=20;
+    if (ws)
+        kdv-=20;
 
-			w1=kdv>=10;
+    w1=kdv>=10;
 
-			if (w1)
-				kdv-=10;
+    if (w1)
+        kdv-=10;
 
-			if (kdv<0 || kdv>3)
-			{
-				kdv=0;
-				prop->kwx=max(prop->kwx,2);
-			}
+    if (kdv<0 || kdv>3)
+    {
+        kdv=0;
+        prop->kwx=max(prop->kwx,2);
+    }
 
-			case 3:
-			q=log(0.133*prop->wn);
+    q=log(0.133*prop->wn);
 
-			/* gm=cfm1+cfm2/(pow(cfm3*q,2.0)+1.0); */
-			/* gp=cfp1+cfp2/(pow(cfp3*q,2.0)+1.0); */
+    /* gm=cfm1+cfm2/(pow(cfm3*q,2.0)+1.0); */
+    /* gp=cfp1+cfp2/(pow(cfp3*q,2.0)+1.0); */
 
-			gm=cfm1+cfm2/((cfm3*q*cfm3*q)+1.0);
-			gp=cfp1+cfp2/((cfp3*q*cfp3*q)+1.0);
+    gm=cfm1+cfm2/((cfm3*q*cfm3*q)+1.0);
+    gp=cfp1+cfp2/((cfp3*q*cfp3*q)+1.0);
 
-			case 2:
-			dexa=sqrt(18e6*prop->he[0])+sqrt(18e6*prop->he[1])+pow((575.7e12/prop->wn),THIRD);
+    dexa=sqrt(18e6*prop->he[0])+sqrt(18e6*prop->he[1])+pow((575.7e12/prop->wn),THIRD);
 
-			case 1:
-			if (prop->dist<dexa)
-				de=130e3*prop->dist/dexa;
-			else
-				de=130e3+prop->dist-dexa;
-		}
+    if (prop->dist<dexa)
+        de=130e3*prop->dist/dexa;
+    else
+        de=130e3+prop->dist-dexa;
 
-		vmd=curve(cv1,cv2,yv1,yv2,yv3,de);
-		sgtm=curve(csm1,csm2,ysm1,ysm2,ysm3,de)*gm;
-		sgtp=curve(csp1,csp2,ysp1,ysp2,ysp3,de)*gp;
-		sgtd=sgtp*csd1;
-		tgtd=(sgtp-sgtd)*zd;
+    vmd=curve(cv1,cv2,yv1,yv2,yv3,de);
+    sgtm=curve(csm1,csm2,ysm1,ysm2,ysm3,de)*gm;
+    sgtp=curve(csp1,csp2,ysp1,ysp2,ysp3,de)*gp;
+    sgtd=sgtp*csd1;
+    tgtd=(sgtp-sgtd)*zd;
 
-		if (w1)
-			sgl=0.0;
-		else
-		{
-			q=(1.0-0.8*exp(-prop->dist/50e3))*prop->dh*prop->wn;
-			sgl=10.0*q/(q+13.0);
-		}
+    if (w1)
+        sgl=0.0;
+    else
+    {
+        q=(1.0-0.8*exp(-prop->dist/50e3))*prop->dh*prop->wn;
+        sgl=10.0*q/(q+13.0);
+    }
 
-		if (ws)
-			vs0=0.0;
-		else
-		{
-			/* vs0=pow(5.0+3.0*exp(-de/100e3),2.0); */
-			temp1=(5.0+3.0*exp(-de/100e3));
-			vs0=temp1*temp1;
+    if (ws)
+        vs0=0.0;
+    else
+    {
+        /* vs0=pow(5.0+3.0*exp(-de/100e3),2.0); */
+        temp1=(5.0+3.0*exp(-de/100e3));
+        vs0=temp1*temp1;
 
-		}
-
-		propv->lvar=0; /* everything's been recalculated. make a note of it so we don't have to do it again */
-	}
+    }
 
 	zt=zzt;
 	zl=zzl;
@@ -2374,18 +2345,15 @@ void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *pr
 	}
 
 	prop->mdp=-1;
-	propv->lvar=max(propv->lvar,3); /* need to have avar() recalculate to at least level 3 */
 
 	if (mdvarx>=0)
 	{
 		propv->mdvar=mdvarx;
-		propv->lvar=max(propv->lvar,4); /* need to have avar() recalculate to at least level 4 */
 	}
 
 	if (klimx>0)
 	{
 		propv->klim=klimx;
-		propv->lvar=5; /* need to have avar() recalculate everything */
 	}
 
 	lrprop(0.0,prop,propa);
@@ -2490,18 +2458,15 @@ void qlrpfl2(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *p
 	}	
 	
 	prop->mdp=-1;
-	propv->lvar=max(propv->lvar,3); /* need to have avar() recalculate to at least lvl 3 */
 
 	if (mdvarx>=0)
 	{
 		propv->mdvar=mdvarx;
-		propv->lvar=max(propv->lvar,4); /* need to have avar() recalculate to level 4 */
 	}
 
 	if (klimx>0)
 	{
 		propv->klim=klimx;
-		propv->lvar=5; /* need to have avar() recalculate to level 4 */
 	}
 
 	lrprop2(0.0,prop,propa);
@@ -2560,7 +2525,6 @@ void point_to_point_ITM(double elev[], double tht_m, double rht_m, double eps_di
 	prop.hg[1]=rht_m;
 	propv.klim=radio_climate;
 	prop.kwx=0;
-	propv.lvar=5;
 	prop.mdp=-1;
 	zc=qerfi(conf);
 	zr=qerfi(rel);
@@ -2682,7 +2646,6 @@ void point_to_point(double elev[], double tht_m, double rht_m, double eps_dielec
 	prop.hg[1]=rht_m;
 	propv.klim=radio_climate;
 	prop.kwx=0;
-	propv.lvar=5;
 	prop.mdp=-1;
 	prop.ptx=pol;
 	prop.thera=0.0;
@@ -2805,7 +2768,6 @@ void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
   prop.cd=clutter_density;
   prop.dhd=delta_h_diff;
   prop.kwx = 0;
-  propv.lvar = 5;
   prop.mdp = -1;
   prop.ptx=pol;	
   prop.thera=0.0;
@@ -2905,7 +2867,6 @@ void point_to_pointDH (double elev[], double tht_m, double rht_m,
   prop.cd=clutter_density;
   prop.dhd=delta_h_diff;
   prop.kwx = 0;
-  propv.lvar = 5;
   prop.mdp = -1;
   prop.ptx=pol;	
   prop.thera=0.0;
@@ -2958,7 +2919,12 @@ void point_to_pointDH (double elev[], double tht_m, double rht_m,
 
 
 /********************************************************
- * Area Mode Calculations                               *
+ * Area Mode Calculations
+ *
+ * This is obsolete. It was a less compute-intensive way
+ * of generating results for a given area without doing
+ * multiple point-to-point calculations, trading accuracy
+ * for speed.
  ********************************************************/
 
 /*************************************************************************************************
@@ -3024,9 +2990,6 @@ double pctTime, double pctLoc, double pctConf, double *dbloss, char *strmode, in
 	ipol=(long)pol;
 	qlrps(frq_mhz, 0.0, eno, ipol, eps, sgm, &prop);
 	qlra(kst, propv.klim, ivar, &prop, &propv);
-
-	if (propv.lvar<1)
-		propv.lvar=1;
 
 	lrprop2(dist_km*1000.0, &prop, &propa);
 	fs=32.45+20.0*log10(frq_mhz)+20.0*log10(prop.dist/1000.0);
