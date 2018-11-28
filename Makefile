@@ -1,21 +1,28 @@
-CC=gcc -O2 -Wall
-CXX=g++ -O2 -Wall
+CLANG := $(shell command -v clang 2> /dev/null)
 
+ifdef CLANG
+CC=clang
+CXX=clang++
+else
 ARCH := $(shell getconf LONG_BIT)
 CPPFLAGS_32 := 
 CPPFLAGS_64 := -march=x86-64 -mcmodel=medium
 
-CPPFLAGS= -fomit-frame-pointer -ffast-math -pipe $(CPPFLAGS_$(ARCH))
-#CPPFLAGS= -fomit-frame-pointer -ffast-math -pipe $(CPPFLAGS_$(ARCH)) -DUSE_MT_WORKQUEUE
-#CPPFLAGS= -fomit-frame-pointer -ffast-math -pipe $(CPPFLAGS_$(ARCH)) -DUSE_MT_WORKQUEUE -DHT_MODE
+GCC_CFLAGS:=-Wno-stringop-truncation -Wno-format-truncation -Wno-format-overflow $(CPPFLAGS_$(ARCH))
+
+CC=gcc $(GCC_CFLAGS)
+CXX=g++ $(GCC_CFLAGS)
+endif
+
+CPPFLAGS= -O2 -Wall -fomit-frame-pointer -ffast-math -pipe
+#CPPFLAGS= -O2 -Wall -fomit-frame-pointer -ffast-math -pipe -DHT_MODE
 
 SRCS = splat.cpp
 C_SRCS = itwom3.0.c
 
 OBJS = $(SRCS:.cpp=.o) $(C_SRCS:.c=.o)
 
-LDFLAGS = -lm -lbz2
-#LDFLAGS = -lm -lbz2 -lpthread
+LDFLAGS = -lm -lbz2 -lpthread
 
 all: splat
 
