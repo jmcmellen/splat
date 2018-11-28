@@ -33,6 +33,8 @@ my $lineno = 0;
 while (my $line = <$fh1>) {
     chomp $line;
     my ($lat, $long, $azimuth, $elevation, $loss, $blocked) = split(/,?\s+/, $line);
+    chop $lat;
+    chop $long;
 
     my $key = $lat."-".$long;
 
@@ -54,6 +56,9 @@ my $errcount = 0;
 while (my $line = <$fh2>) {
     chomp $line;
     my ($lat, $long, $azimuth, $elevation, $loss2, $blocked) = split(/,?\s+/, $line);
+    chop $lat;
+    chop $long;
+
 
     my $key = $lat."-".$long;
     if (!exists $ano1{$key}) {
