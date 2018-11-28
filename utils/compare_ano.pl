@@ -58,7 +58,7 @@ while (my $line = <$fh2>) {
     my $key = $lat."-".$long;
     if (!exists $ano1{$key}) {
         printf("%s %s not found\n", $lat, $long);
-        continue;
+        next;
     }
 
     my $loss1 = $ano1{$key};
