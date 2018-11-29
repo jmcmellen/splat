@@ -203,7 +203,27 @@ double ITWOMVersion();
 }
 #endif
 
-
+class SpinnerThread
+{
+public:
+    SpinnerThread() : run(true) {};
+    void operator()()
+    {
+        int pos = 0;
+        char cursor[4]={'/','-','\\','|'};
+        while (run) {
+            fprintf(stdout, "%c\b", cursor[pos++]);
+            fflush(stdout);
+            pos%=4;
+            sleep(1);
+        }
+    }
+    void stop() {
+        run = false;
+    }
+private:
+    bool run;
+};
 
 int interpolate(int y0, int y1, int x0, int x1, int n)
 {
@@ -3083,6 +3103,9 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 	double lat, lon, minwest, maxnorth, th;
 	static unsigned char mask_value=1;
 
+	minwest=dpp+(double)min_west;
+	maxnorth=(double)max_north-dpp;
+
 	symbol[0]='.';
 	symbol[1]='o';
 	symbol[2]='O';
@@ -3103,12 +3126,14 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
-	minwest=dpp+(double)min_west;
-	maxnorth=(double)max_north-dpp;
+    fprintf(stdout, "\n\n");
 
     WorkQueue *wq = nullptr;
+    SpinnerThread spinnerThread;
     if (multithread) {
         wq = new WorkQueue();;
+        std::thread threadObj( (SpinnerThread()) );
+        threadObj.detach();
     }
 
     if (!multithread) {
@@ -3249,6 +3274,7 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
     if (multithread) {
         wq->waitForCompletion();
         delete wq;
+        spinnerThread.stop();
     }
 
 	fprintf(stdout,"\nDone!\n");
@@ -3336,10 +3362,14 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
+    fprintf(stdout, "\n\n");
 
     WorkQueue *wq = nullptr;
+    SpinnerThread spinnerThread;
     if (multithread) {
         wq = new WorkQueue();
+        std::thread threadObj( (SpinnerThread()) );
+        threadObj.detach();
     }
 
     if (!multithread) {
@@ -3480,6 +3510,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
     if (multithread) {
         wq->waitForCompletion();
         delete wq;
+        spinnerThread.stop();
     }
 
 	if (fd!=NULL)
