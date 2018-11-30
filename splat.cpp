@@ -2835,7 +2835,9 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
     Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(source,destination,path);
 
-    double elev[ARRAYSIZE+10];
+    //double *elev = (double*)calloc(ARRAYSIZE + 10, sizeof(double));
+    double *elev = new double[ARRAYSIZE + 10];
+    //double elev[ARRAYSIZE+10];
 
 	four_thirds_earth=FOUR_THIRDS*EARTHRADIUS;
 
@@ -3075,6 +3077,8 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 		}
 	}
 
+    //free(elev);
+    delete[] elev;
     free(path);
     return 0;
 }
@@ -4284,7 +4288,7 @@ void WritePPMLR(char *filename, unsigned char geo, unsigned char kml, unsigned c
 	   points up and east points right in the image generated. */
 
 	char mapfile[255], geofile[255], kmlfile[255],  ckfile[255];
-	unsigned width, height, red, green, blue, terrain=0;
+	unsigned int width, height, red, green, blue, terrain=0;
 	unsigned char found, mask, cityorcounty; 
 	int indx, x, y, z, colorwidth, x0, y0, loss, level,
 	    hundreds, tens, units, match;
@@ -8890,7 +8894,6 @@ int main(int argc, char *argv[])
 	{
 		for (x=0; x<txsites && x<max_txsites; x++)
 		{
-            printf("Path is %ld bytes\n", sizeof(Path));
             std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
 			if (coverage)
@@ -8901,7 +8904,7 @@ int main(int argc, char *argv[])
 
             std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::seconds>( t2 - t1 ).count();
-            fprintf(stdout, "Calculation time: %lld sec\n", duration);
+            fprintf(stdout, "Calculation time: %lld sec\n", (long long)duration);
             fflush(stdout);
 
 			SiteReport(tx_site[x]);
