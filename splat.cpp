@@ -138,33 +138,36 @@ int	min_north=90, max_north=-90, min_west=360, max_west=-1, ippd, mpi,
 
 unsigned char got_elevation_pattern, got_azimuth_pattern, metric=0, dbm=0, smooth_contours=0;
 
-typedef struct Site {	double lat;
-		double lon;
-		float alt;
-		char name[50];
-		char filename[255];
-	    } Site;
+typedef struct Site {
+    double lat;
+    double lon;
+    float alt;
+    char name[50];
+    char filename[255];
+} Site;
 Site	site;
 
 // data about a path between two points
-typedef struct Path {	double lat[ARRAYSIZE];
-		double lon[ARRAYSIZE];
-		double elevation[ARRAYSIZE];
-		double distance[ARRAYSIZE];
-		int length;
-	    } Path;
+typedef struct Path {
+    double lat[ARRAYSIZE];
+    double lon[ARRAYSIZE];
+    double elevation[ARRAYSIZE];
+    double distance[ARRAYSIZE];
+    int length;
+} Path;
 
 // digital elevation model data
-typedef struct Dem {	int min_north;
-		int max_north;
-		int min_west;
-		int max_west;
-		int max_el;
-		int min_el;
-		short data[IPPD][IPPD];
-		unsigned char mask[IPPD][IPPD];
-		unsigned char signal[IPPD][IPPD];
-           } Dem;
+typedef struct Dem {
+    int min_north;
+    int max_north;
+    int min_west;
+    int max_west;
+    int max_el;
+    int min_el;
+    short data[IPPD][IPPD];
+    unsigned char mask[IPPD][IPPD];
+    unsigned char signal[IPPD][IPPD];
+} Dem;
 Dem dem[MAXPAGES];
 std::mutex dem_mutex;
 
@@ -181,10 +184,11 @@ typedef struct LongleyRiceData {	double eps_dielect;
           }	LongleyRice;
 LongleyRiceData LR;
 
-typedef struct Region { unsigned char color[32][3];
-		int level[32];
-		int levels;
-	      }	Region;
+typedef struct Region {
+    unsigned char color[32][3];
+    int level[32];
+    int levels;
+}	Region;
 Region region;
 
 #ifdef __cplusplus
@@ -608,7 +612,7 @@ double ElevationAngle(Site source, Site destination)
 	return ((180.0*(acos(((b*b)+(dx*dx)-(a*a))/(2.0*b*dx)))/PI)-90.0);
 }
 
-void ReadPath(Site &source, Site &destination, Path &path)
+void ReadPath(Site &source, Site &destination, Path *path)
 {
 	/* This function generates a sequence of latitude and
 	   longitude positions between source and destination
@@ -621,6 +625,8 @@ void ReadPath(Site &source, Site &destination, Path &path)
 		lat2, lon2, total_distance, dx, dy, path_length,
 		miles_per_sample, samples_per_radian=68755.0;
 	Site tempsite;
+
+    memset(path, 0, sizeof(Path));
 
 	lat1=source.lat*DEG2RAD;
 	lon1=source.lon*DEG2RAD;
@@ -660,10 +666,10 @@ void ReadPath(Site &source, Site &destination, Path &path)
 		lat1=lat1/DEG2RAD;
 		lon1=lon1/DEG2RAD;
 
-		path.lat[c]=lat1;
-		path.lon[c]=lon1;
-		path.elevation[c]=GetElevation(source);
-		path.distance[c]=0.0;
+		path->lat[c]=lat1;
+		path->lon[c]=lon1;
+		path->elevation[c]=GetElevation(source);
+		path->distance[c]=0.0;
 	}
 
 	for (distance=0.0, c=0; (total_distance!=0.0 && distance<=total_distance && c<ARRAYSIZE); c++, distance=miles_per_sample*(double)c)
@@ -699,29 +705,29 @@ void ReadPath(Site &source, Site &destination, Path &path)
 		lat2=lat2/DEG2RAD;
 		lon2=lon2/DEG2RAD;
 
-		path.lat[c]=lat2;
-		path.lon[c]=lon2;
+		path->lat[c]=lat2;
+		path->lon[c]=lon2;
 		tempsite.lat=lat2;
 		tempsite.lon=lon2;
-		path.elevation[c]=GetElevation(tempsite);
-		path.distance[c]=distance;
+		path->elevation[c]=GetElevation(tempsite);
+		path->distance[c]=distance;
 	}
 
 	/* Make sure exact destination point is recorded at path.length-1 */
 
 	if (c<ARRAYSIZE)
 	{
-		path.lat[c]=destination.lat;
-		path.lon[c]=destination.lon;
-		path.elevation[c]=GetElevation(destination);
-		path.distance[c]=total_distance;
+		path->lat[c]=destination.lat;
+		path->lon[c]=destination.lon;
+		path->elevation[c]=GetElevation(destination);
+		path->distance[c]=total_distance;
 		c++;
 	}
 
 	if (c<ARRAYSIZE)
-		path.length=c;
+		path->length=c;
 	else
-		path.length=ARRAYSIZE-1;
+		path->length=ARRAYSIZE-1;
 }
 
 double ElevationAngle2(Site source, Site destination, double er)
@@ -738,7 +744,7 @@ double ElevationAngle2(Site source, Site destination, double er)
 		cos_test_angle, test_alt, elevation, distance,
 		source_alt2, first_obstruction_angle=0.0;
 
-	Path path = {{0}};
+	Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(source,destination,path);
 
 	distance=5280.0*Distance(source,destination);
@@ -757,11 +763,11 @@ double ElevationAngle2(Site source, Site destination, double er)
 	   at the source since we're interested in identifying the FIRST
 	   obstruction along the path between source and destination. */
  
-	for (x=2, block=0; x<path.length && block==0; x++)
+	for (x=2, block=0; x<path->length && block==0; x++)
 	{
-		distance=5280.0*path.distance[x];
+		distance=5280.0*path->distance[x];
 
-		test_alt=earthradius+(path.elevation[x]==0.0?path.elevation[x]:path.elevation[x]+clutter);
+		test_alt=earthradius+(path->elevation[x]==0.0?path->elevation[x]:path->elevation[x]+clutter);
 
 		cos_test_angle=((source_alt2)+(distance*distance)-(test_alt*test_alt))/(2.0*source_alt*distance);
 
@@ -786,6 +792,7 @@ double ElevationAngle2(Site source, Site destination, double er)
 	else
 		elevation=((acos(cos_xmtr_angle))/DEG2RAD)-90.0;
 
+    free(path);
 	return elevation;
 }
 
@@ -854,23 +861,23 @@ double AverageTerrain(Site source, double azimuthx, double start_distance, doubl
 		return (-9999.0);
 	else
 	{
-        Path path = {{0}};
+        Path *path = (Path*)malloc(sizeof(Path));
 		ReadPath(source,destination,path);
 
-		endpoint=path.length;
+		endpoint=path->length;
 
 		/* Shrink the length of the radial if the
 		   outermost portion is not over U.S. land. */
 
-		for (c=endpoint-1; c>=0 && path.elevation[c]==0.0; c--);
+		for (c=endpoint-1; c>=0 && path->elevation[c]==0.0; c--);
 
 		endpoint=c+1;
 
 		for (c=0, samples=0; c<endpoint; c++)
 		{
-			if (path.distance[c]>=start_distance)
+			if (path->distance[c]>=start_distance)
 			{
-				terrain+=(path.elevation[c]==0.0?path.elevation[c]:path.elevation[c]+clutter);
+				terrain+=(path->elevation[c]==0.0?path->elevation[c]:path->elevation[c]+clutter);
 				samples++;
 			}
 		}
@@ -880,6 +887,7 @@ double AverageTerrain(Site source, double azimuthx, double start_distance, doubl
 		else
 			terrain=(terrain/(double)samples);
 
+        free(path);
 		return terrain;
 	}
 }
@@ -2451,7 +2459,6 @@ void LoadBoundaries(char *filename)
 
 			do
 			{
-                Path path = {{0}};
 				sscanf(string,"%lf %lf", &lon1, &lat1);
 
 				source.lat=lat0;
@@ -2459,10 +2466,13 @@ void LoadBoundaries(char *filename)
 				destination.lat=lat1;
 				destination.lon=(lon1>0.0 ? 360.0-lon1 : -lon1);
 
+                Path *path = (Path*)malloc(sizeof(Path));
 				ReadPath(source,destination,path);
 
-				for (x=0; x<path.length; x++)
-					OrMask(path.lat[x],path.lon[x],4);
+				for (x=0; x<path->length; x++)
+					OrMask(path->lat[x],path->lon[x],4);
+
+                free(path);
 
 				lat0=lat1;
 				lon0=lon1;
@@ -2757,19 +2767,19 @@ int PlotPath(Site source, Site destination, char mask_value)
 	double cos_xmtr_angle, cos_test_angle, test_alt;
 	double distance, rx_alt, tx_alt;
 
-    Path path = {{0}};
+    Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(source,destination,path);
 
-	for (y=0; y<path.length; y++)
+	for (y=0; y<path->length; y++)
 	{
 		/* Test this point only if it hasn't been already
 		   tested and found to be free of obstructions. */
 
-		if ((GetMask(path.lat[y],path.lon[y])&mask_value)==0)
+		if ((GetMask(path->lat[y],path->lon[y])&mask_value)==0)
 		{
-			distance=5280.0*path.distance[y];
-			tx_alt=earthradius+source.alt+path.elevation[0];
-			rx_alt=earthradius+destination.alt+path.elevation[y];
+			distance=5280.0*path->distance[y];
+			tx_alt=earthradius+source.alt+path->elevation[0];
+			rx_alt=earthradius+destination.alt+path->elevation[y];
 
 			/* Calculate the cosine of the elevation of the
 			   transmitter as seen at the temp rx point. */
@@ -2778,8 +2788,8 @@ int PlotPath(Site source, Site destination, char mask_value)
 
 			for (x=y, block=0; x>=0 && block==0; x--)
 			{
-				distance=5280.0*(path.distance[y]-path.distance[x]);
-				test_alt=earthradius+(path.elevation[x]==0.0?path.elevation[x]:path.elevation[x]+clutter);
+				distance=5280.0*(path->distance[y]-path->distance[x]);
+				test_alt=earthradius+(path->elevation[x]==0.0?path->elevation[x]:path->elevation[x]+clutter);
 
 				cos_test_angle=((rx_alt*rx_alt)+(distance*distance)-(test_alt*test_alt))/(2.0*rx_alt*distance);
 
@@ -2795,9 +2805,11 @@ int PlotPath(Site source, Site destination, char mask_value)
 			}
 
 			if (block==0)
-				OrMask(path.lat[y],path.lon[y],mask_value);
+				OrMask(path->lat[y],path->lon[y],mask_value);
 		}
 	}
+
+    free(path);
     return 0;
 }
 
@@ -2820,7 +2832,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
     char textout[MAX_TEXT_LEN];
     size_t textlen = 0;
 
-    Path path = {{0}};
+    Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(source,destination,path);
 
     double elev[ARRAYSIZE+10];
@@ -2829,13 +2841,13 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 
 	/* Copy elevations plus clutter along path into the elev[] array. */
 
-	for (x=1; x<path.length-1; x++)
-		elev[x+2]=(path.elevation[x]==0.0?path.elevation[x]*METERS_PER_FOOT:(clutter+path.elevation[x])*METERS_PER_FOOT);
+	for (x=1; x<path->length-1; x++)
+		elev[x+2]=(path->elevation[x]==0.0?path->elevation[x]*METERS_PER_FOOT:(clutter+path->elevation[x])*METERS_PER_FOOT);
 
 	/* Copy ending points without clutter */
 
-	elev[2]=path.elevation[0]*METERS_PER_FOOT;
-	elev[path.length+1]=path.elevation[path.length-1]*METERS_PER_FOOT;
+	elev[2]=path->elevation[0]*METERS_PER_FOOT;
+	elev[path->length+1]=path->elevation[path->length-1]*METERS_PER_FOOT;
 
 	/* Since the only energy the propagation model considers
 	   reaching the destination is based on what is scattered
@@ -2847,16 +2859,16 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 	   is required for properly integrating the antenna's elevation
 	   pattern into the calculation for overall path loss. */
 
-	for (y=2; (y<(path.length-1) && path.distance[y]<=max_range); y++)
+	for (y=2; (y<(path->length-1) && path->distance[y]<=max_range); y++)
 	{
 		/* Process this point only if it
 		   has not already been processed. */
 
-		if ((GetMask(path.lat[y],path.lon[y])&248)!=(mask_value<<3))
+		if ((GetMask(path->lat[y],path->lon[y])&248)!=(mask_value<<3))
 		{
-			distance=5280.0*path.distance[y];
-			xmtr_alt=four_thirds_earth+source.alt+path.elevation[0];
-			dest_alt=four_thirds_earth+destination.alt+path.elevation[y];
+			distance=5280.0*path->distance[y];
+			xmtr_alt=four_thirds_earth+source.alt+path->elevation[0];
+			dest_alt=four_thirds_earth+destination.alt+path->elevation[y];
 			dest_alt2=dest_alt*dest_alt;
 			xmtr_alt2=xmtr_alt*xmtr_alt;
 
@@ -2879,9 +2891,9 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 
 				for (x=2, block=0; (x<y && block==0); x++)
 				{
-					distance=5280.0*path.distance[x];
+					distance=5280.0*path->distance[x];
 
-					test_alt=four_thirds_earth+(path.elevation[x]==0.0?path.elevation[x]:path.elevation[x]+clutter);
+					test_alt=four_thirds_earth+(path->elevation[x]==0.0?path->elevation[x]:path->elevation[x]+clutter);
 
 					/* Calculate the cosine of the elevation
 					   angle of the terrain (test point)
@@ -2923,7 +2935,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 
 			/* Distance between elevation samples */
 
-			elev[1]=METERS_PER_MILE*(path.distance[y]-path.distance[y-1]);
+			elev[1]=METERS_PER_MILE*(path->distance[y]-path->distance[y-1]);
 
 			if (olditm)
 				point_to_point_ITM(elev,source.alt*METERS_PER_FOOT, 
@@ -2939,14 +2951,14 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 				LR.radio_climate, LR.pol, LR.conf, LR.rel, &loss,
 				strmode, &errnum);
 
-			temp.lat=path.lat[y];
-			temp.lon=path.lon[y];
+			temp.lat=path->lat[y];
+			temp.lon=path->lon[y];
 
 			azimuth=(Azimuth(source,temp));
 
 			if (fd!=NULL) {
 				textlen = snprintf(textout, MAX_TEXT_LEN, "%.7f, %.7f, %.3f, %.3f, ",
-                            path.lat[y], path.lon[y], azimuth, elevation);
+                            path->lat[y], path->lon[y], azimuth, elevation);
             }
 
 			/* If ERP==0, write path loss to alphanumeric
@@ -2999,13 +3011,13 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 					if (ifs>255)
 						ifs=255;
 
-					ofs=GetSignal(path.lat[y],path.lon[y]);
+					ofs=GetSignal(path->lat[y],path->lon[y]);
 
 					if (ofs>ifs)
 						ifs=ofs;
 
                     // writes to dem
-					PutSignal(path.lat[y],path.lon[y],(unsigned char)ifs);
+					PutSignal(path->lat[y],path->lon[y],(unsigned char)ifs);
 				}
 
 				else
@@ -3020,13 +3032,13 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 					if (ifs>255)
 						ifs=255;
 
-					ofs=GetSignal(path.lat[y],path.lon[y]);
+					ofs=GetSignal(path->lat[y],path->lon[y]);
 
 					if (ofs>ifs)
 						ifs=ofs;
 
                     // writes to dem
-					PutSignal(path.lat[y],path.lon[y],(unsigned char)ifs);
+					PutSignal(path->lat[y],path->lon[y],(unsigned char)ifs);
 	
 					if (fd!=NULL) {
                         textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.3f",field_strength);
@@ -3041,13 +3053,13 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 				else
 					ifs=(int)rint(loss);
 
-				ofs=GetSignal(path.lat[y],path.lon[y]);
+				ofs=GetSignal(path->lat[y],path->lon[y]);
 
 				if (ofs<ifs && ofs!=0)
 					ifs=ofs;
 
                 // writes to dem
-				PutSignal(path.lat[y],path.lon[y],(unsigned char)ifs);
+				PutSignal(path->lat[y],path->lon[y],(unsigned char)ifs);
 			}
 
 			if (fd!=NULL) {
@@ -3059,9 +3071,11 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 
 			/* Mark this point as having been analyzed */
 
-			PutMask(path.lat[y],path.lon[y],(GetMask(path.lat[y],path.lon[y])&7)+(mask_value<<3));
+			PutMask(path->lat[y],path->lon[y],(GetMask(path->lat[y],path->lon[y])&7)+(mask_value<<3));
 		}
 	}
+
+    free(path);
     return 0;
 }
 
@@ -5859,36 +5873,36 @@ void GraphTerrain(Site source, Site destination, char *name)
 	double	minheight=100000.0, maxheight=-100000.0;
 	FILE	*fd=NULL, *fd1=NULL;
 
-    Path path = {{0}};
-	ReadPath(destination,source,path); // XXX is this backwards?
+    Path *path = (Path*)malloc(sizeof(Path));
+	ReadPath(destination,source,path); 
 
 	fd=fopen("profile.gp","wb");
 
 	if (clutter>0.0)
 		fd1=fopen("clutter.gp","wb");
 
-	for (x=0; x<path.length; x++)
+	for (x=0; x<path->length; x++)
 	{
-		if ((path.elevation[x]+clutter)>maxheight)
-			maxheight=path.elevation[x]+clutter;
+		if ((path->elevation[x]+clutter)>maxheight)
+			maxheight=path->elevation[x]+clutter;
 
-		if (path.elevation[x]<minheight)
-			minheight=path.elevation[x];
+		if (path->elevation[x]<minheight)
+			minheight=path->elevation[x];
 
 		if (metric)
 		{
-			fprintf(fd,"%f\t%f\n",KM_PER_MILE*path.distance[x],METERS_PER_FOOT*path.elevation[x]);
+			fprintf(fd,"%f\t%f\n",KM_PER_MILE*path->distance[x],METERS_PER_FOOT*path->elevation[x]);
 
-			if (fd1!=NULL && x>0 && x<path.length-2)
-				fprintf(fd1,"%f\t%f\n",KM_PER_MILE*path.distance[x],METERS_PER_FOOT*(path.elevation[x]==0.0?path.elevation[x]:(path.elevation[x]+clutter)));
+			if (fd1!=NULL && x>0 && x<path->length-2)
+				fprintf(fd1,"%f\t%f\n",KM_PER_MILE*path->distance[x],METERS_PER_FOOT*(path->elevation[x]==0.0?path->elevation[x]:(path->elevation[x]+clutter)));
 		}
 
 		else
 		{
-			fprintf(fd,"%f\t%f\n",path.distance[x],path.elevation[x]);
+			fprintf(fd,"%f\t%f\n",path->distance[x],path->elevation[x]);
 
-			if (fd1!=NULL && x>0 && x<path.length-2)
-				fprintf(fd1,"%f\t%f\n",path.distance[x],(path.elevation[x]==0.0?path.elevation[x]:(path.elevation[x]+clutter)));
+			if (fd1!=NULL && x>0 && x<path->length-2)
+				fprintf(fd1,"%f\t%f\n",path->distance[x],(path->elevation[x]==0.0?path->elevation[x]:(path->elevation[x]+clutter)));
 		}
 	}
 
@@ -6004,6 +6018,8 @@ void GraphTerrain(Site source, Site destination, char *name)
 
 	else
 		fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
+
+    free(path);
 }
 
 void GraphElevation(Site source, Site destination, char *name)
@@ -6023,7 +6039,7 @@ void GraphElevation(Site source, Site destination, char *name)
 	Site    remote, remote2;
 	FILE	*fd=NULL, *fd1=NULL, *fd2=NULL;
 
-    Path path = {{0}};
+    Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(destination,source,path);  /* destination=RX, source=TX */
 	refangle=ElevationAngle(destination,source);
 	distance=Distance(source,destination);
@@ -6035,19 +6051,19 @@ void GraphElevation(Site source, Site destination, char *name)
 
 	fd2=fopen("reference.gp","wb");
 
-	for (x=1; x<path.length-1; x++)
+	for (x=1; x<path->length-1; x++)
 	{
-		remote.lat=path.lat[x];
-		remote.lon=path.lon[x];
+		remote.lat=path->lat[x];
+		remote.lon=path->lon[x];
 		remote.alt=0.0;
 		angle=ElevationAngle(destination,remote);
 
 		if (clutter>0.0)
 		{
-			remote2.lat=path.lat[x];
-			remote2.lon=path.lon[x];
+			remote2.lat=path->lat[x];
+			remote2.lon=path->lon[x];
 
-			if (path.elevation[x]!=0.0)
+			if (path->elevation[x]!=0.0)
 				remote2.alt=clutter;
 			else
 				remote2.alt=0.0;
@@ -6057,22 +6073,22 @@ void GraphElevation(Site source, Site destination, char *name)
 
 		if (metric)
 		{
-			fprintf(fd,"%f\t%f\n",KM_PER_MILE*path.distance[x],angle);
+			fprintf(fd,"%f\t%f\n",KM_PER_MILE*path->distance[x],angle);
 
 			if (fd1!=NULL)
-				fprintf(fd1,"%f\t%f\n",KM_PER_MILE*path.distance[x],clutter_angle);
+				fprintf(fd1,"%f\t%f\n",KM_PER_MILE*path->distance[x],clutter_angle);
 
-			fprintf(fd2,"%f\t%f\n",KM_PER_MILE*path.distance[x],refangle);
+			fprintf(fd2,"%f\t%f\n",KM_PER_MILE*path->distance[x],refangle);
 		}
 
 		else
 		{
-			fprintf(fd,"%f\t%f\n",path.distance[x],angle);
+			fprintf(fd,"%f\t%f\n",path->distance[x],angle);
 
 			if (fd1!=NULL)
-				fprintf(fd1,"%f\t%f\n",path.distance[x],clutter_angle);
+				fprintf(fd1,"%f\t%f\n",path->distance[x],clutter_angle);
 
-			fprintf(fd2,"%f\t%f\n",path.distance[x],refangle);
+			fprintf(fd2,"%f\t%f\n",path->distance[x],refangle);
 		}
 
 		if (angle>maxangle)
@@ -6087,14 +6103,14 @@ void GraphElevation(Site source, Site destination, char *name)
 
 	if (metric)
 	{
-		fprintf(fd,"%f\t%f\n",KM_PER_MILE*path.distance[path.length-1],refangle);
-		fprintf(fd2,"%f\t%f\n",KM_PER_MILE*path.distance[path.length-1],refangle);
+		fprintf(fd,"%f\t%f\n",KM_PER_MILE*path->distance[path->length-1],refangle);
+		fprintf(fd2,"%f\t%f\n",KM_PER_MILE*path->distance[path->length-1],refangle);
 	}
 
 	else
 	{
-		fprintf(fd,"%f\t%f\n",path.distance[path.length-1],refangle);
-		fprintf(fd2,"%f\t%f\n",path.distance[path.length-1],refangle);
+		fprintf(fd,"%f\t%f\n",path->distance[path->length-1],refangle);
+		fprintf(fd2,"%f\t%f\n",path->distance[path->length-1],refangle);
 	}
 
 	fclose(fd);
@@ -6207,6 +6223,8 @@ void GraphElevation(Site source, Site destination, char *name)
 
 	else
 		fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
+
+    free(path);
 }
 
 void GraphHeight(Site source, Site destination, char *name, unsigned char fresnel_plot, unsigned char normalized)
@@ -6231,7 +6249,7 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 	Site    remote;
 	FILE	*fd=NULL, *fd1=NULL, *fd2=NULL, *fd3=NULL, *fd4=NULL, *fd5=NULL;
 
-    Path path = {{0}};
+    Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(destination,source,path);  /* destination=RX, source=TX */
 	azimuth=Azimuth(destination,source);
 	distance=Distance(destination,source);
@@ -6243,7 +6261,7 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 	if (fresnel_plot)
 	{
 		lambda=9.8425e8/(LR.frq_mhz*1e6);
-		d=5280.0*path.distance[path.length-1];
+		d=5280.0*path->distance[path->length-1];
 	}
 
 	if (normalized)
@@ -6251,7 +6269,7 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 		ed=GetElevation(destination);
 		es=GetElevation(source);
 		nb=-destination.alt-ed;
-		nm=(-source.alt-es-nb)/(path.distance[path.length-1]);
+		nm=(-source.alt-es-nb)/(path->distance[path->length-1]);
 	}
 
 	fd=fopen("profile.gp","wb");
@@ -6268,10 +6286,10 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 		fd4=fopen("fresnel_pt_6.gp", "wb");
 	}
 
-	for (x=0; x<path.length-1; x++)
+	for (x=0; x<path->length-1; x++)
 	{
-		remote.lat=path.lat[x];
-		remote.lon=path.lon[x];
+		remote.lat=path->lat[x];
+		remote.lon=path->lon[x];
 		remote.alt=0.0;
 
 		terrain=GetElevation(remote);
@@ -6296,14 +6314,14 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 
 		if ((LR.frq_mhz>=20.0) && (LR.frq_mhz<=20000.0) && fresnel_plot)
 		{
-			d1=5280.0*path.distance[x];
+			d1=5280.0*path->distance[x];
 			f_zone=-1.0*sqrt(lambda*d1*(d-d1)/d);
 			fpt6_zone=f_zone*fzone_clearance;
 		}
 
 		if (normalized)
 		{
-			r=-(nm*path.distance[x])-nb;
+			r=-(nm*path->distance[x])-nb;
 			height+=r;
 
 			if ((LR.frq_mhz>=20.0) && (LR.frq_mhz<=20000.0) && fresnel_plot)
@@ -6318,38 +6336,38 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 
 		if (metric)
 		{
-			fprintf(fd,"%f\t%f\n",KM_PER_MILE*path.distance[x],METERS_PER_FOOT*height);
+			fprintf(fd,"%f\t%f\n",KM_PER_MILE*path->distance[x],METERS_PER_FOOT*height);
 
-			if (fd1!=NULL && x>0 && x<path.length-2)
-				fprintf(fd1,"%f\t%f\n",KM_PER_MILE*path.distance[x],METERS_PER_FOOT*(terrain==0.0?height:(height+clutter)));
+			if (fd1!=NULL && x>0 && x<path->length-2)
+				fprintf(fd1,"%f\t%f\n",KM_PER_MILE*path->distance[x],METERS_PER_FOOT*(terrain==0.0?height:(height+clutter)));
 
-			fprintf(fd2,"%f\t%f\n",KM_PER_MILE*path.distance[x],METERS_PER_FOOT*r);
-			fprintf(fd5,"%f\t%f\n",KM_PER_MILE*path.distance[x],METERS_PER_FOOT*(height-terrain));
+			fprintf(fd2,"%f\t%f\n",KM_PER_MILE*path->distance[x],METERS_PER_FOOT*r);
+			fprintf(fd5,"%f\t%f\n",KM_PER_MILE*path->distance[x],METERS_PER_FOOT*(height-terrain));
 		}
 
 		else
 		{
-			fprintf(fd,"%f\t%f\n",path.distance[x],height);
+			fprintf(fd,"%f\t%f\n",path->distance[x],height);
 
-			if (fd1!=NULL && x>0 && x<path.length-2)
-				fprintf(fd1,"%f\t%f\n",path.distance[x],(terrain==0.0?height:(height+clutter)));
+			if (fd1!=NULL && x>0 && x<path->length-2)
+				fprintf(fd1,"%f\t%f\n",path->distance[x],(terrain==0.0?height:(height+clutter)));
 
-			fprintf(fd2,"%f\t%f\n",path.distance[x],r);
-			fprintf(fd5,"%f\t%f\n",path.distance[x],height-terrain);
+			fprintf(fd2,"%f\t%f\n",path->distance[x],r);
+			fprintf(fd5,"%f\t%f\n",path->distance[x],height-terrain);
 		}
 
 		if ((LR.frq_mhz>=20.0) && (LR.frq_mhz<=20000.0) && fresnel_plot)
 		{
 			if (metric)
 			{
-				fprintf(fd3,"%f\t%f\n",KM_PER_MILE*path.distance[x],METERS_PER_FOOT*f_zone);
-				fprintf(fd4,"%f\t%f\n",KM_PER_MILE*path.distance[x],METERS_PER_FOOT*fpt6_zone);
+				fprintf(fd3,"%f\t%f\n",KM_PER_MILE*path->distance[x],METERS_PER_FOOT*f_zone);
+				fprintf(fd4,"%f\t%f\n",KM_PER_MILE*path->distance[x],METERS_PER_FOOT*fpt6_zone);
 			}
 
 			else
 			{
-				fprintf(fd3,"%f\t%f\n",path.distance[x],f_zone);
-				fprintf(fd4,"%f\t%f\n",path.distance[x],fpt6_zone);
+				fprintf(fd3,"%f\t%f\n",path->distance[x],f_zone);
+				fprintf(fd4,"%f\t%f\n",path->distance[x],fpt6_zone);
 			}
 
 			if (f_zone<minheight)
@@ -6373,34 +6391,34 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 	}
 
 	if (normalized)
-		r=-(nm*path.distance[path.length-1])-nb;
+		r=-(nm*path->distance[path->length-1])-nb;
 	else
 		r=0.0;
 
 	if (metric)
 	{
-		fprintf(fd,"%f\t%f\n",KM_PER_MILE*path.distance[path.length-1],METERS_PER_FOOT*r);
-		fprintf(fd2,"%f\t%f\n",KM_PER_MILE*path.distance[path.length-1],METERS_PER_FOOT*r);
+		fprintf(fd,"%f\t%f\n",KM_PER_MILE*path->distance[path->length-1],METERS_PER_FOOT*r);
+		fprintf(fd2,"%f\t%f\n",KM_PER_MILE*path->distance[path->length-1],METERS_PER_FOOT*r);
 	}
 
 	else
 	{
-		fprintf(fd,"%f\t%f\n",path.distance[path.length-1],r);
-		fprintf(fd2,"%f\t%f\n",path.distance[path.length-1],r);
+		fprintf(fd,"%f\t%f\n",path->distance[path->length-1],r);
+		fprintf(fd2,"%f\t%f\n",path->distance[path->length-1],r);
 	}
 
 	if ((LR.frq_mhz>=20.0) && (LR.frq_mhz<=20000.0) && fresnel_plot)
 	{
 		if (metric)
 		{
-			fprintf(fd3,"%f\t%f\n",KM_PER_MILE*path.distance[path.length-1],METERS_PER_FOOT*r);
-			fprintf(fd4,"%f\t%f\n",KM_PER_MILE*path.distance[path.length-1],METERS_PER_FOOT*r);
+			fprintf(fd3,"%f\t%f\n",KM_PER_MILE*path->distance[path->length-1],METERS_PER_FOOT*r);
+			fprintf(fd4,"%f\t%f\n",KM_PER_MILE*path->distance[path->length-1],METERS_PER_FOOT*r);
 		}
 
 		else
 		{
-			fprintf(fd3,"%f\t%f\n",path.distance[path.length-1],r);
-			fprintf(fd4,"%f\t%f\n",path.distance[path.length-1],r);
+			fprintf(fd3,"%f\t%f\n",path->distance[path->length-1],r);
+			fprintf(fd4,"%f\t%f\n",path->distance[path->length-1],r);
 		}
 	}
 	
@@ -6589,6 +6607,8 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 
 	else
 		fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
+
+    free(path);
 }
 
 void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
@@ -6603,7 +6623,7 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 		h_r_f1, h_r_fpt6, h_f, h_los, lambda=0.0;
 	char	string[255], string_fpt6[255], string_f1[255];
 
-    Path path = {{0}};
+    Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(xmtr,rcvr,path);
 	h_r=GetElevation(rcvr)+rcvr.alt+earthradius;
 	h_r_f1=h_r;
@@ -6644,10 +6664,10 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 	   acos().  However, note the inverted comparison: if
 	   acos(A) > acos(B), then B > A. */
 
-	for (x=path.length-1; x>0; x--)
+	for (x=path->length-1; x>0; x--)
 	{
-		site_x.lat=path.lat[x];
-		site_x.lon=path.lon[x];
+		site_x.lat=path->lat[x];
+		site_x.lon=path->lon[x];
 		site_x.alt=0.0;
 
 		h_x=GetElevation(site_x)+earthradius+clutter;
@@ -6765,6 +6785,8 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 		fprintf(outfile,"%s",string_f1);
 		fprintf(outfile,"%s",string_fpt6);
 	}
+
+    free(path);
 }
 
 void PathReport(Site source, Site destination, char *name, char graph_it)
@@ -7058,7 +7080,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		if (patterndB!=0.0)
 			fprintf(fd2,"%s antenna pattern towards %s: %.3f (%.2f dB)\n", source.name, destination.name, pattern, patterndB);
 
-        Path path = {{0}};
+        Path *path = (Path*)malloc(sizeof(Path));
 		ReadPath(source,destination,path);  /* source=TX, destination=RX */
 
         double elev[ARRAYSIZE+10];
@@ -7066,23 +7088,23 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		/* Copy elevations plus clutter along
 		   path into the elev[] array. */
 
-		for (x=1; x<path.length-1; x++)
-			elev[x+2]=METERS_PER_FOOT*(path.elevation[x]==0.0?path.elevation[x]:(clutter+path.elevation[x]));
+		for (x=1; x<path->length-1; x++)
+			elev[x+2]=METERS_PER_FOOT*(path->elevation[x]==0.0?path->elevation[x]:(clutter+path->elevation[x]));
 
 		/* Copy ending points without clutter */
 
-		elev[2]=path.elevation[0]*METERS_PER_FOOT;
-		elev[path.length+1]=path.elevation[path.length-1]*METERS_PER_FOOT;
+		elev[2]=path->elevation[0]*METERS_PER_FOOT;
+		elev[path->length+1]=path->elevation[path->length-1]*METERS_PER_FOOT;
 
 		fd=fopen("profile.gp","w");
 
 		azimuth=rint(Azimuth(source,destination));
 
-		for (y=2; y<(path.length-1); y++)  /* path.length-1 avoids LR error */
+		for (y=2; y<(path->length-1); y++)  /* path->length-1 avoids LR error */
 		{
-			distance=5280.0*path.distance[y];
-			source_alt=four_thirds_earth+source.alt+path.elevation[0];
-			dest_alt=four_thirds_earth+destination.alt+path.elevation[y];
+			distance=5280.0*path->distance[y];
+			source_alt=four_thirds_earth+source.alt+path->elevation[0];
+			dest_alt=four_thirds_earth+destination.alt+path->elevation[y];
 			dest_alt2=dest_alt*dest_alt;
 			source_alt2=source_alt*source_alt;
 
@@ -7095,12 +7117,12 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 			{
 				/* If an antenna elevation pattern is available, the
 				   following code determines the elevation angle to
-			   	   the first obstruction along the path. */
+			   	   the first obstruction along the path-> */
 
 				for (x=2, block=0; x<y && block==0; x++)
 				{
-					distance=5280.0*(path.distance[y]-path.distance[x]);
-					test_alt=four_thirds_earth+path.elevation[x];
+					distance=5280.0*(path->distance[y]-path->distance[x]);
+					test_alt=four_thirds_earth+path->elevation[x];
 
 					/* Calculate the cosine of the elevation
 					   angle of the terrain (test point)
@@ -7134,7 +7156,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 
 			/* Distance between elevation samples */
 
-			elev[1]=METERS_PER_MILE*(path.distance[y]-path.distance[y-1]);
+			elev[1]=METERS_PER_MILE*(path->distance[y]-path->distance[y-1]);
 
 			if (olditm)
 				point_to_point_ITM(elev,source.alt*METERS_PER_FOOT, 
@@ -7173,10 +7195,10 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 			total_loss=loss-patterndB;
 
 			if (metric)
-				fprintf(fd,"%f\t%f\n",KM_PER_MILE*path.distance[y],total_loss);
+				fprintf(fd,"%f\t%f\n",KM_PER_MILE*path->distance[y],total_loss);
 
 			else
-				fprintf(fd,"%f\t%f\n",path.distance[y],total_loss);
+				fprintf(fd,"%f\t%f\n",path->distance[y],total_loss);
 
 			if (total_loss>maxloss)
 				maxloss=total_loss;
@@ -7186,6 +7208,9 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		}
 
 		fclose(fd);
+
+        free(path);
+        path = nullptr;
 
 		distance=Distance(source,destination);
 
@@ -7680,7 +7705,7 @@ void WriteKML(Site source, Site destination)
 		azimuth, cos_test_angle, test_alt;
 	FILE	*fd=NULL;
 
-    Path path = {{0}};
+    Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(source,destination,path);
 
 	sprintf(report_name,"%s-to-%s.kml",source.name,destination.name);
@@ -7798,8 +7823,8 @@ void WriteKML(Site source, Site destination)
 	fprintf(fd,"    <altitudeMode>relativeToGround</altitudeMode>\n");
 	fprintf(fd,"    <coordinates>\n");
 
-	for (x=0; x<path.length; x++)
-		fprintf(fd,"      %f,%f,5\n",(path.lon[x]<180.0?-path.lon[x]:360.0-path.lon[x]),path.lat[x]);
+	for (x=0; x<path->length; x++)
+		fprintf(fd,"      %f,%f,5\n",(path->lon[x]<180.0?-path->lon[x]:360.0-path->lon[x]),path->lat[x]);
 
 	fprintf(fd,"    </coordinates>\n");
 	fprintf(fd,"   </LineString>\n");
@@ -7825,11 +7850,11 @@ void WriteKML(Site source, Site destination)
 
 	/* Walk across the "path", indentifying obstructions along the way */
 
-	for (y=0; y<path.length; y++)
+	for (y=0; y<path->length; y++)
 	{
-		distance=5280.0*path.distance[y];
-		tx_alt=earthradius+source.alt+path.elevation[0];
-		rx_alt=earthradius+destination.alt+path.elevation[y];
+		distance=5280.0*path->distance[y];
+		tx_alt=earthradius+source.alt+path->elevation[0];
+		rx_alt=earthradius+destination.alt+path->elevation[y];
 
 		/* Calculate the cosine of the elevation of the
 		   transmitter as seen at the temp rx point. */
@@ -7838,8 +7863,8 @@ void WriteKML(Site source, Site destination)
 
 		for (x=y, block=0; x>=0 && block==0; x--)
 		{
-			distance=5280.0*(path.distance[y]-path.distance[x]);
-			test_alt=earthradius+path.elevation[x];
+			distance=5280.0*(path->distance[y]-path->distance[x]);
+			test_alt=earthradius+path->elevation[x];
 
 			cos_test_angle=((rx_alt*rx_alt)+(distance*distance)-(test_alt*test_alt))/(2.0*rx_alt*distance);
 
@@ -7855,9 +7880,9 @@ void WriteKML(Site source, Site destination)
 		}
 
 		if (block)
-			fprintf(fd,"      %f,%f,-30\n",(path.lon[y]<180.0?-path.lon[y]:360.0-path.lon[y]),path.lat[y]);
+			fprintf(fd,"      %f,%f,-30\n",(path->lon[y]<180.0?-path->lon[y]:360.0-path->lon[y]),path->lat[y]);
 		else
-			fprintf(fd,"      %f,%f,5\n",(path.lon[y]<180.0?-path.lon[y]:360.0-path.lon[y]),path.lat[y]);
+			fprintf(fd,"      %f,%f,5\n",(path->lon[y]<180.0?-path->lon[y]:360.0-path->lon[y]),path->lat[y]);
 	}
 
 	fprintf(fd,"    </coordinates>\n");
@@ -7880,6 +7905,8 @@ void WriteKML(Site source, Site destination)
 	fprintf(stdout, "\nKML file written to: \"%s\"",report_name);
 
 	fflush(stdout);
+
+    free(path);
 }
 
 int main(int argc, char *argv[])
@@ -8863,6 +8890,7 @@ int main(int argc, char *argv[])
 	{
 		for (x=0; x<txsites && x<max_txsites; x++)
 		{
+            printf("Path is %ld bytes\n", sizeof(Path));
             std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
 			if (coverage)
@@ -8873,7 +8901,7 @@ int main(int argc, char *argv[])
 
             std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::seconds>( t2 - t1 ).count();
-            fprintf(stdout, "Calculation time: %ld sec\n", duration);
+            fprintf(stdout, "Calculation time: %lld sec\n", duration);
             fflush(stdout);
 
 			SiteReport(tx_site[x]);
