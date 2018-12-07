@@ -21,8 +21,7 @@ least C++11 .
 
 You also need libzip and libbzip. You can often install these from packages. For instance, on Debian:
 
-apt-get install zlib1g zlib1g-dev
-apt-get install libbz2-dev
+apt-get install zlib1g-dev libbz2-dev
 
 
 ## Changes
