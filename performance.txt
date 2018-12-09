@@ -1,39 +1,147 @@
+1.0 Changes
 
+After making the following changes to itwom3.0.c:
+* removing static variables
+* replacing the C++ complex-number library with a C-only version
+* converting from C++ pass-by-reference to pass-by-pointer
+
+Splat 1.4.2 was compiled with g++.
+The new version was compiled with clang/clang++, except where noted.
+
+
+2.0 Calculation times for PlotLRMap()
+
+point_to_point()
+-------
 Compute times (in seconds):
+                                           Splat                Splat MT
+                        Cores Threads     v1.4.2      Single thread     Multithread
+Raspberry Pi, Rev 1       1      1         1015             1185            1199
+Atom D510                 2      4          272              300             112
+Avoton C2550              4      4           99              108              40
+2011 iMac Core i5-2400    4      4           32               33              18
+Core i3-8100              4      4           25               27               9
 
-new ITM
+
+dB loss:
+The dB loss calculations for changes to the new ITM algorithm all are within 0.1 dB
+of the 1.4.2 version's implementation.
+
+
+
+point_to_point_ITM()
 -------
-                     Splat 1.4.2     Single thread     Multithread
-Atom D510                272              300             112
-Avoton C2550              99              108              40
-Core I3-8100              25               27               9
+Compute times (in seconds):
+                                           Splat                Splat MT
+                        Cores Threads     v1.4.2      Single thread     Multithread
+Raspberry Pi, Rev 1        1     1         804              936             959
+Atom D510                  2     4         196              224              89
+Avoton C2550               4     4          74               82              33
+2011 iMac Core i5-2400     4     4          24               24              16
+Core i3-8100               4     4          19               20               7
 
-This stays under 0.1 difference in its calculations.
+dB loss:
+With the modifications, this mostly stays under 0.1 dB loss difference in its calculations,
+with a few exceptions. Those mostly stay under 0.5 dB, and all stay under 2 dB. The
+compiler and fast-math options make a big difference. For instance, using the new code
+in single threaded mode:
+
+gcc/g++, regular: 21 sec, 123 different results from 1.4.2
+gcc/g++, fastmath: 18 sec, 12 different results from 1.4.2
+clang/clang++ regular:  20 sec, 134 different results from 1.4.2
+clang/clang++ fastmath: 17 sec, 354 different results from 1.4.2
 
 
+3.0 PlotLRMap() functon in call times from gprof
 
-old ITM
--------
-                     Splat 1.4.2     Single thread     Multithread
-Atom D510                196              224              89
-Avoton C2550              74               82              33
-Core I3-8100              19               20               7
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls  ms/call  ms/call  name    
+ 38.65      6.11     6.11  3127012     0.00     0.00  qtile
+ 18.15      8.98     2.87  1563537     0.00     0.01  d1thx2
+ 16.13     11.53     2.55  1563537     0.00     0.00  hzns2
+  6.45     12.55     1.02  3126841     0.00     0.00  z1sq2
+  4.11     13.20     0.65  1563537     0.00     0.01  point_to_point
+  2.72     13.63     0.43  6250166     0.00     0.00  saalos
+  2.56     14.04     0.41 20648111     0.00     0.00  GetElevation(Site)
+  2.34     14.41     0.37    12000     0.03     1.29  PlotLRPath(Site, Site, unsigned char, _IO_FILE*)
+  2.15     14.75     0.34    12016     0.03     0.07  ReadPath(Site&, Site&, Path*)
+  1.58     15.00     0.25                             WritePPMSS(char*, unsigned char, unsigned char, unsigned char, Site*, unsigned char)
+  0.76     15.12     0.12 10096669     0.00     0.00  OrMask(double, double, int)
+  0.70     15.23     0.11  1563537     0.00     0.00  lrprop2
+  0.57     15.32     0.09  1563537     0.00     0.00  avar
+  0.51     15.40     0.08 20635918     0.00     0.00  arccos(double, double)
+  0.44     15.47     0.07  3108686     0.00     0.00  adiff2_init
+  0.38     15.53     0.06  4672223     0.00     0.00  adiff2
+  0.32     15.58     0.05  3127074     0.00     0.00  qerfi
+  0.32     15.63     0.05  1563537     0.00     0.01  qlrpfl2
+  0.28     15.67     0.05  1563537     0.00     0.00  GetSignal(double, double)
+  0.25     15.71     0.04  1581925     0.00     0.00  alos2
+  0.25     15.75     0.04  1563537     0.00     0.00  PutSignal(double, double, unsigned char)
+  0.13     15.77     0.02  1563537     0.00     0.00  PutMask(double, double, int)
+  0.13     15.79     0.02        7     2.86     2.86  LoadSDF_SDF(char*)
+  0.06     15.80     0.01  9159139     0.00     0.00  aknfe
+  0.06     15.81     0.01  1575553     0.00     0.00  Azimuth(Site, Site)
+  0.00     15.81     0.00  5633434     0.00     0.00  fht
+  0.00     15.81     0.00  1563537     0.00     0.00  qlrps
+  0.00     15.81     0.00  1563537     0.00     0.00  tcsqrt
+  0.00     15.81     0.00    12016     0.00     0.00  Distance(Site, Site)
+  0.00     15.81     0.00       16     0.00     0.07  AverageTerrain(Site, double, double, double)
+  0.00     15.81     0.00        7     0.00     2.86  LoadSDF(char*)
+  0.00     15.81     0.00        6     0.00     0.00  ReduceAngle(double)
+  0.00     15.81     0.00        2     0.00     0.00  ReadBearing(char*)
+  0.00     15.81     0.00        2     0.00     0.00  dec2dms(double)
+  0.00     15.81     0.00        1     0.00     0.00  LoadSDF_BZ(char*)
+  0.00     15.81     0.00        1     0.00     0.00  LoadSignalColors(Site)
+  0.00     15.81     0.00        1     0.00     0.55  haat(Site)
+  0.00     15.81     0.00        1     0.00     0.00  LoadPAT(char*)
 
-With the modifications, this mostly stays under 0.1 difference in its calculations,
-with a few exceptions. Those mostly stay under 0.5, although there are 13 out of 1.5M
-points that exceeded that in my test area.
+ %         the percentage of the total running time of the
+time       program used by this function.
 
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
 
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
 
-Accuracy:
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
 
-Sample system: Core I3-8100, comparing splat-1.4.2 to reworked version:
-All misses are less than 2, in all cases
-gcc/g++, regular: 21 sec, 123 misses
-gcc/g++, fastmath: 18 sec, 12 misses
-clang/clang++ regular:  20 sec, 134 misses
-clang/clang++ fastmath: 17 sec, 354 misses
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
 
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.
+
+Copyright (C) 2012-2018 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+Analysis:
+
+Clearly some work needs to be done on qtile, which is called from
+both d1thx() and d1thx2().
+
+In addition, hzns2() should be analyzed.
+
+qlrpfl1()
+ |-> hzns2()
+ |-> d1thx2()
+ |     |-> qtile()
+ |     \-> qtile()  ...twice on the same array
+ \-> z1sq2()
 
 
 hoche, 11/28/18
