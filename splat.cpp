@@ -169,7 +169,6 @@ typedef struct Dem {
     unsigned char signal[IPPD][IPPD];
 } Dem;
 Dem dem[MAXPAGES];
-std::mutex dem_mutex;
 
 typedef struct LongleyRiceData {	double eps_dielect; 
 		double sgm_conductivity; 
@@ -396,8 +395,6 @@ int OrMask(double lat, double lon, int value)
 	int	x, y, indx;
 	char	found;
 
-    std::lock_guard<std::mutex> lock(dem_mutex);
-
 	for (indx=0, found=0; indx<MAXPAGES && found==0;)
 	{
 		x=(int)rint(ppd*(lat-dem[indx].min_north));
@@ -435,8 +432,6 @@ int PutSignal(double lat, double lon, unsigned char signal)
 	int	x, y, indx;
 	char	found;
 
-    std::lock_guard<std::mutex> lock(dem_mutex);
-
 	for (indx=0, found=0; indx<MAXPAGES && found==0;)
 	{
 		x=(int)rint(ppd*(lat-dem[indx].min_north));
@@ -466,8 +461,6 @@ unsigned char GetSignal(double lat, double lon)
 
 	int	x, y, indx;
 	char	found;
-
-    std::lock_guard<std::mutex> lock(dem_mutex);
 
 	for (indx=0, found=0; indx<MAXPAGES && found==0;)
 	{
