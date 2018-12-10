@@ -1986,7 +1986,22 @@ void hzns2(double pfl[], prop_type *prop)
 	prop->rph=pfl[rp];
 }
 
-/* Used only with ITM 1.2.2 */
+/* Linear least-squares fit
+ *
+ * z[]: input array of data points, where
+ *	  z[0]: number of points in the array
+ *	  z[1]: interval length between the points
+ *  x1: distance, in meters from transmitter to start of path
+ *  x2: distance, in meters from receiver to end of path
+ *
+ * Returns:
+ *  z0: the z-axis (height) value of the transmitter
+ *  zn: the z-axis (height) value at the end (z[1]*z[2])
+ *
+ * See ITWOM-SUB-ROUTINES.pdf p289
+ *
+ * Used only with ITM 1.2.2
+ */
 void z1sq1 (double z[], const double x1, const double x2, double *z0, double *zn)
 {
 	double xn, xa, xb, x, a, b;
@@ -2025,6 +2040,20 @@ void z1sq1 (double z[], const double x1, const double x2, double *z0, double *zn
 	*zn=a+b*(xn-xb);
 }
 
+/* Linear least-squares fit
+ *
+ * z[]: input array of data points, where
+ *	  z[0]: number of points in the array
+ *	  z[1]: interval length between the points
+ *  x1: distance, in meters from transmitter to start of path
+ *  x2: distance, in meters from receiver to end of path
+ *
+ *  Returns:
+ *  z0: z-axis value (height) of the transmitter
+ *  z1: z-axis value (height) at the end (z[0]*z[1])
+ *
+ *  See ITWOM-SUB-ROUTINES.pdf p298
+ */
 void z1sq2(double z[], const double x1, const double x2, double *z0, double *zn)
 {
 	/* corrected for use with ITWOM */
@@ -2068,6 +2097,27 @@ void z1sq2(double z[], const double x1, const double x2, double *z0, double *zn)
 }
 
 
+/* Used to find a quantile.  It reorders the array a so that all the elements
+ * before ir are greater than or equal to all the elements after ir. In particular,
+ * a(ir) will have the same value it would have if a were completely sorted in
+ * descending order.
+ *
+ * For example, if you have an array of 700 numbers (nn=700), and you ask for
+ * the 630th quantile (ir=630) (which happens to be the 90% quantile), the
+ * function will sort the array just enough to figure out that it should return
+ * the value at which 90% the of the things are less. In a truly random array,
+ * this should return a value of about 630.
+ *
+ *  nn: number of elements in the array a[]
+ * a[]: data array, of size nn
+ *  ir: the quantile desired.
+ *
+ * returns the value of a(ir)
+ * 
+ * See ITWOM-SUB-ROUTINES.pdf p265
+ *
+ * This is called twice on the same array from 
+ */
 double qtile (const int nn, double a[], const int ir)
 {
 	double q=0.0, r; /* q initialization -- KD2BD */
@@ -2170,7 +2220,18 @@ double qerf(const double z)
 	return qerfv;
 }
 
-/* Used only with ITM 1.2.2 */
+/*
+ * Delta h, experimental
+ *
+ * Used to find delta h, the terrain irregularity factor. delta h is defined
+ * as the interdecile range of elevations between two points. The interdecile
+ * range is a specific interquartile range, computed as the difference between
+ * the 10th and 90th percentiles.
+ *
+ * See notes for d1thx2(), the newer version, below. This version is only used
+ * with ITM 1.2.2.
+ *
+ */
 double d1thx(double pfl[], const double x1, const double x2)
 {
 	int np, ka, kb, n, k, j;
@@ -2227,6 +2288,24 @@ double d1thx(double pfl[], const double x1, const double x2)
 	return d1thxv;
 }
 
+/*
+ * Delta h, experimental
+ *
+ * Used to find delta h, the terrain irregularity factor. delta h is defined
+ * as the interdecile range of elevations between two points. The interdecile
+ * range is a specific interquartile range, computed as the difference between
+ * the 10th and 90th percentiles.
+ * 
+ * pfl[]: profile elevation array, with:
+ *		  pfl[0]: number of points in pfl
+ *		  pfl[1]: distance between points in pfl (in meters)
+ *	x1: start point in meters
+ *	x2: end point in meters
+ *
+ * returns the delta h
+ *
+ * See ITWOM-SUB-ROUTINES.pdf p125.
+ */
 double d1thx2(double pfl[], const double x1, const double x2)
 {
 	int np, ka, kb, n, k, kmx, j;
@@ -2276,6 +2355,17 @@ double d1thx2(double pfl[], const double x1, const double x2)
 		xa=xa+xb;
 	}
 
+	/*
+	 * qtile() returns a quantile. It's called twice on the same array s, using the same path
+	 * length (n-1), once for quantile (ka-1), the 90th percentile quantile, and the second
+	 * time for quantile (kb-1), the 10th percentile quantile.
+	 *
+	 * (We start at s+2 because the locations s[0] and s[1] store the increment
+	 * length and quantity values; the elevations start at s[2].)
+	 *
+	 * By far the greatest amount of processing time is spent in these two qtile calls, which
+	 * for "normal" splat (not HD) can have 500-700 elements.
+	 */
 	d1thx2v=qtile(n-1,s+2,ka-1)-qtile(n-1,s+2,kb-1);
 	d1thx2v/=1.0-0.8*exp(-(x2-x1)/50.0e3);
     free(s);
