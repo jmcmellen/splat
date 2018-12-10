@@ -145,9 +145,9 @@ typedef struct Site {
     char name[50];
     char filename[255];
 } Site;
-Site	site;
 
 // data about a path between two points
+// Note, a Mac has a default pthread stack size of 512KB
 typedef struct Path {
     double lat[ARRAYSIZE];
     double lon[ARRAYSIZE];
