@@ -14,8 +14,8 @@ ifdef GXX
     CPPFLAGS_64:=-march=x86-64 -mcmodel=medium
   endif
 
-  #GCC_CFLAGS:=-fomit-frame-pointer -Wno-stringop-truncation -Wno-format-truncation -Wno-format-overflow $(CPPFLAGS_$(ARCH))
-  GCC_CFLAGS:=-fomit-frame-pointer $(CPPFLAGS_$(ARCH))
+  GCC_CFLAGS:=-fomit-frame-pointer -Wno-stringop-truncation -Wno-format-truncation -Wno-format-overflow $(CPPFLAGS_$(ARCH))
+  #GCC_CFLAGS:=-fomit-frame-pointer $(CPPFLAGS_$(ARCH))
 else
   CC=clang
   CXX=clang++
