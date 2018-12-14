@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Simple shell script for installing SPLAT! and associated utilities.
 # Written by John A. Magliacane, KD2BD April 2002.

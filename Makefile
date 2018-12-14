@@ -1,12 +1,12 @@
 ARCH := $(shell getconf LONG_BIT)
 CLANG := $(shell command -v clang 2> /dev/null)
+GXX := $(shell command -v g++ 2> /dev/null)
 OS:=$(shell uname)
 
-ifdef CLANG
-  CC=clang
-  CXX=clang++
-  CLANG_CFLAGS:=
-else
+# prefer gcc/g++, if available
+# there's really no good reason for using this over clang and this test should probably
+# be reversed.
+ifdef GXX
   CC=gcc
   CXX=g++
   CPPFLAGS_32:= 
@@ -14,13 +14,17 @@ else
     CPPFLAGS_64:=-march=x86-64 -mcmodel=medium
   endif
 
-  #GCC_CFLAGS:=-fomit-frame-pointer -Wno-stringop-truncation -Wno-format-truncation -Wno-format-overflow $(CPPFLAGS_$(ARCH))
-  GCC_CFLAGS:=-fomit-frame-pointer $(CPPFLAGS_$(ARCH))
+  GCC_CFLAGS:=-fomit-frame-pointer -Wno-stringop-truncation -Wno-format-truncation -Wno-format-overflow $(CPPFLAGS_$(ARCH))
+  #GCC_CFLAGS:=-fomit-frame-pointer $(CPPFLAGS_$(ARCH))
+else
+  CC=clang
+  CXX=clang++
+  CLANG_CFLAGS:=
 endif
 
 #CPPFLAGS= -g -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS)
-CPPFLAGS= -O2 -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS)
-#CPPFLAGS= -O2 -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS) -DHT_MODE
+CPPFLAGS= -O3 -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS)
+#CPPFLAGS= -O3 -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS) -DHT_MODE
 
 SRCS = splat.cpp
 C_SRCS = itwom3.0.c

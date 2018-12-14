@@ -170,17 +170,18 @@ typedef struct Dem {
 } Dem;
 Dem dem[MAXPAGES];
 
-typedef struct LongleyRiceData {	double eps_dielect; 
-		double sgm_conductivity; 
-		double eno_ns_surfref;
-		double frq_mhz; 
-		double conf; 
-		double rel;
-		double erp;
-		int radio_climate;  
-		int pol;
-		float antenna_pattern[361][1001];
-          }	LongleyRice;
+typedef struct LongleyRiceData {
+    double eps_dielect;
+    double sgm_conductivity;
+    double eno_ns_surfref;
+    double frq_mhz;
+    double conf;
+    double rel;
+    double erp;
+    int radio_climate;
+    int pol;
+    float antenna_pattern[361][1001];
+} LongleyRice;
 LongleyRiceData LR;
 
 typedef struct Region {
@@ -192,6 +193,7 @@ Region region;
 
 #ifdef __cplusplus
 extern "C" {
+#endif
 void point_to_point(double elev[], double tht_m, double rht_m,
 	  double eps_dielect, double sgm_conductivity, double eno_ns_surfref,
 	  double frq_mhz, int radio_climate, int pol, double conf,
@@ -203,6 +205,7 @@ void point_to_point_ITM(double elev[], double tht_m, double rht_m,
 	  double rel, double *dbloss, char *strmode, int *errnum);
 
 double ITWOMVersion();
+#ifdef __cplusplus
 }
 #endif
 
