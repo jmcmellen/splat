@@ -13,14 +13,15 @@ The new version was compiled with clang/clang++, except where noted.
 
 point_to_point()
 -------
-Compute times (in seconds):
+Compute times (in seconds), not including generating ppm image:
                                            Splat                Splat MT
                         Cores Threads     v1.4.2      Single thread     Multithread
 Raspberry Pi, Rev 1       1      1         1015             1185            1199
-Atom D510                 2      4          272              300             112
-Avoton C2550              4      4           99              108              40
-2011 iMac Core i5-2400    4      4           32               33              18
-Core i3-8100              4      4           25               27               9
+Atom D510                 2      4          248              255              87 
+Avoton C2550              4      4           94              108              30
+Core i7-2700K             4      8           32               32               7
+2011 iMac Core i5-2400    4      4           28               30              11
+Core i3-8100              4      4           24               24               6
 
 
 dB loss:
@@ -31,14 +32,15 @@ of the 1.4.2 version's implementation.
 
 point_to_point_ITM()
 -------
-Compute times (in seconds):
+Compute times (in seconds), not including generating ppm image:
                                            Splat                Splat MT
                         Cores Threads     v1.4.2      Single thread     Multithread
 Raspberry Pi, Rev 1        1     1         804              936             959
-Atom D510                  2     4         196              224              89
-Avoton C2550               4     4          74               82              33
-2011 iMac Core i5-2400     4     4          24               24              16
-Core i3-8100               4     4          19               20               7
+Atom D510                  2     4         180              209              66
+Avoton C2550               4     4          70               84              23
+Core i7-2700K              4     8          23               23               6 
+2011 iMac Core i5-2400     4     4          22               21               9
+Core i3-8100               4     4          18               17               4
 
 dB loss:
 With the modifications, this mostly stays under 0.1 dB loss difference in its calculations,
