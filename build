@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Simple shell script for building SPLAT! and associated utilities.
 # Written by John A. Magliacane, KD2BD May 2002 -- Last update: February 2014

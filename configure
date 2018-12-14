@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 ##############################################################################
 # Simple script to configure, compile (and if you're 'root', install) SPLAT! #
