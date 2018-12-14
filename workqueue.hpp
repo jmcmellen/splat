@@ -22,20 +22,9 @@ public:
             numWorkers = std::thread::hardware_concurrency() + 1;
         }
 
-        int itemsPerWorker = worklist.size() / numWorkers;
-        int leftover = worklist.size() % numWorkers;
-
-        int offset = 0;
-        int start = 0;
-        int end = 0;
-        
-        for (int i = 0; i < numWorkers; ++i) {
-            offset = (int)(leftover > i);
-            end = start + (itemsPerWorker - 1) + offset;
-            m_workers.emplace_back(std::thread(&WorkQueue::doWork, this, i, start, end));
-            start = end + 1;
+        while (numWorkers--) {
+            m_workers.emplace_back(std::thread(&WorkQueue::doWork, this));
         }
-
     }
 
     // Stop processing work right away and dispose of threads
@@ -69,24 +58,23 @@ public:
 private:
     std::vector<std::function<void()>> m_work;
     std::vector<std::thread> m_workers;
+    int curItem{ 0 };
     std::mutex m_mutex;
     std::condition_variable m_signal;
     std::atomic<bool> m_exit{ false };
     std::atomic<bool> m_finish_work{ true };  // override m_exit until the work is done
 
     // Thread main loop
-    void doWork(int thr_id, int startIdx, int endIdx) {
+    void doWork() {
+        int endIdx = m_work.size();
         std::unique_lock<std::mutex> ul(m_mutex); // constructed locked
-        std::cout << "Th[" << thr_id << "]: " << startIdx << "-" << endIdx << std::endl;
 
-        int curItem = startIdx;
-        while (!m_exit || (m_finish_work && (curItem <= endIdx))) {
-            if (curItem <= endIdx) {
-                std::function<void()> work(std::move(m_work[curItem]));
+        while (!m_exit || (m_finish_work && (curItem < endIdx))) {
+            if (curItem < endIdx) {
+                std::function<void()> work(std::move(m_work[curItem++]));
                 ul.unlock();
                 work();
                 ul.lock();
-                ++curItem;
             }
             else{
                 m_signal.wait(ul);
@@ -99,6 +87,7 @@ private:
             thread.join();
         }
         m_workers.clear();
+        m_work.clear();
     }
 
     void operator=(const WorkQueue&) = delete;
