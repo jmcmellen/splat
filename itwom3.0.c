@@ -203,6 +203,18 @@ tcomplex tcsqrt(tcomplex tc){
 }
 
 
+/* 
+ * Attenuation from Knife Edge diffraction
+ *
+ * v2: the square of the value v, where v is the "internal wedge phase angle" of an
+ *     obstruction
+ *
+ * Returns the attenuation factor
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, p10-11 for the definition of v2, and p405 for the analysis of
+ * the function.
+ *
+ */
 double aknfe(const double v2)
 {
 	double a;
@@ -214,6 +226,17 @@ double aknfe(const double v2)
 	return a;
 }
 
+/*
+ * Function Height-Gain for Three-Radii
+ *
+ * Calculates the height-gain over a smooth spherical earth for use with
+ * the three-radii method, as used in adiff().
+ *
+ *  x:
+ * pk:
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, p 143
+ */
 double fht(const double x, const double pk)
 {
 	double w, fhtv;
@@ -246,6 +269,14 @@ double fht(const double x, const double pk)
 	return fhtv;
 }
 
+/*
+ * H0 Frequency Gain for Scatter Fields
+ *
+ *  r: twice the angular distance
+ * et: scatter efficiency factor
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, p 146
+ */
 double h0f(double r, double et)
 {
 	double a[5]={25.0, 80.0, 177.0, 395.0, 705.0};
@@ -284,6 +315,13 @@ double h0f(double r, double et)
 	return h0fv;
 }
 
+/*
+ * Approximate theta-d function for scatter fields
+ *
+ * td:
+ *
+ * See ITWOM-SUB_ROUTINES.pdf, p 50
+ */
 double ahd(double td)
 {
 	int i;
@@ -313,7 +351,7 @@ double abq_alos(tcomplex r)
  * Shumate's Approximations of Attenuation in the Line Of Sight prior to
  * an obstruction.
  *
- * See Sid Shumate's description in ITWOM-SUB-ROUTINES.pdf
+ * See ITWOM-SUB-ROUTINES.pdf, p 275
  */
 double saalos(double dist, prop_type *prop)
 {
@@ -487,6 +525,13 @@ typedef struct adiff_state
     double xht;
 } adiff_state;
 
+/* Attenuation from Diffraction, Initialization
+ *
+ * This is intended to be called before adiff() is called. Replaces the old
+ * setup that was done by calling adiff() with a distance of 0.
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, p2
+ */
 void adiff_init(adiff_state *state, prop_type *prop, propa_type *propa)
 {
 	tcomplex prop_zgnd = {prop->zgndreal, prop->zgndimag};
@@ -519,6 +564,15 @@ void adiff_init(adiff_state *state, prop_type *prop, propa_type *propa)
     }
 }
 
+/* Attenuation from Diffraction
+ *
+ * Finds the diffraction attenuation for the path distance d.
+ *
+ * Note that before this can be called, adiff_init() should be called to
+ * set up adiff_state.
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, p2
+ */
 double adiff(adiff_state *state, double dist, prop_type *prop, propa_type *propa)
 {
 	double a, q, pk, ds, th, wa, ar, wd, adiffv;
@@ -548,6 +602,13 @@ typedef struct adiff2_state {
     double xht;
 } adiff2_state;
 
+/* Attenuation from Diffraction Version 2, Initialization
+ *
+ * This is intended to be called before adiff2() is called. Replaces the old
+ * setup that was done by calling adiff2() with a distance of 0.
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, p10
+ */
 void adiff2_init(adiff2_state *state, prop_type *prop, propa_type *propa)
 {
 	tcomplex prop_zgnd = { prop->zgndreal, prop->zgndimag };
@@ -592,6 +653,15 @@ void adiff2_init(adiff2_state *state, prop_type *prop, propa_type *propa)
     }
 }
 
+/* Attenuation from Diffraction, Version 2
+ *
+ * Finds the diffraction attenuation for the path distance d.
+ *
+ * Note that before this can be called, adiff2_init() should be called to
+ * set up adiff2_state.
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, p10
+ */
 double adiff2(adiff2_state *state, double dist, prop_type *prop, propa_type *propa)
 {
     double toh, toho, roh, roho;
@@ -824,10 +894,12 @@ typedef struct ascat_state {
     double h0s;
 } ascat_state;
 
-/* Initialize state variables for ascat() below.
+/* Attenuation From Scatter
  *
- * Before using, ascat_init must be called to set up the initial constants for the
- * ascat state.
+ * This is intended to be called before ascat() is called. Replaces
+ * the old setup that was done by calling ascat() with a distance of 0.
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, p 81
  */
 void ascat_init(ascat_state *state, prop_type *prop)
 {
@@ -846,12 +918,12 @@ void ascat_init(ascat_state *state, prop_type *prop)
 
 /* Attenuation From Scatter
  *
- * The function ascat finds the "scatter attenuation" for the path distance d. It uses an
- * approximation to the methods of NBS TN101 with checks for inadmissible situations.
- * For proper operation, the larger distance (d = d6 must be the first called).
+ * Finds the "scatter attenuation" for the path distance d.
  *
- * Before using, ascat_init must be called to set up the initial constants for the
- * ascat state.
+ * Note that before this can be called, ascat_init() should be called to set
+ * up ascat_state.
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, p81
  */
 double ascat(ascat_state *state, double dist, prop_type *prop, propa_type *propa)
 {
@@ -911,6 +983,7 @@ double ascat(ascat_state *state, double dist, prop_type *prop, propa_type *propa
  *
  * Inverse of qerf(), the standard normal complementary probability.
  *
+ * See ITWOM-SUB-ROUTINES, p466
  */
 double qerfi(double q)
 {
@@ -933,6 +1006,13 @@ double qerfi(double q)
 	return v;
 }
 
+/*
+ * Quick Longley-Rice Profile Setup
+ *
+ * Set up function for qlrpfl and qlrpfl2.
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, p262
+ */
 void qlrps(double fmhz, double zsys, double en0, int ipol, double eps, double sgm, prop_type *prop)
 {
 	double gma=157e-9;
@@ -966,18 +1046,21 @@ typedef struct alos_state {
     double wls;
 } alos_state;
 
+/*
+ * Attenuation, Line of Sight, Initialization
+ *
+ * Set up for alos_state. Call this before calling alos()
+ */
 void alos_init(alos_state *state, prop_type *prop, propa_type *propa)
 {
     state->wls=0.021/(0.021+prop->wn*prop->dh/max(10e3,propa->dlsa));
 }
 
 /*
- * alos()
- *
  * Attenuation, Line Of Sight
  *
+ * See ITWOM-SUB-ROUTINES, p54
  */
-/* Used only with ITM 1.2.2 */
 double alos(alos_state *state, double dist, prop_type *prop, propa_type *propa)
 {
     tcomplex prop_zgnd = { prop->zgndreal, prop->zgndimag };
@@ -1015,6 +1098,11 @@ double alos(alos_state *state, double dist, prop_type *prop, propa_type *propa)
 	return alosv;
 }
 
+/*
+ * Attenuation, Line Of Sight, Version 2
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, p58
+ */
 double alos2(prop_type *prop, propa_type *propa)
 {
     tcomplex prop_zgnd = { prop->zgndreal, prop->zgndimag };
@@ -1114,7 +1202,14 @@ double alos2(prop_type *prop, propa_type *propa)
 	return alosv;
 }
 
-/* Used only with ITM 1.2.2 */
+/* Quick Longley-Rice Area, Initialization
+ *
+ * Parameter preparation subroutine for area mode
+ *
+ * See ITWOM-SUB-ROUTINES.pdf p468
+ *
+ * Used only with ITM 1.2.2
+ */
 void qlra(int kst[], int klimx, int mdvarx, prop_type *prop, propv_type *propv)
 {
 	double q;
