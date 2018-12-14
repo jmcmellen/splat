@@ -19,7 +19,10 @@ public:
         m_work(worklist)
     {
         if (numWorkers < 1) {
-            numWorkers = std::thread::hardware_concurrency() + 1;
+            numWorkers = std::thread::hardware_concurrency();
+        }
+        if (numWorkers < 1) {
+            numWorkers = 1;
         }
 
         while (numWorkers--) {
