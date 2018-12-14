@@ -17,7 +17,7 @@ Compute times (in seconds), not including generating ppm image:
                                            Splat                Splat MT
                         Cores Threads     v1.4.2      Single thread     Multithread
 Raspberry Pi, Rev 1       1      1         1015             1185            1199
-Atom D510                 2      4          272              300             100
+Atom D510                 2      4          248              255              87 
 Avoton C2550              4      4           94              108              30
 2011 iMac Core i5-2400    4      4           28               30              11
 Core i3-8100              4      4           24               24               6
@@ -35,7 +35,7 @@ Compute times (in seconds), not including generating ppm image:
                                            Splat                Splat MT
                         Cores Threads     v1.4.2      Single thread     Multithread
 Raspberry Pi, Rev 1        1     1         804              936             959
-Atom D510                  2     4         196              224              89
+Atom D510                  2     4         180              209              66
 Avoton C2550               4     4          70               84              23
 2011 iMac Core i5-2400     4     4          22               21               9
 Core i3-8100               4     4          18               17               4
