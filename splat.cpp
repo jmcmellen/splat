@@ -3139,13 +3139,7 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 
     fprintf(stdout, "\n\n");
 
-    WorkQueue *wq = nullptr;
-    SpinnerThread spinnerThread;
-    if (multithread) {
-        wq = new WorkQueue();;
-        std::thread threadObj( (SpinnerThread()) );
-        threadObj.detach();
-    }
+    std::vector<std::function<void()>> plotList;
 
     if (!multithread) {
         fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
@@ -3162,7 +3156,7 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 		edge.alt=altitude;
 
         if (multithread) {
-            wq->submit(std::bind(PlotPath, source, edge, mask_value));
+            plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
         } else {
             PlotPath(source,edge,mask_value);
 
@@ -3195,7 +3189,7 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 		edge.alt=altitude;
 
         if (multithread) {
-            wq->submit(std::bind(PlotPath, source, edge, mask_value));
+            plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
         } else {
             PlotPath(source,edge,mask_value);
 
@@ -3231,7 +3225,7 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 		edge.alt=altitude;
 
         if (multithread) {
-            wq->submit(std::bind(PlotPath, source, edge, mask_value));
+            plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
         } else {
             PlotPath(source,edge,mask_value);
 
@@ -3264,7 +3258,7 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 		edge.alt=altitude;
 
         if (multithread) {
-            wq->submit(std::bind(PlotPath, source, edge, mask_value));
+            plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
         } else {
             PlotPath(source,edge,mask_value);
 
@@ -3283,8 +3277,14 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 	}
 
     if (multithread) {
-        wq->waitForCompletion();
-        delete wq;
+        SpinnerThread spinnerThread;
+        std::thread threadObj( (SpinnerThread()) );
+        threadObj.detach();
+    
+        // run 'em
+        WorkQueue wq(plotList);
+        wq.waitForCompletion();
+
         spinnerThread.stop();
     }
 
@@ -3375,13 +3375,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 
     fprintf(stdout, "\n\n");
 
-    WorkQueue *wq = nullptr;
-    SpinnerThread spinnerThread;
-    if (multithread) {
-        wq = new WorkQueue();
-        std::thread threadObj( (SpinnerThread()) );
-        threadObj.detach();
-    }
+    std::vector<std::function<void()>> plotList;
 
     if (!multithread) {
         fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
@@ -3398,7 +3392,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		edge.alt=altitude;
 
         if (multithread) {
-            wq->submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
+            plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
         } else {
             PlotLRPath(source,edge,mask_value,fd);
 
@@ -3431,7 +3425,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		edge.alt=altitude;
 
         if (multithread) {
-            wq->submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
+            plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
         } else {
             PlotLRPath(source,edge,mask_value,fd);
 
@@ -3467,7 +3461,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		edge.alt=altitude;
 
         if (multithread) {
-            wq->submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
+            plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
         } else {
             PlotLRPath(source,edge,mask_value,fd);
 
@@ -3500,7 +3494,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		edge.alt=altitude;
 
         if (multithread) {
-            wq->submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
+            plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
         } else {
             PlotLRPath(source,edge,mask_value,fd);
 
@@ -3519,8 +3513,14 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 	}
 
     if (multithread) {
-        wq->waitForCompletion();
-        delete wq;
+        SpinnerThread spinnerThread;
+        std::thread threadObj( (SpinnerThread()) );
+        threadObj.detach();
+
+        // run 'em
+        WorkQueue wq(plotList);
+        wq.waitForCompletion();
+
         spinnerThread.stop();
     }
 
