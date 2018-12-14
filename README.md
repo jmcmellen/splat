@@ -44,11 +44,10 @@ apt-get install zlib1g-dev libbz2-dev
   * All the static variables were removed from itwom3.0.c in an effort to make the code fully reentrant. In
     some cases this means that we recalculate variables multiple times. In other cases, new "state" structs
     have been introduced that act as local contexts for repeated calls to the same function. While this does
-    slow things down a bit over using statics, the measured difference is about 10%. 
-  
-    While this can be a noticeable difference on older systems (on an Atom D510 it increases run time from
-    4 1/2 minutes to 5 minutes), making that code reentrant means that the code can be multithreaded, and
-    the gains from that far offset the 10% loss.
+    slow things down a bit over using statics, the difference is most noticeable on older systems (on an Atom
+    D510 it increases run time from 4 1/2 minutes to 5 minutes). On newer systems it seems to make little to
+    no difference. At any rate, making that code reentrant means that the code can be multithreaded, and the
+    gains from that far offset any loss.
 
   * A number of minor fixes were made to itwom3.0 that were disguised by using the C++ compiler. For instance,
     in a number of places abs() was called when fabs() was meant.

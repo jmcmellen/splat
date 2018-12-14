@@ -19,6 +19,7 @@ Compute times (in seconds), not including generating ppm image:
 Raspberry Pi, Rev 1       1      1         1015             1185            1199
 Atom D510                 2      4          248              255              87 
 Avoton C2550              4      4           94              108              30
+Core i7-2700K             4      8           32               32               7
 2011 iMac Core i5-2400    4      4           28               30              11
 Core i3-8100              4      4           24               24               6
 
@@ -37,6 +38,7 @@ Compute times (in seconds), not including generating ppm image:
 Raspberry Pi, Rev 1        1     1         804              936             959
 Atom D510                  2     4         180              209              66
 Avoton C2550               4     4          70               84              23
+Core i7-2700K              4     8          23               23               6 
 2011 iMac Core i5-2400     4     4          22               21               9
 Core i3-8100               4     4          18               17               4
 
