@@ -221,7 +221,7 @@ public:
             fprintf(stdout, "%c\b", cursor[pos++]);
             fflush(stdout);
             pos%=4;
-            sleep(1);
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
     void stop() {
