@@ -24,36 +24,33 @@ endif
 CPPFLAGS= -g -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS)
 #CPPFLAGS= -O3 -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS)
 
-SRCS = splat.cpp
-OBJS = $(SRCS:.cpp=.o)
-C_SRCS = itwom3.0.c
-C_OBJS = $(C_SRCS:.c=.o)
+LDFLAGS = -lm -lbz2 -lz
 
-LDFLAGS = -lm -lbz2 -lpthread
+all: citydecoder usgs2sdf srtm2sdf fontdata bearing
 
-all: splat splat-hd utils
+citydecoder: citydecoder.o
+	$(CXX) $(CPPFLAGS) -o $@ $< $(LDFLAGS)
 
-splat: $(SRCS) $(C_OBJS)
-	$(CXX) $(CPPFLAGS) -std=c++11 $(INCLUDES) -c $(SRCS)
-	$(CXX) $(CPPFLAGS) -o $@ $(OBJS) $(C_OBJS) $(LDFLAGS)
+usgs2sdf: usgs2sdf.o
+	$(CXX) $(CPPFLAGS) -o $@ $< $(LDFLAGS)
 
-splat-hd: $(SRCS) $(C_OBJS)
-	$(CXX) $(CPPFLAGS) -DHD_MODE -std=c++11 $(INCLUDES) -c $(SRCS)
-	$(CXX) $(CPPFLAGS) -o $@ $(OBJS) $(C_OBJS) $(LDFLAGS)
+srtm2sdf: srtm2sdf.o
+	$(CXX) $(CPPFLAGS) -o $@ $< $(LDFLAGS)
 
-utils:
-	cd utils && make
+fontdata: fontdata.o
+	$(CXX) $(CPPFLAGS) -o $@ $< $(LDFLAGS)
 
-install:
-	./install all
+bearing: bearing.o
+	$(CXX) $(CPPFLAGS) -o $@ $< $(LDFLAGS)
 
-.PHONY: clean utils install
+.PHONY: clean
 clean:
-	cd utils && make clean
-	@rm -f *.o splat splat-hd
+	@rm -f *.o citydecoder usgs2sdf srtm2sdf fontdata bearing
 
 .SUFFIXES: .c .cpp .o
 .c.o:
 	$(CC) $(CPPFLAGS) -std=c99 -pedantic $(INCLUDES) -c $<
 
+.cpp.o:
+	$(CXX) $(CPPFLAGS) -std=c++11 $(INCLUDES) -c $<
 
