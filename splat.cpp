@@ -37,7 +37,7 @@
 #define GAMMA 2.5
 #define BZBUFFER 65536
 
-#define SPLAT_VERSION "1.5.0"
+#define SPLAT_VERSION "1.5.0b1"
 
 #ifndef HD_MODE
 	#if MAXPAGES==4
