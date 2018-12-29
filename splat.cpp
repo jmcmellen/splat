@@ -1,23 +1,23 @@
 /****************************************************************************\
-*	   SPLAT!: An RF Signal Path Loss And Terrain Analysis Tool          *
+*	   SPLAT!: An RF Signal Path Loss And Terrain Analysis Tool		  *
 ******************************************************************************
-*	     Project started in 1997 by John A. Magliacane, KD2BD 	     *
-*			  Last update: 28-Dec-2018 		     *
+*		 Project started in 1997 by John A. Magliacane, KD2BD 		 *
+*			  Last update: 28-Dec-2018 			 *
 ******************************************************************************
-*         Please consult the documentation for a complete list of	     *
-*	     individuals who have contributed to this project. 		     *
+*		 Please consult the documentation for a complete list of		 *
+*		 individuals who have contributed to this project. 			 *
 ******************************************************************************
-*                                                                            *
+*																			*
 *  This program is free software; you can redistribute it and/or modify it   *
-*  under the terms of the GNU General Public License as published by the     *
-*  Free Software Foundation; either version 2 of the License or any later    *
-*  version.								     *
-* 									     *
+*  under the terms of the GNU General Public License as published by the	 *
+*  Free Software Foundation; either version 2 of the License or any later	*
+*  version.									 *
+* 										 *
 *  This program is distributed in the hope that it will useful, but WITHOUT  *
-*  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or     *
-*  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License     *
-*  for more details.							     *
-*									     *
+*  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or	 *
+*  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License	 *
+*  for more details.								 *
+*										 *
 \****************************************************************************/
 
 #include <stdio.h>
@@ -70,7 +70,7 @@
 
 	#define IPPD 1200
 
-    #define SPLAT_NAME "SPLAT!"
+	#define SPLAT_NAME "SPLAT!"
 #else
 	#if MAXPAGES==1
 	#define ARRAYSIZE 5092 
@@ -106,7 +106,7 @@
 
 	#define IPPD 3600
 
-    #define SPLAT_NAME "SPLAT! HD"
+	#define SPLAT_NAME "SPLAT! HD"
 #endif
 
 
@@ -133,12 +133,12 @@
  * Typedefs
  *****************************/
 typedef struct Site {
-    double lat;
-    double lon;
-    float alt;
-    unsigned char amsl_flag;
-    char name[50];
-    char filename[255];
+	double lat;
+	double lon;
+	float alt;
+	unsigned char amsl_flag;
+	char name[50];
+	char filename[255];
 } Site;
 
 // data about a path between two points
@@ -146,43 +146,43 @@ typedef struct Site {
 // one of these on the stack will cause it to blow up with an permissions (access)
 // error. Allocating it on the heap via malloc() or new() is, of course, OK.
 typedef struct Path {
-    double lat[ARRAYSIZE];
-    double lon[ARRAYSIZE];
-    double elevation[ARRAYSIZE];
-    double distance[ARRAYSIZE];
-    int length;
+	double lat[ARRAYSIZE];
+	double lon[ARRAYSIZE];
+	double elevation[ARRAYSIZE];
+	double distance[ARRAYSIZE];
+	int length;
 } Path;
 
 // digital elevation model data
 typedef struct Dem {
-    int min_north;
-    int max_north;
-    int min_west;
-    int max_west;
-    int max_el;
-    int min_el;
-    short data[IPPD][IPPD];
-    unsigned char mask[IPPD][IPPD];
-    unsigned char signal[IPPD][IPPD];
+	int min_north;
+	int max_north;
+	int min_west;
+	int max_west;
+	int max_el;
+	int min_el;
+	short data[IPPD][IPPD];
+	unsigned char mask[IPPD][IPPD];
+	unsigned char signal[IPPD][IPPD];
 } Dem;
 
 typedef struct LongleyRiceData {
-    double eps_dielect;
-    double sgm_conductivity;
-    double eno_ns_surfref;
-    double frq_mhz;
-    double conf;
-    double rel;
-    double erp;
-    int radio_climate;
-    int pol;
-    float antenna_pattern[361][1001];
+	double eps_dielect;
+	double sgm_conductivity;
+	double eno_ns_surfref;
+	double frq_mhz;
+	double conf;
+	double rel;
+	double erp;
+	int radio_climate;
+	int pol;
+	float antenna_pattern[361][1001];
 } LongleyRice;
 
 typedef struct Region {
-    unsigned char color[32][3];
-    int level[32];
-    int levels;
+	unsigned char color[32][3];
+	int level[32];
+	int levels;
 } Region;
 
 
@@ -231,23 +231,23 @@ double ITWOMVersion();
 class SpinnerThread
 {
 public:
-    SpinnerThread() : run(true) {};
-    void operator()()
-    {
-        int pos = 0;
-        char cursor[4]={'/','-','\\','|'};
-        while (run) {
-            fprintf(stdout, "%c\b", cursor[pos++]);
-            fflush(stdout);
-            pos%=4;
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-    }
-    void stop() {
-        run = false;
-    }
+	SpinnerThread() : run(true) {};
+	void operator()()
+	{
+		int pos = 0;
+		char cursor[4]={'/','-','\\','|'};
+		while (run) {
+			fprintf(stdout, "%c\b", cursor[pos++]);
+			fflush(stdout);
+			pos%=4;
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+	}
+	void stop() {
+		run = false;
+	}
 private:
-    bool run;
+	bool run;
 };
 
 
@@ -561,32 +561,32 @@ int AddElevation(double lat, double lon, double height)
 
 int SetElevation(double lat, double lon, double height)
 {
-    /* This function sets the terrain elevation to the specified
-       height above mean sea level.  Useful for compensating
-       for canopy height (ie: buildings and trees) included
-       in SRTM and ASTER topographic data sets by setting the
-       terrain height to zero when the height of an antenna
-       above mean sea level is known.  Returns 0 for locations
-       not found in memory. */
+	/* This function sets the terrain elevation to the specified
+	   height above mean sea level.  Useful for compensating
+	   for canopy height (ie: buildings and trees) included
+	   in SRTM and ASTER topographic data sets by setting the
+	   terrain height to zero when the height of an antenna
+	   above mean sea level is known.  Returns 0 for locations
+	   not found in memory. */
 
-    char    found;
-    int x, y, indx;
+	char	found;
+	int x, y, indx;
 
-    for (indx=0, found=0; indx<MAXPAGES && found==0;)
-    {
-        x=(int)rint(ppd*(lat-dem[indx].min_north));
-        y=mpi-(int)rint(ppd*(LonDiff(dem[indx].max_west,lon)));
+	for (indx=0, found=0; indx<MAXPAGES && found==0;)
+	{
+		x=(int)rint(ppd*(lat-dem[indx].min_north));
+		y=mpi-(int)rint(ppd*(LonDiff(dem[indx].max_west,lon)));
 
-        if (x>=0 && x<=mpi && y>=0 && y<=mpi)
-            found=1;
-        else
-            indx++;
-    }
+		if (x>=0 && x<=mpi && y>=0 && y<=mpi)
+			found=1;
+		else
+			indx++;
+	}
 
-    if (found)
-        dem[indx].data[x][y]=(short)rint(height);
+	if (found)
+		dem[indx].data[x][y]=(short)rint(height);
 
-    return found;
+	return found;
 }
 
 
@@ -700,7 +700,7 @@ void ReadPath(Site &source, Site &destination, Path *path)
 		miles_per_sample, samples_per_radian=68755.0;
 	Site tempsite;
 
-    memset(path, 0, sizeof(Path));
+	memset(path, 0, sizeof(Path));
 
 	lat1=source.lat*DEG2RAD;
 	lon1=source.lon*DEG2RAD;
@@ -867,7 +867,7 @@ double ElevationAngle2(Site source, Site destination, double er)
 	else
 		elevation=((acos(cos_xmtr_angle))/DEG2RAD)-90.0;
 
-    free(path);
+	free(path);
 	return elevation;
 }
 
@@ -936,7 +936,7 @@ double AverageTerrain(Site source, double azimuthx, double start_distance, doubl
 		return (-9999.0);
 	else
 	{
-        Path *path = (Path*)malloc(sizeof(Path));
+		Path *path = (Path*)malloc(sizeof(Path));
 		ReadPath(source,destination,path);
 
 		endpoint=path->length;
@@ -962,7 +962,7 @@ double AverageTerrain(Site source, double azimuthx, double start_distance, doubl
 		else
 			terrain=(terrain/(double)samples);
 
-        free(path);
+		free(path);
 		return terrain;
 	}
 }
@@ -1001,10 +1001,10 @@ double haat(Site antenna)
 	else
 	{
 		avg_terrain=(sum/(double)c);
-        if (antenna.amsl_flag)
-            haat=antenna.alt-avg_terrain;
-        else
-            haat=(antenna.alt+GetElevation(antenna))-avg_terrain;
+		if (antenna.amsl_flag)
+			haat=antenna.alt-avg_terrain;
+		else
+			haat=(antenna.alt+GetElevation(antenna))-avg_terrain;
 
 		return haat;
 	}
@@ -1305,7 +1305,7 @@ Site LoadQTH(char *filename)
 
 	int	x;
 	char	string[50], qthfile[255];
-	Site    tempsite;
+	Site	tempsite;
 	FILE	*fd=NULL;
 
 	x=strlen(filename);
@@ -1495,7 +1495,7 @@ void LoadPAT(char *filename)
 		}
 
 		/* Average pattern values in case more than
-		    one was read for each degree of azimuth. */
+			one was read for each degree of azimuth. */
 
 		for (x=0; x<=360; x++)
 		{
@@ -1698,7 +1698,7 @@ void LoadPAT(char *filename)
 			tilt=slant_angle[w];
 
 			/** Convert tilt angle to
-			    an array index offset **/
+				an array index offset **/
 
 			y=(int)rintf(100.0*tilt);
 
@@ -2213,7 +2213,7 @@ char LoadSDF(char *name)
 			for (x=0; x<ippd; x++)
 				for (y=0; y<ippd; y++)
 				{
-		    			dem[indx].data[x][y]=0;
+						dem[indx].data[x][y]=0;
 					dem[indx].signal[x][y]=0;
 					dem[indx].mask[x][y]=0;
 
@@ -2293,7 +2293,7 @@ void LoadCities(char *filename)
 
 	int	x, y, z;
 	char	input[80], str[3][80];
-	Site    city_site;
+	Site	city_site;
 	FILE	*fd=NULL;
 
 	fd=fopen(filename,"r");
@@ -2516,7 +2516,7 @@ void LoadBoundaries(char *filename)
 	int	x;
 	double	lat0, lon0, lat1, lon1;
 	char	string[80];
-	Site    source, destination;
+	Site	source, destination;
 	FILE	*fd=NULL;
 
 	fd=fopen(filename,"r");
@@ -2543,13 +2543,13 @@ void LoadBoundaries(char *filename)
 				destination.lat=lat1;
 				destination.lon=(lon1>0.0 ? 360.0-lon1 : -lon1);
 
-                Path *path = (Path*)malloc(sizeof(Path));
+				Path *path = (Path*)malloc(sizeof(Path));
 				ReadPath(source,destination,path);
 
 				for (x=0; x<path->length; x++)
 					OrMask(path->lat[x],path->lon[x],4);
 
-                free(path);
+				free(path);
 
 				lat0=lat1;
 				lon0=lon1;
@@ -2844,7 +2844,7 @@ int PlotPath(Site source, Site destination, char mask_value)
 	double cos_xmtr_angle, cos_test_angle, test_alt;
 	double distance, rx_alt, tx_alt;
 
-    Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(source,destination,path);
 
 	for (y=0; y<path->length; y++)
@@ -2856,17 +2856,17 @@ int PlotPath(Site source, Site destination, char mask_value)
 		{
 			distance=5280.0*path->distance[y];
 
-            if (source.amsl_flag)
-                tx_alt=earthradius+source.alt;
-            else
-                tx_alt=earthradius+source.alt+path->elevation[0];
+			if (source.amsl_flag)
+				tx_alt=earthradius+source.alt;
+			else
+				tx_alt=earthradius+source.alt+path->elevation[0];
 
-            /***
-            if (destination.amsl_flag)
-                rx_alt=earthradius+destination.alt;
-            else
-            ***/
-                rx_alt=earthradius+destination.alt+path->elevation[y];
+			/***
+			if (destination.amsl_flag)
+				rx_alt=earthradius+destination.alt;
+			else
+			***/
+				rx_alt=earthradius+destination.alt+path->elevation[y];
 
 			/* Calculate the cosine of the elevation of the
 			   transmitter as seen at the temp rx point. */
@@ -2896,8 +2896,8 @@ int PlotPath(Site source, Site destination, char mask_value)
 		}
 	}
 
-    free(path);
-    return 0;
+	free(path);
+	return 0;
 }
 
 #define MAX_TEXT_LEN 128
@@ -2916,13 +2916,13 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 		field_strength=0.0;
 
 	Site temp;
-    char textout[MAX_TEXT_LEN];
-    size_t textlen = 0;
+	char textout[MAX_TEXT_LEN];
+	size_t textlen = 0;
 
-    Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(source,destination,path);
 
-    double *elev = (double*)calloc(ARRAYSIZE + 10, sizeof(double));
+	double *elev = (double*)calloc(ARRAYSIZE + 10, sizeof(double));
 
 	four_thirds_earth=FOUR_THIRDS*EARTHRADIUS;
 
@@ -2955,19 +2955,19 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 		{
 			distance=5280.0*path->distance[y];
 
-            /***
-            if (source.amsl_flag)
-                xmtr_alt=four_thirds_earth+source.alt;
-            else
-            ***/
-                xmtr_alt=four_thirds_earth+source.alt+path->elevation[0];
+			/***
+			if (source.amsl_flag)
+				xmtr_alt=four_thirds_earth+source.alt;
+			else
+			***/
+				xmtr_alt=four_thirds_earth+source.alt+path->elevation[0];
 
-            /***/
-            if (destination.amsl_flag)
-                dest_alt=four_thirds_earth+destination.alt;
-            else
-            /***/
-                dest_alt=four_thirds_earth+destination.alt+path->elevation[y];
+			/***/
+			if (destination.amsl_flag)
+				dest_alt=four_thirds_earth+destination.alt;
+			else
+			/***/
+				dest_alt=four_thirds_earth+destination.alt+path->elevation[y];
 
 			dest_alt2=dest_alt*dest_alt;
 			xmtr_alt2=xmtr_alt*xmtr_alt;
@@ -3057,16 +3057,16 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 
 			if (fd!=NULL) {
 				textlen = snprintf(textout, MAX_TEXT_LEN, "%.7f, %.7f, %.3f, %.3f, ",
-                            path->lat[y], path->lon[y], azimuth, elevation);
-            }
+							path->lat[y], path->lon[y], azimuth, elevation);
+			}
 
 			/* If ERP==0, write path loss to alphanumeric
 			   output file.  Otherwise, write field strength
 			   or received power level (below), as appropriate. */
 
 			if (fd!=NULL && LR.erp==0.0) {
-                textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.2f",loss);
-            }
+				textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.2f",loss);
+			}
 
 			/* Integrate the antenna's radiation
 			   pattern into the overall path loss. */
@@ -3097,8 +3097,8 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 					dBm=10.0*(log10(rxp*1000.0));
 
 					if (fd!=NULL) {
-                        textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.3f",dBm);
-                    }
+						textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.3f",dBm);
+					}
 
 					/* Scale roughly between 0 and 255 */
 
@@ -3115,7 +3115,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 					if (ofs>ifs)
 						ifs=ofs;
 
-                    // writes to dem
+					// writes to dem
 					PutSignal(path->lat[y],path->lon[y],(unsigned char)ifs);
 				}
 
@@ -3139,8 +3139,8 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 					PutSignal(path->lat[y],path->lon[y],(unsigned char)ifs);
 	
 					if (fd!=NULL) {
-                        textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.3f",field_strength);
-                    }
+						textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.3f",field_strength);
+					}
 				}
 			}
 
@@ -3160,11 +3160,11 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 			}
 
 			if (fd!=NULL) {
-                textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%s",
-                    block ? " *\n" : "\n");
+				textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%s",
+					block ? " *\n" : "\n");
 			}
 
-            fwrite(textout, 1, textlen, fd);
+			fwrite(textout, 1, textlen, fd);
 
 			/* Mark this point as having been analyzed */
 
@@ -3172,9 +3172,9 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 		}
 	}
 
-    free(elev);
-    free(path);
-    return 0;
+	free(elev);
+	free(path);
+	return 0;
 }
 
 
@@ -3218,14 +3218,14 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
-    fprintf(stdout, "\n\n");
+	fprintf(stdout, "\n\n");
 
-    std::vector<std::function<void()>> plotList;
+	std::vector<std::function<void()>> plotList;
 
-    if (!multithread) {
-        fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
-        fflush(stdout);
-    }
+	if (!multithread) {
+		fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
+		fflush(stdout);
+	}
 
 	for (lon=minwest, x=0, y=0; (LonDiff(lon,(double)max_west)<=0.0); y++, lon=minwest+(dpp*(double)y))
 	{
@@ -3236,30 +3236,30 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 		edge.lon=lon;
 		edge.alt=altitude;
 
-        if (multithread) {
-            plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
-        } else {
-            PlotPath(source,edge,mask_value);
+		if (multithread) {
+			plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
+		} else {
+			PlotPath(source,edge,mask_value);
 
-            if (++count==z) 
-            {
-                fprintf(stdout,"%c",symbol[x]);
-                fflush(stdout);
-                count=0;
+			if (++count==z) 
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-                if (x==3)
-                    x=0;
-                else
-                    x++;
-            }
-        }
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
+		}
 	}
 
-    if (!multithread) {
-        count=0;
-        fprintf(stdout,"\n25%c to  50%c ",37,37);
-        fflush(stdout);
-    }
+	if (!multithread) {
+		count=0;
+		fprintf(stdout,"\n25%c to  50%c ",37,37);
+		fflush(stdout);
+	}
 	
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3269,30 +3269,30 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 		edge.lon=min_west;
 		edge.alt=altitude;
 
-        if (multithread) {
-            plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
-        } else {
-            PlotPath(source,edge,mask_value);
+		if (multithread) {
+			plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
+		} else {
+			PlotPath(source,edge,mask_value);
 
-            if (++count==z) 
-            {
-                fprintf(stdout,"%c",symbol[x]);
-                fflush(stdout);
-                count=0;
+			if (++count==z) 
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-                if (x==3)
-                    x=0;
-                else
-                    x++;
-            }
-        }
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
+		}
 	}
 
-    if (!multithread) {
-        count=0;
-        fprintf(stdout,"\n50%c to  75%c ",37,37);
-        fflush(stdout);
-    }
+	if (!multithread) {
+		count=0;
+		fprintf(stdout,"\n50%c to  75%c ",37,37);
+		fflush(stdout);
+	}
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
@@ -3305,30 +3305,30 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 		edge.lon=lon;
 		edge.alt=altitude;
 
-        if (multithread) {
-            plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
-        } else {
-            PlotPath(source,edge,mask_value);
+		if (multithread) {
+			plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
+		} else {
+			PlotPath(source,edge,mask_value);
 
-            if (++count==z)
-            {
-                fprintf(stdout,"%c",symbol[x]);
-                fflush(stdout);
-                count=0;
+			if (++count==z)
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-                if (x==3)
-                    x=0;
-                else
-                    x++;
-            }
-        }
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
+		}
 	}
 
-    if (!multithread) {
-        count=0;
-        fprintf(stdout,"\n75%c to 100%c ",37,37);
-        fflush(stdout);
-    }
+	if (!multithread) {
+		count=0;
+		fprintf(stdout,"\n75%c to 100%c ",37,37);
+		fflush(stdout);
+	}
 	
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3338,36 +3338,36 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 		edge.lon=max_west;
 		edge.alt=altitude;
 
-        if (multithread) {
-            plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
-        } else {
-            PlotPath(source,edge,mask_value);
+		if (multithread) {
+			plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
+		} else {
+			PlotPath(source,edge,mask_value);
 
-            if (++count==z)
-            {
-                fprintf(stdout,"%c",symbol[x]);
-                fflush(stdout);
-                count=0;
+			if (++count==z)
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-                if (x==3)
-                    x=0;
-                else
-                    x++;
-            }
-        }
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
+		}
 	}
 
-    if (multithread) {
-        SpinnerThread spinnerThread;
-        std::thread threadObj( (SpinnerThread()) );
-        threadObj.detach();
-    
-        // run 'em
-        WorkQueue wq(plotList);
-        wq.waitForCompletion();
+	if (multithread) {
+		SpinnerThread spinnerThread;
+		std::thread threadObj( (SpinnerThread()) );
+		threadObj.detach();
+	
+		// run 'em
+		WorkQueue wq(plotList);
+		wq.waitForCompletion();
 
-        spinnerThread.stop();
-    }
+		spinnerThread.stop();
+	}
 
 	fprintf(stdout,"\nDone!\n");
 	fflush(stdout);
@@ -3454,14 +3454,14 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
-    fprintf(stdout, "\n\n");
+	fprintf(stdout, "\n\n");
 
-    std::vector<std::function<void()>> plotList;
+	std::vector<std::function<void()>> plotList;
 
-    if (!multithread) {
-        fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
-        fflush(stdout);
-    }
+	if (!multithread) {
+		fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
+		fflush(stdout);
+	}
 
 	for (lon=minwest, x=0, y=0; (LonDiff(lon,(double)max_west)<=0.0); y++, lon=minwest+(dpp*(double)y))
 	{
@@ -3472,30 +3472,30 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		edge.lon=lon;
 		edge.alt=altitude;
 
-        if (multithread) {
-            plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
-        } else {
-            PlotLRPath(source,edge,mask_value,fd);
+		if (multithread) {
+			plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
+		} else {
+			PlotLRPath(source,edge,mask_value,fd);
 
-            if (++count==z) 
-            {
-                fprintf(stdout,"%c",symbol[x]);
-                fflush(stdout);
-                count=0;
+			if (++count==z) 
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-                if (x==3)
-                    x=0;
-                else
-                    x++;
-            }
-        }
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
+		}
 	}
 
-    if (!multithread) {
-        count=0;
-        fprintf(stdout,"\n25%c to  50%c ",37,37);
-        fflush(stdout);
-    }
+	if (!multithread) {
+		count=0;
+		fprintf(stdout,"\n25%c to  50%c ",37,37);
+		fflush(stdout);
+	}
 	
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3505,30 +3505,30 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		edge.lon=min_west;
 		edge.alt=altitude;
 
-        if (multithread) {
-            plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
-        } else {
-            PlotLRPath(source,edge,mask_value,fd);
+		if (multithread) {
+			plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
+		} else {
+			PlotLRPath(source,edge,mask_value,fd);
 
-            if (++count==z) 
-            {
-                fprintf(stdout,"%c",symbol[x]);
-                fflush(stdout);
-                count=0;
+			if (++count==z) 
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-                if (x==3)
-                    x=0;
-                else
-                    x++;
-            }
-        }
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
+		}
 	}
 
-    if (!multithread) {
-        count=0;
-        fprintf(stdout,"\n50%c to  75%c ",37,37);
-        fflush(stdout);
-    }
+	if (!multithread) {
+		count=0;
+		fprintf(stdout,"\n50%c to  75%c ",37,37);
+		fflush(stdout);
+	}
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
@@ -3541,31 +3541,31 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		edge.lon=lon;
 		edge.alt=altitude;
 
-        if (multithread) {
-            plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
-        } else {
-            PlotLRPath(source,edge,mask_value,fd);
+		if (multithread) {
+			plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
+		} else {
+			PlotLRPath(source,edge,mask_value,fd);
 
-            if (++count==z)
-            {
-                fprintf(stdout,"%c",symbol[x]);
-                fflush(stdout);
-                count=0;
+			if (++count==z)
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-                if (x==3)
-                    x=0;
-                else
-                    x++;
-            }
-        }
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
+		}
 	}
 
-    if (!multithread) {
-        count=0;
-        fprintf(stdout,"\n75%c to 100%c ",37,37);
-        fflush(stdout);
-    }
-        
+	if (!multithread) {
+		count=0;
+		fprintf(stdout,"\n75%c to 100%c ",37,37);
+		fflush(stdout);
+	}
+		
 	z=(int)(th*(double)(max_north-min_north));
 
 	for (lat=(double)min_north, x=0, y=0; lat<(double)max_north; y++, lat=(double)min_north+(dpp*(double)y))
@@ -3574,36 +3574,36 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		edge.lon=max_west;
 		edge.alt=altitude;
 
-        if (multithread) {
-            plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
-        } else {
-            PlotLRPath(source,edge,mask_value,fd);
+		if (multithread) {
+			plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
+		} else {
+			PlotLRPath(source,edge,mask_value,fd);
 
-            if (++count==z)
-            {
-                fprintf(stdout,"%c",symbol[x]);
-                fflush(stdout);
-                count=0;
+			if (++count==z)
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-                if (x==3)
-                    x=0;
-                else
-                    x++;
-            }
-        }
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
+		}
 	}
 
-    if (multithread) {
-        SpinnerThread spinnerThread;
-        std::thread threadObj( (SpinnerThread()) );
-        threadObj.detach();
+	if (multithread) {
+		SpinnerThread spinnerThread;
+		std::thread threadObj( (SpinnerThread()) );
+		threadObj.detach();
 
-        // run 'em
-        WorkQueue wq(plotList);
-        wq.waitForCompletion();
+		// run 'em
+		WorkQueue wq(plotList);
+		wq.waitForCompletion();
 
-        spinnerThread.stop();
-    }
+		spinnerThread.stop();
+	}
 
 	if (fd!=NULL)
 		fclose(fd);
@@ -3710,7 +3710,7 @@ void LoadSignalColors(Site xmtr)
 
 		fprintf(fd,"; SPLAT! Auto-generated Signal Color Definition (\"%s\") File\n",filename);
 		fprintf(fd,";\n; Format for the parameters held in this file is as follows:\n;\n");
-		fprintf(fd,";    dBuV/m: red, green, blue\n;\n");
+		fprintf(fd,";	dBuV/m: red, green, blue\n;\n");
 		fprintf(fd,"; ...where \"dBuV/m\" is the signal strength (in dBuV/m) and\n");
 		fprintf(fd,"; \"red\", \"green\", and \"blue\" are the corresponding RGB color\n");
 		fprintf(fd,"; definitions ranging from 0 to 255 for the region specified.\n");
@@ -3874,7 +3874,7 @@ void LoadLossColors(Site xmtr)
 
 		fprintf(fd,"; SPLAT! Auto-generated Path-Loss Color Definition (\"%s\") File\n",filename);
 		fprintf(fd,";\n; Format for the parameters held in this file is as follows:\n;\n");
-		fprintf(fd,";    dB: red, green, blue\n;\n");
+		fprintf(fd,";	dB: red, green, blue\n;\n");
 		fprintf(fd,"; ...where \"dB\" is the path loss (in dB) and\n");
 		fprintf(fd,"; \"red\", \"green\", and \"blue\" are the corresponding RGB color\n");
 		fprintf(fd,"; definitions ranging from 0 to 255 for the region specified.\n");
@@ -4038,7 +4038,7 @@ void LoadDBMColors(Site xmtr)
 
 		fprintf(fd,"; SPLAT! Auto-generated DBM Signal Level Color Definition (\"%s\") File\n",filename);
 		fprintf(fd,";\n; Format for the parameters held in this file is as follows:\n;\n");
-		fprintf(fd,";    dBm: red, green, blue\n;\n");
+		fprintf(fd,";	dBm: red, green, blue\n;\n");
 		fprintf(fd,"; ...where \"dBm\" is the received signal power level between +40 dBm\n");
 		fprintf(fd,"; and -200 dBm, and \"red\", \"green\", and \"blue\" are the corresponding\n");
 		fprintf(fd,"; RGB color definitions ranging from 0 to 255 for the region specified.\n");
@@ -4191,45 +4191,45 @@ void WritePPM(char *filename, unsigned char geo, unsigned char kml, unsigned cha
 		fprintf(fd,"<kml xmlns=\"http://earth.google.com/kml/2.1\">\n");
 		fprintf(fd,"  <Folder>\n");
 		fprintf(fd,"   <name>%s</name>\n",SPLAT_NAME);
-    		fprintf(fd,"     <description>Line-of-Sight Contour</description>\n");
-    		fprintf(fd,"       <GroundOverlay>\n");
-      		fprintf(fd,"         <name>%s Line-of-Sight Contour</name>\n",SPLAT_NAME);
-      		fprintf(fd,"           <description>SPLAT! Coverage</description>\n");
-      		fprintf(fd,"		<Icon>\n");
-        	fprintf(fd,"              <href>%s</href>\n",mapfile);
+			fprintf(fd,"	 <description>Line-of-Sight Contour</description>\n");
+			fprintf(fd,"	   <GroundOverlay>\n");
+	  		fprintf(fd,"		 <name>%s Line-of-Sight Contour</name>\n",SPLAT_NAME);
+	  		fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
+	  		fprintf(fd,"		<Icon>\n");
+			fprintf(fd,"			  <href>%s</href>\n",mapfile);
 		fprintf(fd,"		</Icon>\n");
-		/* fprintf(fd,"            <opacity>128</opacity>\n"); */
-		fprintf(fd,"            <LatLonBox>\n");
-		fprintf(fd,"               <north>%.5f</north>\n",north);
-		fprintf(fd,"               <south>%.5f</south>\n",south);
-		fprintf(fd,"               <east>%.5f</east>\n",east);
-        	fprintf(fd,"               <west>%.5f</west>\n",west);
-        	fprintf(fd,"               <rotation>0.0</rotation>\n");
-      		fprintf(fd,"            </LatLonBox>\n");
-		fprintf(fd,"       </GroundOverlay>\n");
+		/* fprintf(fd,"			<opacity>128</opacity>\n"); */
+		fprintf(fd,"			<LatLonBox>\n");
+		fprintf(fd,"			   <north>%.5f</north>\n",north);
+		fprintf(fd,"			   <south>%.5f</south>\n",south);
+		fprintf(fd,"			   <east>%.5f</east>\n",east);
+			fprintf(fd,"			   <west>%.5f</west>\n",west);
+			fprintf(fd,"			   <rotation>0.0</rotation>\n");
+	  		fprintf(fd,"			</LatLonBox>\n");
+		fprintf(fd,"	   </GroundOverlay>\n");
 
 		for (x=0; x<txsites; x++)
 		{
-			fprintf(fd,"     <Placemark>\n");
-			fprintf(fd,"       <name>%s</name>\n",xmtr[x].name);
-			fprintf(fd,"       <visibility>1</visibility>\n");
-			fprintf(fd,"       <Style>\n");
-			fprintf(fd,"       <IconStyle>\n");
-			fprintf(fd,"        <Icon>\n");
-			fprintf(fd,"          <href>root://icons/palette-5.png</href>\n");
-			fprintf(fd,"          <x>224</x>\n");
-			fprintf(fd,"          <y>224</y>\n");
-			fprintf(fd,"          <w>32</w>\n");
-			fprintf(fd,"          <h>32</h>\n");
-			fprintf(fd,"        </Icon>\n");
-			fprintf(fd,"       </IconStyle>\n");
-			fprintf(fd,"       </Style>\n");
-			fprintf(fd,"      <Point>\n");
-			fprintf(fd,"        <extrude>1</extrude>\n");
-			fprintf(fd,"        <altitudeMode>relativeToGround</altitudeMode>\n");
-			fprintf(fd,"        <coordinates>%f,%f,%f</coordinates>\n",(xmtr[x].lon<180.0?-xmtr[x].lon:360.0-xmtr[x].lon), xmtr[x].lat, xmtr[x].alt);
-			fprintf(fd,"      </Point>\n");
-			fprintf(fd,"     </Placemark>\n");
+			fprintf(fd,"	 <Placemark>\n");
+			fprintf(fd,"	   <name>%s</name>\n",xmtr[x].name);
+			fprintf(fd,"	   <visibility>1</visibility>\n");
+			fprintf(fd,"	   <Style>\n");
+			fprintf(fd,"	   <IconStyle>\n");
+			fprintf(fd,"		<Icon>\n");
+			fprintf(fd,"		  <href>root://icons/palette-5.png</href>\n");
+			fprintf(fd,"		  <x>224</x>\n");
+			fprintf(fd,"		  <y>224</y>\n");
+			fprintf(fd,"		  <w>32</w>\n");
+			fprintf(fd,"		  <h>32</h>\n");
+			fprintf(fd,"		</Icon>\n");
+			fprintf(fd,"	   </IconStyle>\n");
+			fprintf(fd,"	   </Style>\n");
+			fprintf(fd,"	  <Point>\n");
+			fprintf(fd,"		<extrude>1</extrude>\n");
+			fprintf(fd,"		<altitudeMode>relativeToGround</altitudeMode>\n");
+			fprintf(fd,"		<coordinates>%f,%f,%f</coordinates>\n",(xmtr[x].lon<180.0?-xmtr[x].lon:360.0-xmtr[x].lon), xmtr[x].lat, xmtr[x].alt);
+			fprintf(fd,"	  </Point>\n");
+			fprintf(fd,"	 </Placemark>\n");
 		}
 
 		fprintf(fd,"  </Folder>\n");
@@ -4396,7 +4396,7 @@ void WritePPMLR(char *filename, unsigned char geo, unsigned char kml, unsigned c
 	unsigned int width, height, red, green, blue, terrain=0;
 	unsigned char found, mask, cityorcounty; 
 	int indx, x, y, z, colorwidth, x0, y0, loss, level,
-	    hundreds, tens, units, match;
+		hundreds, tens, units, match;
 	double lat, lon, conversion, one_over_gamma,
 	north, south, east, west, minwest;
 	FILE *fd;
@@ -4500,56 +4500,56 @@ void WritePPMLR(char *filename, unsigned char geo, unsigned char kml, unsigned c
 		fprintf(fd,"<!-- Generated by %s Version %s -->\n",SPLAT_NAME,SPLAT_VERSION);
 		fprintf(fd,"  <Folder>\n");
 		fprintf(fd,"   <name>%s</name>\n",SPLAT_NAME);
-    		fprintf(fd,"     <description>%s Transmitter Path Loss Overlay</description>\n",xmtr[0].name);
-    		fprintf(fd,"       <GroundOverlay>\n");
-      		fprintf(fd,"         <name>SPLAT! Path Loss Overlay</name>\n");
-      		fprintf(fd,"           <description>SPLAT! Coverage</description>\n");
-      		fprintf(fd,"		<Icon>\n");
-        	fprintf(fd,"              <href>%s</href>\n",mapfile);
+			fprintf(fd,"	 <description>%s Transmitter Path Loss Overlay</description>\n",xmtr[0].name);
+			fprintf(fd,"	   <GroundOverlay>\n");
+	  		fprintf(fd,"		 <name>SPLAT! Path Loss Overlay</name>\n");
+	  		fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
+	  		fprintf(fd,"		<Icon>\n");
+			fprintf(fd,"			  <href>%s</href>\n",mapfile);
 		fprintf(fd,"		</Icon>\n");
-		/* fprintf(fd,"            <opacity>128</opacity>\n"); */
-		fprintf(fd,"            <LatLonBox>\n");
-		fprintf(fd,"               <north>%.5f</north>\n",north);
-		fprintf(fd,"               <south>%.5f</south>\n",south);
-		fprintf(fd,"               <east>%.5f</east>\n",east);
-        	fprintf(fd,"               <west>%.5f</west>\n",west);
-        	fprintf(fd,"               <rotation>0.0</rotation>\n");
-      		fprintf(fd,"            </LatLonBox>\n");
-		fprintf(fd,"       </GroundOverlay>\n");
-		fprintf(fd,"       <ScreenOverlay>\n");
-		fprintf(fd,"          <name>Color Key</name>\n");
+		/* fprintf(fd,"			<opacity>128</opacity>\n"); */
+		fprintf(fd,"			<LatLonBox>\n");
+		fprintf(fd,"			   <north>%.5f</north>\n",north);
+		fprintf(fd,"			   <south>%.5f</south>\n",south);
+		fprintf(fd,"			   <east>%.5f</east>\n",east);
+			fprintf(fd,"			   <west>%.5f</west>\n",west);
+			fprintf(fd,"			   <rotation>0.0</rotation>\n");
+	  		fprintf(fd,"			</LatLonBox>\n");
+		fprintf(fd,"	   </GroundOverlay>\n");
+		fprintf(fd,"	   <ScreenOverlay>\n");
+		fprintf(fd,"		  <name>Color Key</name>\n");
 		fprintf(fd,"		<description>Contour Color Key</description>\n");
-		fprintf(fd,"          <Icon>\n");
-		fprintf(fd,"            <href>%s</href>\n",ckfile);
-		fprintf(fd,"          </Icon>\n");
-		fprintf(fd,"          <overlayXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
-		fprintf(fd,"          <screenXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
-		fprintf(fd,"          <rotationXY x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
-		fprintf(fd,"          <size x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
-		fprintf(fd,"       </ScreenOverlay>\n");
+		fprintf(fd,"		  <Icon>\n");
+		fprintf(fd,"			<href>%s</href>\n",ckfile);
+		fprintf(fd,"		  </Icon>\n");
+		fprintf(fd,"		  <overlayXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
+		fprintf(fd,"		  <screenXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
+		fprintf(fd,"		  <rotationXY x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
+		fprintf(fd,"		  <size x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
+		fprintf(fd,"	   </ScreenOverlay>\n");
 
 		for (x=0; x<txsites; x++)
 		{
-			fprintf(fd,"     <Placemark>\n");
-			fprintf(fd,"       <name>%s</name>\n",xmtr[x].name);
-			fprintf(fd,"       <visibility>1</visibility>\n");
-			fprintf(fd,"       <Style>\n");
-			fprintf(fd,"       <IconStyle>\n");
-			fprintf(fd,"        <Icon>\n");
-			fprintf(fd,"          <href>root://icons/palette-5.png</href>\n");
-			fprintf(fd,"          <x>224</x>\n");
-			fprintf(fd,"          <y>224</y>\n");
-			fprintf(fd,"          <w>32</w>\n");
-			fprintf(fd,"          <h>32</h>\n");
-			fprintf(fd,"        </Icon>\n");
-			fprintf(fd,"       </IconStyle>\n");
-			fprintf(fd,"       </Style>\n");
-			fprintf(fd,"      <Point>\n");
-			fprintf(fd,"        <extrude>1</extrude>\n");
-			fprintf(fd,"        <altitudeMode>relativeToGround</altitudeMode>\n");
-			fprintf(fd,"        <coordinates>%f,%f,%f</coordinates>\n",(xmtr[x].lon<180.0?-xmtr[x].lon:360.0-xmtr[x].lon), xmtr[x].lat, xmtr[x].alt);
-			fprintf(fd,"      </Point>\n");
-			fprintf(fd,"     </Placemark>\n");
+			fprintf(fd,"	 <Placemark>\n");
+			fprintf(fd,"	   <name>%s</name>\n",xmtr[x].name);
+			fprintf(fd,"	   <visibility>1</visibility>\n");
+			fprintf(fd,"	   <Style>\n");
+			fprintf(fd,"	   <IconStyle>\n");
+			fprintf(fd,"		<Icon>\n");
+			fprintf(fd,"		  <href>root://icons/palette-5.png</href>\n");
+			fprintf(fd,"		  <x>224</x>\n");
+			fprintf(fd,"		  <y>224</y>\n");
+			fprintf(fd,"		  <w>32</w>\n");
+			fprintf(fd,"		  <h>32</h>\n");
+			fprintf(fd,"		</Icon>\n");
+			fprintf(fd,"	   </IconStyle>\n");
+			fprintf(fd,"	   </Style>\n");
+			fprintf(fd,"	  <Point>\n");
+			fprintf(fd,"		<extrude>1</extrude>\n");
+			fprintf(fd,"		<altitudeMode>relativeToGround</altitudeMode>\n");
+			fprintf(fd,"		<coordinates>%f,%f,%f</coordinates>\n",(xmtr[x].lon<180.0?-xmtr[x].lon:360.0-xmtr[x].lon), xmtr[x].lat, xmtr[x].alt);
+			fprintf(fd,"	  </Point>\n");
+			fprintf(fd,"	 </Placemark>\n");
 		}
 
 		fprintf(fd,"  </Folder>\n");
@@ -4641,11 +4641,11 @@ void WritePPMLR(char *filename, unsigned char geo, unsigned char kml, unsigned c
 					/* Text Labels: Red or otherwise */
 
 					if (red>=180 && green<=75 && blue<=75 && loss!=0)
-                                                fprintf(fd,"%c%c%c",255^red,255^green,255^blue);
-                                        else
-                                                fprintf(fd,"%c%c%c",255,0,0);
+												fprintf(fd,"%c%c%c",255^red,255^green,255^blue);
+										else
+												fprintf(fd,"%c%c%c",255,0,0);
 
-                                        cityorcounty=1;
+										cityorcounty=1;
 				}
 
 				else if (mask&4)
@@ -4737,18 +4737,18 @@ void WritePPMLR(char *filename, unsigned char geo, unsigned char kml, unsigned c
 
 				units=level;
 
-		       		if (y0>=8 && y0<=23)
+			   		if (y0>=8 && y0<=23)
 				{  
 					if (hundreds>0)
 					{
-				  		if (x>=11 && x<=18)     
-				      			if (fontdata[16*(hundreds+'0')+(y0-8)]&(128>>(x-11)))
+				  		if (x>=11 && x<=18)	 
+					  			if (fontdata[16*(hundreds+'0')+(y0-8)]&(128>>(x-11)))
 								indx=255; 
-			    		}
+						}
 
 					if (tens>0 || hundreds>0)
 					{
-						if (x>=19 && x<=26)     
+						if (x>=19 && x<=26)	 
 							if (fontdata[16*(tens+'0')+(y0-8)]&(128>>(x-19)))
 								indx=255;
 					}
@@ -4764,7 +4764,7 @@ void WritePPMLR(char *filename, unsigned char geo, unsigned char kml, unsigned c
 					if (x>=50 && x<=57)
 						if (fontdata[16*('B')+(y0-8)]&(128>>(x-50)))
 							indx=255;
-		       		}
+			   		}
 
 				if (indx>region.levels)
 					fprintf(fd,"%c%c%c",0,0,0);
@@ -4818,14 +4818,14 @@ void WritePPMLR(char *filename, unsigned char geo, unsigned char kml, unsigned c
 				{  
 					if (hundreds>0)
 					{
-				  		if (x>=11 && x<=18)     
-				      			if (fontdata[16*(hundreds+'0')+((y0%30)-8)]&(128>>(x-11)))
+				  		if (x>=11 && x<=18)	 
+					  			if (fontdata[16*(hundreds+'0')+((y0%30)-8)]&(128>>(x-11)))
 								indx=255; 
-			    		}
+						}
 
 					if (tens>0 || hundreds>0)
 					{
-						if (x>=19 && x<=26)     
+						if (x>=19 && x<=26)	 
 							if (fontdata[16*(tens+'0')+((y0%30)-8)]&(128>>(x-19)))
 								indx=255;
 					}
@@ -4841,7 +4841,7 @@ void WritePPMLR(char *filename, unsigned char geo, unsigned char kml, unsigned c
 					if (x>=50 && x<=57)
 						if (fontdata[16*('B')+((y0%30)-8)]&(128>>(x-50)))
 							indx=255;
-		       		}
+			   		}
 
 				if (indx>region.levels)
 					fprintf(fd,"%c%c%c",0,0,0);
@@ -4875,7 +4875,7 @@ void WritePPMSS(char *filename, unsigned char geo, unsigned char kml, unsigned c
 	unsigned width, height, terrain, red, green, blue;
 	unsigned char found, mask, cityorcounty;
 	int indx, x, y, z=1, x0, y0, signal, level, hundreds,
-	    tens, units, match, colorwidth;
+		tens, units, match, colorwidth;
 	double conversion, one_over_gamma, lat, lon,
 	north, south, east, west, minwest;
 	FILE *fd;
@@ -4978,56 +4978,56 @@ void WritePPMSS(char *filename, unsigned char geo, unsigned char kml, unsigned c
 		fprintf(fd,"<!-- Generated by %s Version %s -->\n",SPLAT_NAME,SPLAT_VERSION);
 		fprintf(fd,"  <Folder>\n");
 		fprintf(fd,"   <name>%s</name>\n",SPLAT_NAME);
-    		fprintf(fd,"     <description>%s Transmitter Contours</description>\n",xmtr[0].name);
-    		fprintf(fd,"       <GroundOverlay>\n");
-      		fprintf(fd,"         <name>SPLAT! Signal Strength Contours</name>\n");
-      		fprintf(fd,"           <description>SPLAT! Coverage</description>\n");
-      		fprintf(fd,"		<Icon>\n");
-        	fprintf(fd,"              <href>%s</href>\n",mapfile);
+			fprintf(fd,"	 <description>%s Transmitter Contours</description>\n",xmtr[0].name);
+			fprintf(fd,"	   <GroundOverlay>\n");
+	  		fprintf(fd,"		 <name>SPLAT! Signal Strength Contours</name>\n");
+	  		fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
+	  		fprintf(fd,"		<Icon>\n");
+			fprintf(fd,"			  <href>%s</href>\n",mapfile);
 		fprintf(fd,"		</Icon>\n");
-		/* fprintf(fd,"            <opacity>128</opacity>\n"); */
-		fprintf(fd,"            <LatLonBox>\n");
-		fprintf(fd,"               <north>%.5f</north>\n",north);
-		fprintf(fd,"               <south>%.5f</south>\n",south);
-		fprintf(fd,"               <east>%.5f</east>\n",east);
-        	fprintf(fd,"               <west>%.5f</west>\n",west);
-        	fprintf(fd,"               <rotation>0.0</rotation>\n");
-      		fprintf(fd,"            </LatLonBox>\n");
-		fprintf(fd,"       </GroundOverlay>\n");
-		fprintf(fd,"       <ScreenOverlay>\n");
-		fprintf(fd,"          <name>Color Key</name>\n");
-		fprintf(fd,"            <description>Contour Color Key</description>\n");
-		fprintf(fd,"          <Icon>\n");
-		fprintf(fd,"            <href>%s</href>\n",ckfile);
-		fprintf(fd,"          </Icon>\n");
-		fprintf(fd,"          <overlayXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
-		fprintf(fd,"          <screenXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
-		fprintf(fd,"          <rotationXY x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
-		fprintf(fd,"          <size x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
-		fprintf(fd,"       </ScreenOverlay>\n");
+		/* fprintf(fd,"			<opacity>128</opacity>\n"); */
+		fprintf(fd,"			<LatLonBox>\n");
+		fprintf(fd,"			   <north>%.5f</north>\n",north);
+		fprintf(fd,"			   <south>%.5f</south>\n",south);
+		fprintf(fd,"			   <east>%.5f</east>\n",east);
+			fprintf(fd,"			   <west>%.5f</west>\n",west);
+			fprintf(fd,"			   <rotation>0.0</rotation>\n");
+	  		fprintf(fd,"			</LatLonBox>\n");
+		fprintf(fd,"	   </GroundOverlay>\n");
+		fprintf(fd,"	   <ScreenOverlay>\n");
+		fprintf(fd,"		  <name>Color Key</name>\n");
+		fprintf(fd,"			<description>Contour Color Key</description>\n");
+		fprintf(fd,"		  <Icon>\n");
+		fprintf(fd,"			<href>%s</href>\n",ckfile);
+		fprintf(fd,"		  </Icon>\n");
+		fprintf(fd,"		  <overlayXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
+		fprintf(fd,"		  <screenXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
+		fprintf(fd,"		  <rotationXY x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
+		fprintf(fd,"		  <size x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
+		fprintf(fd,"	   </ScreenOverlay>\n");
 
 		for (x=0; x<txsites; x++)
 		{
-			fprintf(fd,"     <Placemark>\n");
-			fprintf(fd,"       <name>%s</name>\n",xmtr[x].name);
-			fprintf(fd,"       <visibility>1</visibility>\n");
-			fprintf(fd,"       <Style>\n");
-			fprintf(fd,"       <IconStyle>\n");
-			fprintf(fd,"        <Icon>\n");
-			fprintf(fd,"          <href>root://icons/palette-5.png</href>\n");
-			fprintf(fd,"          <x>224</x>\n");
-			fprintf(fd,"          <y>224</y>\n");
-			fprintf(fd,"          <w>32</w>\n");
-			fprintf(fd,"          <h>32</h>\n");
-			fprintf(fd,"        </Icon>\n");
-			fprintf(fd,"       </IconStyle>\n");
-			fprintf(fd,"       </Style>\n");
-			fprintf(fd,"      <Point>\n");
-			fprintf(fd,"        <extrude>1</extrude>\n");
-			fprintf(fd,"        <altitudeMode>relativeToGround</altitudeMode>\n");
-			fprintf(fd,"        <coordinates>%f,%f,%f</coordinates>\n",(xmtr[x].lon<180.0?-xmtr[x].lon:360.0-xmtr[x].lon), xmtr[x].lat, xmtr[x].alt);
-			fprintf(fd,"      </Point>\n");
-			fprintf(fd,"     </Placemark>\n");
+			fprintf(fd,"	 <Placemark>\n");
+			fprintf(fd,"	   <name>%s</name>\n",xmtr[x].name);
+			fprintf(fd,"	   <visibility>1</visibility>\n");
+			fprintf(fd,"	   <Style>\n");
+			fprintf(fd,"	   <IconStyle>\n");
+			fprintf(fd,"		<Icon>\n");
+			fprintf(fd,"		  <href>root://icons/palette-5.png</href>\n");
+			fprintf(fd,"		  <x>224</x>\n");
+			fprintf(fd,"		  <y>224</y>\n");
+			fprintf(fd,"		  <w>32</w>\n");
+			fprintf(fd,"		  <h>32</h>\n");
+			fprintf(fd,"		</Icon>\n");
+			fprintf(fd,"	   </IconStyle>\n");
+			fprintf(fd,"	   </Style>\n");
+			fprintf(fd,"	  <Point>\n");
+			fprintf(fd,"		<extrude>1</extrude>\n");
+			fprintf(fd,"		<altitudeMode>relativeToGround</altitudeMode>\n");
+			fprintf(fd,"		<coordinates>%f,%f,%f</coordinates>\n",(xmtr[x].lon<180.0?-xmtr[x].lon:360.0-xmtr[x].lon), xmtr[x].lat, xmtr[x].alt);
+			fprintf(fd,"	  </Point>\n");
+			fprintf(fd,"	 </Placemark>\n");
 		}
 
 		fprintf(fd,"  </Folder>\n");
@@ -5220,18 +5220,18 @@ void WritePPMSS(char *filename, unsigned char geo, unsigned char kml, unsigned c
 
 				units=level;
 
-		       		if (y0>=8 && y0<=23)
+			   		if (y0>=8 && y0<=23)
 				{  
 					if (hundreds>0)
 					{
-				  		if (x>=5 && x<=12)     
-				      			if (fontdata[16*(hundreds+'0')+(y0-8)]&(128>>(x-5)))
+				  		if (x>=5 && x<=12)	 
+					  			if (fontdata[16*(hundreds+'0')+(y0-8)]&(128>>(x-5)))
 								indx=255; 
-			    		}
+						}
 
 					if (tens>0 || hundreds>0)
 					{
-						if (x>=13 && x<=20)     
+						if (x>=13 && x<=20)	 
 							if (fontdata[16*(tens+'0')+(y0-8)]&(128>>(x-13)))
 								indx=255;
 					}
@@ -5263,7 +5263,7 @@ void WritePPMSS(char *filename, unsigned char geo, unsigned char kml, unsigned c
 					if (x>=76 && x<=83)
 						if (fontdata[16*('m')+(y0-8)]&(128>>(x-76)))
 							indx=255;
-		       		}
+			   		}
 
 				if (indx>region.levels)
 					fprintf(fd,"%c%c%c",0,0,0);
@@ -5316,14 +5316,14 @@ void WritePPMSS(char *filename, unsigned char geo, unsigned char kml, unsigned c
 				{  
 					if (hundreds>0)
 					{
-				  		if (x>=5 && x<=12)     
-				      			if (fontdata[16*(hundreds+'0')+((y0%30)-8)]&(128>>(x-5)))
+				  		if (x>=5 && x<=12)	 
+					  			if (fontdata[16*(hundreds+'0')+((y0%30)-8)]&(128>>(x-5)))
 								indx=255; 
-			    		}
+						}
 
 					if (tens>0 || hundreds>0)
 					{
-						if (x>=13 && x<=20)     
+						if (x>=13 && x<=20)	 
 							if (fontdata[16*(tens+'0')+((y0%30)-8)]&(128>>(x-13)))
 								indx=255;
 					}
@@ -5355,7 +5355,7 @@ void WritePPMSS(char *filename, unsigned char geo, unsigned char kml, unsigned c
 					if (x>=76 && x<=83)
 						if (fontdata[16*('m')+((y0%30)-8)]&(128>>(x-76)))
 							indx=255;
-		       		}
+			   		}
 
 				if (indx>region.levels)
 					fprintf(fd,"%c%c%c",0,0,0);
@@ -5389,7 +5389,7 @@ void WritePPMDBM(char *filename, unsigned char geo, unsigned char kml, unsigned 
 	unsigned width, height, terrain, red, green, blue;
 	unsigned char found, mask, cityorcounty;
 	int indx, x, y, z=1, x0, y0, dBm, level, hundreds,
-	    tens, units, match, colorwidth;
+		tens, units, match, colorwidth;
 	double conversion, one_over_gamma, lat, lon,
 	north, south, east, west, minwest;
 	FILE *fd;
@@ -5492,56 +5492,56 @@ void WritePPMDBM(char *filename, unsigned char geo, unsigned char kml, unsigned 
 		fprintf(fd,"<!-- Generated by %s Version %s -->\n",SPLAT_NAME,SPLAT_VERSION);
 		fprintf(fd,"  <Folder>\n");
 		fprintf(fd,"   <name>%s</name>\n",SPLAT_NAME);
-    		fprintf(fd,"     <description>%s Transmitter Contours</description>\n",xmtr[0].name);
-    		fprintf(fd,"       <GroundOverlay>\n");
-      		fprintf(fd,"         <name>SPLAT! Signal Power Level Contours</name>\n");
-      		fprintf(fd,"           <description>SPLAT! Coverage</description>\n");
-      		fprintf(fd,"		<Icon>\n");
-        	fprintf(fd,"              <href>%s</href>\n",mapfile);
+			fprintf(fd,"	 <description>%s Transmitter Contours</description>\n",xmtr[0].name);
+			fprintf(fd,"	   <GroundOverlay>\n");
+	  		fprintf(fd,"		 <name>SPLAT! Signal Power Level Contours</name>\n");
+	  		fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
+	  		fprintf(fd,"		<Icon>\n");
+			fprintf(fd,"			  <href>%s</href>\n",mapfile);
 		fprintf(fd,"		</Icon>\n");
-		/* fprintf(fd,"            <opacity>128</opacity>\n"); */
-		fprintf(fd,"            <LatLonBox>\n");
-		fprintf(fd,"               <north>%.5f</north>\n",north);
-		fprintf(fd,"               <south>%.5f</south>\n",south);
-		fprintf(fd,"               <east>%.5f</east>\n",east);
-        	fprintf(fd,"               <west>%.5f</west>\n",west);
-        	fprintf(fd,"               <rotation>0.0</rotation>\n");
-      		fprintf(fd,"            </LatLonBox>\n");
-		fprintf(fd,"       </GroundOverlay>\n");
-		fprintf(fd,"       <ScreenOverlay>\n");
-		fprintf(fd,"          <name>Color Key</name>\n");
-		fprintf(fd,"            <description>Contour Color Key</description>\n");
-		fprintf(fd,"          <Icon>\n");
-		fprintf(fd,"            <href>%s</href>\n",ckfile);
-		fprintf(fd,"          </Icon>\n");
-		fprintf(fd,"          <overlayXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
-		fprintf(fd,"          <screenXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
-		fprintf(fd,"          <rotationXY x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
-		fprintf(fd,"          <size x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
-		fprintf(fd,"       </ScreenOverlay>\n");
+		/* fprintf(fd,"			<opacity>128</opacity>\n"); */
+		fprintf(fd,"			<LatLonBox>\n");
+		fprintf(fd,"			   <north>%.5f</north>\n",north);
+		fprintf(fd,"			   <south>%.5f</south>\n",south);
+		fprintf(fd,"			   <east>%.5f</east>\n",east);
+			fprintf(fd,"			   <west>%.5f</west>\n",west);
+			fprintf(fd,"			   <rotation>0.0</rotation>\n");
+	  		fprintf(fd,"			</LatLonBox>\n");
+		fprintf(fd,"	   </GroundOverlay>\n");
+		fprintf(fd,"	   <ScreenOverlay>\n");
+		fprintf(fd,"		  <name>Color Key</name>\n");
+		fprintf(fd,"			<description>Contour Color Key</description>\n");
+		fprintf(fd,"		  <Icon>\n");
+		fprintf(fd,"			<href>%s</href>\n",ckfile);
+		fprintf(fd,"		  </Icon>\n");
+		fprintf(fd,"		  <overlayXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
+		fprintf(fd,"		  <screenXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
+		fprintf(fd,"		  <rotationXY x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
+		fprintf(fd,"		  <size x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
+		fprintf(fd,"	   </ScreenOverlay>\n");
 
 		for (x=0; x<txsites; x++)
 		{
-			fprintf(fd,"     <Placemark>\n");
-			fprintf(fd,"       <name>%s</name>\n",xmtr[x].name);
-			fprintf(fd,"       <visibility>1</visibility>\n");
-			fprintf(fd,"       <Style>\n");
-			fprintf(fd,"       <IconStyle>\n");
-			fprintf(fd,"        <Icon>\n");
-			fprintf(fd,"          <href>root://icons/palette-5.png</href>\n");
-			fprintf(fd,"          <x>224</x>\n");
-			fprintf(fd,"          <y>224</y>\n");
-			fprintf(fd,"          <w>32</w>\n");
-			fprintf(fd,"          <h>32</h>\n");
-			fprintf(fd,"        </Icon>\n");
-			fprintf(fd,"       </IconStyle>\n");
-			fprintf(fd,"       </Style>\n");
-			fprintf(fd,"      <Point>\n");
-			fprintf(fd,"        <extrude>1</extrude>\n");
-			fprintf(fd,"        <altitudeMode>relativeToGround</altitudeMode>\n");
-			fprintf(fd,"        <coordinates>%f,%f,%f</coordinates>\n",(xmtr[x].lon<180.0?-xmtr[x].lon:360.0-xmtr[x].lon), xmtr[x].lat, xmtr[x].alt);
-			fprintf(fd,"      </Point>\n");
-			fprintf(fd,"     </Placemark>\n");
+			fprintf(fd,"	 <Placemark>\n");
+			fprintf(fd,"	   <name>%s</name>\n",xmtr[x].name);
+			fprintf(fd,"	   <visibility>1</visibility>\n");
+			fprintf(fd,"	   <Style>\n");
+			fprintf(fd,"	   <IconStyle>\n");
+			fprintf(fd,"		<Icon>\n");
+			fprintf(fd,"		  <href>root://icons/palette-5.png</href>\n");
+			fprintf(fd,"		  <x>224</x>\n");
+			fprintf(fd,"		  <y>224</y>\n");
+			fprintf(fd,"		  <w>32</w>\n");
+			fprintf(fd,"		  <h>32</h>\n");
+			fprintf(fd,"		</Icon>\n");
+			fprintf(fd,"	   </IconStyle>\n");
+			fprintf(fd,"	   </Style>\n");
+			fprintf(fd,"	  <Point>\n");
+			fprintf(fd,"		<extrude>1</extrude>\n");
+			fprintf(fd,"		<altitudeMode>relativeToGround</altitudeMode>\n");
+			fprintf(fd,"		<coordinates>%f,%f,%f</coordinates>\n",(xmtr[x].lon<180.0?-xmtr[x].lon:360.0-xmtr[x].lon), xmtr[x].lat, xmtr[x].alt);
+			fprintf(fd,"	  </Point>\n");
+			fprintf(fd,"	 </Placemark>\n");
 		}
 
 		fprintf(fd,"  </Folder>\n");
@@ -5734,7 +5734,7 @@ void WritePPMDBM(char *filename, unsigned char geo, unsigned char kml, unsigned 
 
 				units=level;
 
-		       		if (y0>=8 && y0<=23)
+			   		if (y0>=8 && y0<=23)
 				{
 					if (hundreds>0)
 					{
@@ -5752,10 +5752,10 @@ void WritePPMDBM(char *filename, unsigned char geo, unsigned char kml, unsigned 
 									indx=255;
 						}
 
-				  		if (x>=13 && x<=20)     
-				      			if (fontdata[16*(hundreds+'0')+(y0-8)]&(128>>(x-13)))
+				  		if (x>=13 && x<=20)	 
+					  			if (fontdata[16*(hundreds+'0')+(y0-8)]&(128>>(x-13)))
 								indx=255; 
-			    		}
+						}
 
 					if (tens>0 || hundreds>0)
 					{
@@ -5776,7 +5776,7 @@ void WritePPMDBM(char *filename, unsigned char geo, unsigned char kml, unsigned 
 							}
 						}
 						
-						if (x>=21 && x<=28)     
+						if (x>=21 && x<=28)	 
 							if (fontdata[16*(tens+'0')+(y0-8)]&(128>>(x-21)))
 								indx=255;
 					}
@@ -5813,7 +5813,7 @@ void WritePPMDBM(char *filename, unsigned char geo, unsigned char kml, unsigned 
 					if (x>=53 && x<=60)
 						if (fontdata[16*('m')+(y0-8)]&(128>>(x-53)))
 							indx=255;
-		       		}
+			   		}
 
 				if (indx>region.levels)
 					fprintf(fd,"%c%c%c",0,0,0);
@@ -5883,10 +5883,10 @@ void WritePPMDBM(char *filename, unsigned char geo, unsigned char kml, unsigned 
 									indx=255;
 						}
 
-				  		if (x>=13 && x<=20)     
-				      			if (fontdata[16*(hundreds+'0')+((y0%30)-8)]&(128>>(x-13)))
+				  		if (x>=13 && x<=20)	 
+					  			if (fontdata[16*(hundreds+'0')+((y0%30)-8)]&(128>>(x-13)))
 								indx=255; 
-			    		}
+						}
 
 					if (tens>0 || hundreds>0)
 					{
@@ -5907,7 +5907,7 @@ void WritePPMDBM(char *filename, unsigned char geo, unsigned char kml, unsigned 
 							}
 						}
 						
-						if (x>=21 && x<=28)     
+						if (x>=21 && x<=28)	 
 							if (fontdata[16*(tens+'0')+((y0%30)-8)]&(128>>(x-21)))
 								indx=255;
 					}
@@ -5982,7 +5982,7 @@ void GraphTerrain(Site source, Site destination, char *name)
 	double	minheight=100000.0, maxheight=-100000.0;
 	FILE	*fd=NULL, *fd1=NULL;
 
-    Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(destination,source,path); 
 
 	fd=fopen("profile.gp","wb");
@@ -6128,7 +6128,7 @@ void GraphTerrain(Site source, Site destination, char *name)
 	else
 		fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
 
-    free(path);
+	free(path);
 }
 
 void GraphElevation(Site source, Site destination, char *name)
@@ -6144,11 +6144,11 @@ void GraphElevation(Site source, Site destination, char *name)
 	int	x, y, z;
 	char	basename[255], term[30], ext[15];
 	double	angle, clutter_angle=0.0, refangle, maxangle=-90.0,
-	       	minangle=90.0, distance;
-	Site    remote, remote2;
+		   	minangle=90.0, distance;
+	Site	remote, remote2;
 	FILE	*fd=NULL, *fd1=NULL, *fd2=NULL;
 
-    Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(destination,source,path);  /* destination=RX, source=TX */
 	refangle=ElevationAngle(destination,source);
 	distance=Distance(source,destination);
@@ -6333,7 +6333,7 @@ void GraphElevation(Site source, Site destination, char *name)
 	else
 		fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
 
-    free(path);
+	free(path);
 }
 
 void GraphHeight(Site source, Site destination, char *name, unsigned char fresnel_plot, unsigned char normalized)
@@ -6355,19 +6355,19 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 		nm=0.0, nb=0.0, ed=0.0, es=0.0, r=0.0, d=0.0, d1=0.0,
 		terrain, azimuth, distance, dheight=0.0, minterrain=100000.0,
 		minearth=100000.0, miny, maxy, min2y, max2y;
-	Site    remote;
+	Site	remote;
 	FILE	*fd=NULL, *fd1=NULL, *fd2=NULL, *fd3=NULL, *fd4=NULL, *fd5=NULL;
 
-    Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(destination,source,path);  /* destination=RX, source=TX */
 	azimuth=Azimuth(destination,source);
 	distance=Distance(destination,source);
 	refangle=ElevationAngle(destination,source);
 
-    if (destination.amsl_flag)
-        b=destination.alt+earthradius;
-    else
-        b=GetElevation(destination)+destination.alt+earthradius;
+	if (destination.amsl_flag)
+			b=destination.alt+earthradius;
+	else
+			b=GetElevation(destination)+destination.alt+earthradius;
 
 	/* Wavelength and path distance (great circle) in feet. */
 
@@ -6721,7 +6721,7 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 	else
 		fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
 
-    free(path);
+	free(path);
 }
 
 void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
@@ -6736,22 +6736,22 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 		h_r_f1, h_r_fpt6, h_f, h_los, lambda=0.0;
 	char	string[255], string_fpt6[255], string_f1[255];
 
-    Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(xmtr,rcvr,path);
 
-    if (rcvr.amsl_flag)
-        h_r=rcvr.alt+earthradius;
-    else
-        h_r=GetElevation(rcvr)+rcvr.alt+earthradius;
+	if (rcvr.amsl_flag)
+		h_r=rcvr.alt+earthradius;
+	else
+		h_r=GetElevation(rcvr)+rcvr.alt+earthradius;
 
 	h_r_f1=h_r;
 	h_r_fpt6=h_r;
 	h_r_orig=h_r;
 
-    if (xmtr.amsl_flag)
-        h_t=xmtr.alt+earthradius;
-    else
-        h_t=GetElevation(xmtr)+xmtr.alt+earthradius;
+	if (xmtr.amsl_flag)
+		h_t=xmtr.alt+earthradius;
+	else
+		h_t=GetElevation(xmtr)+xmtr.alt+earthradius;
 
 	d_tx=5280.0*Distance(rcvr,xmtr);
 	cos_tx_angle=((h_r*h_r)+(d_tx*d_tx)-(h_t*h_t))/(2.0*h_r*d_tx);
@@ -6898,7 +6898,7 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 		}
 
 		else
-    		    snprintf(string_f1,150,"\nThe first Fresnel zone is clear.\n");
+				snprintf(string_f1,150,"\nThe first Fresnel zone is clear.\n");
 	}
 
 	fprintf(outfile,"%s",string);
@@ -6909,7 +6909,7 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 		fprintf(outfile,"%s",string_fpt6);
 	}
 
-    free(path);
+	free(path);
 }
 
 void PathReport(Site source, Site destination, char *name, char graph_it)
@@ -6918,7 +6918,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 	   the filesystem.  If (graph_it == 1), then gnuplot is invoked
 	   to generate an appropriate output file indicating the ITM
 	   model loss between the source and destination locations.
-    	   "filename" is the name assigned to the output file generated
+		   "filename" is the name assigned to the output file generated
 	   by gnuplot.  The filename extension is used to set gnuplot's
 	   terminal setting and output file type.  If no extension is
 	   found, .png is assumed. */
@@ -6964,26 +6964,26 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 	
 	fprintf(fd2, "%s W)\n", dec2dms(source.lon));
 
-    if (metric)
-    {
-        if (source.amsl_flag)
-            fprintf(fd2,"Antenna height: %.2f meters AMSL\n",METERS_PER_FOOT*source.alt);
-        else
-        {
-            fprintf(fd2,"Ground elevation: %.2f meters AMSL\n",METERS_PER_FOOT*GetElevation(source));
-            fprintf(fd2,"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",METERS_PER_FOOT*source.alt,METERS_PER_FOOT*(source.alt+GetElevation(source)));
-        }
-    }
-    else
-    {
-        if (source.amsl_flag)
-            fprintf(fd2,"Antenna height: %.2f feet AMSL\n",source.alt);
-        else
-        {
-            fprintf(fd2,"Ground elevation: %.2f feet AMSL\n",GetElevation(source));
-            fprintf(fd2,"Antenna height: %.2f feet AGL / %.2f feet AMSL\n",source.alt, source.alt+GetElevation(source));
-        }
-    }
+	if (metric)
+	{
+		if (source.amsl_flag)
+			fprintf(fd2,"Antenna height: %.2f meters AMSL\n",METERS_PER_FOOT*source.alt);
+		else
+		{
+			fprintf(fd2,"Ground elevation: %.2f meters AMSL\n",METERS_PER_FOOT*GetElevation(source));
+		fprintf(fd2,"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",METERS_PER_FOOT*source.alt,METERS_PER_FOOT*(source.alt+GetElevation(source)));
+		}
+	}
+	else
+	{
+		if (source.amsl_flag)
+			fprintf(fd2,"Antenna height: %.2f feet AMSL\n",source.alt);
+		else
+		{
+			fprintf(fd2,"Ground elevation: %.2f feet AMSL\n",GetElevation(source));
+			fprintf(fd2,"Antenna height: %.2f feet AGL / %.2f feet AMSL\n",source.alt, source.alt+GetElevation(source));
+		}
+	}
 
 	haavt=haat(source);
 
@@ -7053,27 +7053,27 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 
 	fprintf(fd2, "%s W)\n", dec2dms(destination.lon));
 
-    if (metric)
-    {
-        if (destination.amsl_flag)
-            fprintf(fd2,"Antenna height: %.2f meters AMSL\n", METERS_PER_FOOT*destination.alt);
+	if (metric)
+	{
+		if (destination.amsl_flag)
+			fprintf(fd2,"Antenna height: %.2f meters AMSL\n", METERS_PER_FOOT*destination.alt);
 
-        else
-        {
-            fprintf(fd2,"Ground elevation: %.2f meters AMSL\n",METERS_PER_FOOT*GetElevation(destination));
-            fprintf(fd2,"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",METERS_PER_FOOT*destination.alt, METERS_PER_FOOT*(destination.alt+GetElevation(destination)));
-        }
-    }
-    else
-    {
-        if (destination.amsl_flag)
-            fprintf(fd2,"Antenna height: %.2f feet AMSL\n", destination.alt);
-        else
-        {
-            fprintf(fd2,"Ground elevation: %.2f feet AMSL\n",GetElevation(destination));
-            fprintf(fd2,"Antenna height: %.2f feet AGL / %.2f feet AMSL\n",destination.alt, destination.alt+GetElevation(destination));
-        }
-    }
+		else
+		{
+			fprintf(fd2,"Ground elevation: %.2f meters AMSL\n",METERS_PER_FOOT*GetElevation(destination));
+			fprintf(fd2,"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",METERS_PER_FOOT*destination.alt, METERS_PER_FOOT*(destination.alt+GetElevation(destination)));
+		}
+	}
+	else
+	{
+		if (destination.amsl_flag)
+			fprintf(fd2,"Antenna height: %.2f feet AMSL\n", destination.alt);
+		else
+		{
+			fprintf(fd2,"Ground elevation: %.2f feet AMSL\n",GetElevation(destination));
+			fprintf(fd2,"Antenna height: %.2f feet AGL / %.2f feet AMSL\n",destination.alt, destination.alt+GetElevation(destination));
+		}
+	}
 
 	haavt=haat(destination);
 
@@ -7222,10 +7222,10 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		if (patterndB!=0.0)
 			fprintf(fd2,"%s antenna pattern towards %s: %.3f (%.2f dB)\n", source.name, destination.name, pattern, patterndB);
 
-        Path *path = (Path*)malloc(sizeof(Path));
+		Path *path = (Path*)malloc(sizeof(Path));
 		ReadPath(source,destination,path);  /* source=TX, destination=RX */
 
-        double elev[ARRAYSIZE+10];
+		double elev[ARRAYSIZE+10];
 
 		/* Copy elevations plus clutter along
 		   path into the elev[] array. */
@@ -7246,17 +7246,17 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		{
 			distance=5280.0*path->distance[y];
 
-            if (source.amsl_flag)
-                source_alt=four_thirds_earth+source.alt;
-            else
-                source_alt=four_thirds_earth+source.alt+path->elevation[0];
+			if (source.amsl_flag)
+				source_alt=four_thirds_earth+source.alt;
+			else
+				source_alt=four_thirds_earth+source.alt+path->elevation[0];
 
-            /***
-            if (destination.amsl_flag)
-                dest_alt=four_thirds_earth+destination.alt;
-            else
-            ***/
-                dest_alt=four_thirds_earth+destination.alt+path->elevation[y];
+			/***
+			if (destination.amsl_flag)
+				dest_alt=four_thirds_earth+destination.alt;
+			else
+			***/
+				dest_alt=four_thirds_earth+destination.alt+path->elevation[y];
 
 			dest_alt2=dest_alt*dest_alt;
 			source_alt2=source_alt*source_alt;
@@ -7362,8 +7362,8 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 
 		fclose(fd);
 
-        free(path);
-        path = nullptr;
+		free(path);
+		path = nullptr;
 
 		distance=Distance(source,destination);
 
@@ -7442,7 +7442,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 
 			fprintf(fd2,"ITWOM error number: %d",errnum);
 		}
-        else
+		else
 		{
 			fprintf(fd2,"%s\n",strmode);
 			fprintf(fd2,"Longley-Rice model error number: %d",errnum);
@@ -7620,27 +7620,27 @@ void SiteReport(Site xmtr)
 
 	fprintf(fd, "%s W)\n",dec2dms(xmtr.lon));
 
-    if (metric)
-    {
-        if (xmtr.amsl_flag)
-            fprintf(fd,"Antenna height: %.2f meters AMSL\n",METERS_PER_FOOT*xmtr.alt);
-        else
-        {
-            fprintf(fd,"Ground elevation: %.2f meters AMSL\n",METERS_PER_FOOT*GetElevation(xmtr));
-            fprintf(fd,"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",METERS_PER_FOOT*xmtr.alt, METERS_PER_FOOT*(xmtr.alt+GetElevation(xmtr)));
-        }
-    }
+	if (metric)
+	{
+		if (xmtr.amsl_flag)
+			fprintf(fd,"Antenna height: %.2f meters AMSL\n",METERS_PER_FOOT*xmtr.alt);
+		else
+		{
+			fprintf(fd,"Ground elevation: %.2f meters AMSL\n",METERS_PER_FOOT*GetElevation(xmtr));
+			fprintf(fd,"Antenna height: %.2f meters AGL / %.2f meters AMSL\n",METERS_PER_FOOT*xmtr.alt, METERS_PER_FOOT*(xmtr.alt+GetElevation(xmtr)));
+		}
+	}
 
-    else
-    {
-        if (xmtr.amsl_flag)
-            fprintf(fd,"Antenna height: %.2f feet AMSL\n",xmtr.alt);
-        else
-        {
-            fprintf(fd,"Ground elevation: %.2f feet AMSL\n",GetElevation(xmtr));
-            fprintf(fd,"Antenna height: %.2f feet AGL / %.2f feet AMSL\n",xmtr.alt, xmtr.alt+GetElevation(xmtr));
-        }
-    }
+	else
+	{
+		if (xmtr.amsl_flag)
+			fprintf(fd,"Antenna height: %.2f feet AMSL\n",xmtr.alt);
+		else
+		{
+			fprintf(fd,"Ground elevation: %.2f feet AMSL\n",GetElevation(xmtr));
+			fprintf(fd,"Antenna height: %.2f feet AGL / %.2f feet AMSL\n",xmtr.alt, xmtr.alt+GetElevation(xmtr));
+		}
+	}
 
 	terrain=haat(xmtr);
 
@@ -7868,7 +7868,7 @@ void WriteKML(Site source, Site destination)
 		azimuth, cos_test_angle, test_alt;
 	FILE	*fd=NULL;
 
-    Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(source,destination,path);
 
 	sprintf(report_name,"%s-to-%s.kml",source.name,destination.name);
@@ -7888,84 +7888,84 @@ void WriteKML(Site source, Site destination)
 	fprintf(fd,"<description>Path Between %s and %s</description>\n",source.name,destination.name);
 
 	fprintf(fd,"<Placemark>\n");
-	fprintf(fd,"    <name>%s</name>\n",source.name);
-	fprintf(fd,"    <description>\n");
-	fprintf(fd,"       Transmit Site\n");
+	fprintf(fd,"	<name>%s</name>\n",source.name);
+	fprintf(fd,"	<description>\n");
+	fprintf(fd,"	   Transmit Site\n");
 
 	if (source.lat>=0.0)
-		fprintf(fd,"       <BR>%s North</BR>\n",dec2dms(source.lat));
+		fprintf(fd,"	   <BR>%s North</BR>\n",dec2dms(source.lat));
 	else
-		fprintf(fd,"       <BR>%s South</BR>\n",dec2dms(source.lat));
+		fprintf(fd,"	   <BR>%s South</BR>\n",dec2dms(source.lat));
 
-	fprintf(fd,"       <BR>%s West</BR>\n",dec2dms(source.lon));
+	fprintf(fd,"	   <BR>%s West</BR>\n",dec2dms(source.lon));
 
 	azimuth=Azimuth(source,destination);
 	distance=Distance(source,destination);
 
 	if (metric)
-		fprintf(fd,"       <BR>%.2f km",distance*KM_PER_MILE);
+		fprintf(fd,"	   <BR>%.2f km",distance*KM_PER_MILE);
 	else
-		fprintf(fd,"       <BR>%.2f miles",distance);
+		fprintf(fd,"	   <BR>%.2f miles",distance);
 
-	fprintf(fd," to %s</BR>\n       <BR>toward an azimuth of %.2f%c</BR>\n",destination.name,azimuth,176);
+	fprintf(fd," to %s</BR>\n	   <BR>toward an azimuth of %.2f%c</BR>\n",destination.name,azimuth,176);
 
-	fprintf(fd,"    </description>\n");
-	fprintf(fd,"    <visibility>1</visibility>\n");
-	fprintf(fd,"    <Style>\n");
-	fprintf(fd,"      <IconStyle>\n");
-	fprintf(fd,"        <Icon>\n");
-	fprintf(fd,"          <href>root://icons/palette-5.png</href>\n");
-	fprintf(fd,"          <x>224</x>\n");
-	fprintf(fd,"          <y>224</y>\n");
-	fprintf(fd,"          <w>32</w>\n");
-	fprintf(fd,"          <h>32</h>\n");
-	fprintf(fd,"        </Icon>\n");
-	fprintf(fd,"      </IconStyle>\n");
-	fprintf(fd,"    </Style>\n");
-	fprintf(fd,"    <Point>\n");
-	fprintf(fd,"      <extrude>1</extrude>\n");
-	fprintf(fd,"      <altitudeMode>relativeToGround</altitudeMode>\n");
-	fprintf(fd,"      <coordinates>%f,%f,30</coordinates>\n",(source.lon<180.0?-source.lon:360.0-source.lon),source.lat);
-	fprintf(fd,"    </Point>\n");
+	fprintf(fd,"	</description>\n");
+	fprintf(fd,"	<visibility>1</visibility>\n");
+	fprintf(fd,"	<Style>\n");
+	fprintf(fd,"	  <IconStyle>\n");
+	fprintf(fd,"		<Icon>\n");
+	fprintf(fd,"		  <href>root://icons/palette-5.png</href>\n");
+	fprintf(fd,"		  <x>224</x>\n");
+	fprintf(fd,"		  <y>224</y>\n");
+	fprintf(fd,"		  <w>32</w>\n");
+	fprintf(fd,"		  <h>32</h>\n");
+	fprintf(fd,"		</Icon>\n");
+	fprintf(fd,"	  </IconStyle>\n");
+	fprintf(fd,"	</Style>\n");
+	fprintf(fd,"	<Point>\n");
+	fprintf(fd,"	  <extrude>1</extrude>\n");
+	fprintf(fd,"	  <altitudeMode>relativeToGround</altitudeMode>\n");
+	fprintf(fd,"	  <coordinates>%f,%f,30</coordinates>\n",(source.lon<180.0?-source.lon:360.0-source.lon),source.lat);
+	fprintf(fd,"	</Point>\n");
 	fprintf(fd,"</Placemark>\n");
 
 	fprintf(fd,"<Placemark>\n");
-	fprintf(fd,"    <name>%s</name>\n",destination.name);
-	fprintf(fd,"    <description>\n");
-	fprintf(fd,"       Receive Site\n");
+	fprintf(fd,"	<name>%s</name>\n",destination.name);
+	fprintf(fd,"	<description>\n");
+	fprintf(fd,"	   Receive Site\n");
 
 	if (destination.lat>=0.0)
-		fprintf(fd,"       <BR>%s North</BR>\n",dec2dms(destination.lat));
+		fprintf(fd,"	   <BR>%s North</BR>\n",dec2dms(destination.lat));
 	else
-		fprintf(fd,"       <BR>%s South</BR>\n",dec2dms(destination.lat));
+		fprintf(fd,"	   <BR>%s South</BR>\n",dec2dms(destination.lat));
 
-	fprintf(fd,"       <BR>%s West</BR>\n",dec2dms(destination.lon));
+	fprintf(fd,"	   <BR>%s West</BR>\n",dec2dms(destination.lon));
 
 	if (metric)
-		fprintf(fd,"       <BR>%.2f km",distance*KM_PER_MILE);
+		fprintf(fd,"	   <BR>%.2f km",distance*KM_PER_MILE);
 	else
-		fprintf(fd,"       <BR>%.2f miles",distance);
+		fprintf(fd,"	   <BR>%.2f miles",distance);
 
-	fprintf(fd," to %s</BR>\n       <BR>toward an azimuth of %.2f%c</BR>\n",source.name,Azimuth(destination,source),176);
+	fprintf(fd," to %s</BR>\n	   <BR>toward an azimuth of %.2f%c</BR>\n",source.name,Azimuth(destination,source),176);
 
-	fprintf(fd,"    </description>\n");
-	fprintf(fd,"    <visibility>1</visibility>\n");
-	fprintf(fd,"    <Style>\n");
-	fprintf(fd,"      <IconStyle>\n");
-	fprintf(fd,"        <Icon>\n");
-	fprintf(fd,"          <href>root://icons/palette-5.png</href>\n");
-	fprintf(fd,"          <x>224</x>\n");
-	fprintf(fd,"          <y>224</y>\n");
-	fprintf(fd,"          <w>32</w>\n");
-	fprintf(fd,"          <h>32</h>\n");
-	fprintf(fd,"        </Icon>\n");
-	fprintf(fd,"      </IconStyle>\n");
-	fprintf(fd,"    </Style>\n");
-	fprintf(fd,"    <Point>\n");
-	fprintf(fd,"      <extrude>1</extrude>\n");
-	fprintf(fd,"      <altitudeMode>relativeToGround</altitudeMode>\n");
-	fprintf(fd,"      <coordinates>%f,%f,30</coordinates>\n",(destination.lon<180.0?-destination.lon:360.0-destination.lon),destination.lat);
-	fprintf(fd,"    </Point>\n");
+	fprintf(fd,"	</description>\n");
+	fprintf(fd,"	<visibility>1</visibility>\n");
+	fprintf(fd,"	<Style>\n");
+	fprintf(fd,"	  <IconStyle>\n");
+	fprintf(fd,"		<Icon>\n");
+	fprintf(fd,"		  <href>root://icons/palette-5.png</href>\n");
+	fprintf(fd,"		  <x>224</x>\n");
+	fprintf(fd,"		  <y>224</y>\n");
+	fprintf(fd,"		  <w>32</w>\n");
+	fprintf(fd,"		  <h>32</h>\n");
+	fprintf(fd,"		</Icon>\n");
+	fprintf(fd,"	  </IconStyle>\n");
+	fprintf(fd,"	</Style>\n");
+	fprintf(fd,"	<Point>\n");
+	fprintf(fd,"	  <extrude>1</extrude>\n");
+	fprintf(fd,"	  <altitudeMode>relativeToGround</altitudeMode>\n");
+	fprintf(fd,"	  <coordinates>%f,%f,30</coordinates>\n",(destination.lon<180.0?-destination.lon:360.0-destination.lon),destination.lat);
+	fprintf(fd,"	</Point>\n");
 	fprintf(fd,"</Placemark>\n");
 
 	fprintf(fd,"<Placemark>\n");
@@ -7973,23 +7973,23 @@ void WriteKML(Site source, Site destination)
 	fprintf(fd,"  <visibility>1</visibility>\n");
 	fprintf(fd,"  <open>0</open>\n");
 	fprintf(fd,"  <Style>\n");
-	fprintf(fd,"    <LineStyle>\n");
-	fprintf(fd,"      <color>7fffffff</color>\n");
-	fprintf(fd,"    </LineStyle>\n");
-	fprintf(fd,"    <PolyStyle>\n");
-	fprintf(fd,"       <color>7fffffff</color>\n");
-	fprintf(fd,"    </PolyStyle>\n");
+	fprintf(fd,"	<LineStyle>\n");
+	fprintf(fd,"	  <color>7fffffff</color>\n");
+	fprintf(fd,"	</LineStyle>\n");
+	fprintf(fd,"	<PolyStyle>\n");
+	fprintf(fd,"	   <color>7fffffff</color>\n");
+	fprintf(fd,"	</PolyStyle>\n");
 	fprintf(fd,"  </Style>\n");
 	fprintf(fd,"  <LineString>\n");
-	fprintf(fd,"    <extrude>1</extrude>\n");
-	fprintf(fd,"    <tessellate>1</tessellate>\n");
-	fprintf(fd,"    <altitudeMode>relativeToGround</altitudeMode>\n");
-	fprintf(fd,"    <coordinates>\n");
+	fprintf(fd,"	<extrude>1</extrude>\n");
+	fprintf(fd,"	<tessellate>1</tessellate>\n");
+	fprintf(fd,"	<altitudeMode>relativeToGround</altitudeMode>\n");
+	fprintf(fd,"	<coordinates>\n");
 
 	for (x=0; x<path->length; x++)
-		fprintf(fd,"      %f,%f,5\n",(path->lon[x]<180.0?-path->lon[x]:360.0-path->lon[x]),path->lat[x]);
+		fprintf(fd,"	  %f,%f,5\n",(path->lon[x]<180.0?-path->lon[x]:360.0-path->lon[x]),path->lat[x]);
 
-	fprintf(fd,"    </coordinates>\n");
+	fprintf(fd,"	</coordinates>\n");
 	fprintf(fd,"   </LineString>\n");
 	fprintf(fd,"</Placemark>\n");
 
@@ -7998,18 +7998,18 @@ void WriteKML(Site source, Site destination)
 	fprintf(fd,"  <visibility>1</visibility>\n");
 	fprintf(fd,"  <open>0</open>\n");
 	fprintf(fd,"  <Style>\n");
-	fprintf(fd,"    <LineStyle>\n");
-	fprintf(fd,"      <color>ff00ff00</color>\n");
-	fprintf(fd,"    </LineStyle>\n");
-	fprintf(fd,"    <PolyStyle>\n");
-	fprintf(fd,"       <color>7f00ff00</color>\n");
-	fprintf(fd,"    </PolyStyle>\n");
+	fprintf(fd,"	<LineStyle>\n");
+	fprintf(fd,"	  <color>ff00ff00</color>\n");
+	fprintf(fd,"	</LineStyle>\n");
+	fprintf(fd,"	<PolyStyle>\n");
+	fprintf(fd,"	   <color>7f00ff00</color>\n");
+	fprintf(fd,"	</PolyStyle>\n");
 	fprintf(fd,"  </Style>\n");
 	fprintf(fd,"  <LineString>\n");
-	fprintf(fd,"    <extrude>1</extrude>\n");
-	fprintf(fd,"    <tessellate>1</tessellate>\n");
-	fprintf(fd,"    <altitudeMode>relativeToGround</altitudeMode>\n");
-	fprintf(fd,"    <coordinates>\n");
+	fprintf(fd,"	<extrude>1</extrude>\n");
+	fprintf(fd,"	<tessellate>1</tessellate>\n");
+	fprintf(fd,"	<altitudeMode>relativeToGround</altitudeMode>\n");
+	fprintf(fd,"	<coordinates>\n");
 
 	/* Walk across the "path", indentifying obstructions along the way */
 
@@ -8017,17 +8017,17 @@ void WriteKML(Site source, Site destination)
 	{
 		distance=5280.0*path->distance[y];
 
-        if (source.amsl_flag)
-            tx_alt=earthradius+source.alt;
-        else
-            tx_alt=earthradius+source.alt+path->elevation[0];
+		if (source.amsl_flag)
+			tx_alt=earthradius+source.alt;
+		else
+			tx_alt=earthradius+source.alt+path->elevation[0];
 
-        /***
-        if (destination.amsl_flag)
-            rx_alt=earthradius+destination.alt;
-        else
-        ***/
-            rx_alt=earthradius+destination.alt+path->elevation[y];
+		/***
+		if (destination.amsl_flag)
+			rx_alt=earthradius+destination.alt;
+		else
+		***/
+			rx_alt=earthradius+destination.alt+path->elevation[y];
 
 		/* Calculate the cosine of the elevation of the
 		   transmitter as seen at the temp rx point. */
@@ -8053,22 +8053,22 @@ void WriteKML(Site source, Site destination)
 		}
 
 		if (block)
-			fprintf(fd,"      %f,%f,-30\n",(path->lon[y]<180.0?-path->lon[y]:360.0-path->lon[y]),path->lat[y]);
+			fprintf(fd,"	  %f,%f,-30\n",(path->lon[y]<180.0?-path->lon[y]:360.0-path->lon[y]),path->lat[y]);
 		else
-			fprintf(fd,"      %f,%f,5\n",(path->lon[y]<180.0?-path->lon[y]:360.0-path->lon[y]),path->lat[y]);
+			fprintf(fd,"	  %f,%f,5\n",(path->lon[y]<180.0?-path->lon[y]:360.0-path->lon[y]),path->lat[y]);
 	}
 
-	fprintf(fd,"    </coordinates>\n");
+	fprintf(fd,"	</coordinates>\n");
 	fprintf(fd,"  </LineString>\n");
 	fprintf(fd,"</Placemark>\n");
 
-	fprintf(fd,"    <LookAt>\n");
-	fprintf(fd,"      <longitude>%f</longitude>\n",(source.lon<180.0?-source.lon:360.0-source.lon));
-	fprintf(fd,"      <latitude>%f</latitude>\n",source.lat);
-	fprintf(fd,"      <range>300.0</range>\n");
-	fprintf(fd,"      <tilt>45.0</tilt>\n");
-	fprintf(fd,"      <heading>%f</heading>\n",azimuth);
-	fprintf(fd,"    </LookAt>\n");
+	fprintf(fd,"	<LookAt>\n");
+	fprintf(fd,"	  <longitude>%f</longitude>\n",(source.lon<180.0?-source.lon:360.0-source.lon));
+	fprintf(fd,"	  <latitude>%f</latitude>\n",source.lat);
+	fprintf(fd,"	  <range>300.0</range>\n");
+	fprintf(fd,"	  <tilt>45.0</tilt>\n");
+	fprintf(fd,"	  <heading>%f</heading>\n",azimuth);
+	fprintf(fd,"	</LookAt>\n");
 
 	fprintf(fd,"</Folder>\n");
 	fprintf(fd,"</kml>\n");
@@ -8079,7 +8079,7 @@ void WriteKML(Site source, Site destination)
 
 	fflush(stdout);
 
-    free(path);
+	free(path);
 }
 
 int main(int argc, char *argv[])
@@ -8107,9 +8107,9 @@ int main(int argc, char *argv[])
 			rx_range=0.0, deg_range=0.0, deg_limit=0.0,
 			deg_range_lon, er_mult;
 
-    bool    multithread = false;
+	bool	multithread = false;
 
-	Site    tx_site[32], rx_site;
+	Site	tx_site[32], rx_site;
 
 	FILE		*fd;
 
@@ -8135,7 +8135,7 @@ int main(int argc, char *argv[])
 		fprintf(stdout,"       -d sdf file directory path (overrides path in ~/.splat_path file)\n");
 		fprintf(stdout,"       -m earth radius multiplier\n");
 		fprintf(stdout,"       -n do not plot LOS paths in .ppm maps\n");
-		fprintf(stdout,"       -N do not produce unnecessary site or obstruction reports\n");	
+		fprintf(stdout,"       -N do not produce unnecessary site or obstruction reports\n");
 		fprintf(stdout,"       -f frequency for Fresnel zone calculation (MHz)\n");
 		fprintf(stdout,"       -R modify default range for -c or -L (miles/kilometers)\n");
 		fprintf(stdout,"      -mt use multiple CPU threads for faster speed\n");
@@ -8144,7 +8144,7 @@ int main(int argc, char *argv[])
 		fprintf(stdout,"      -nf do not plot Fresnel zones in height plots\n");
 		fprintf(stdout,"      -fz Fresnel zone clearance percentage (default = 60)\n");
 		fprintf(stdout,"      -gc ground clutter height (feet/meters)\n");
-		fprintf(stdout,"     -ngs display greyscale topography as white in .ppm files\n"); 	
+		fprintf(stdout,"     -ngs display greyscale topography as white in .ppm files\n"); 
 		fprintf(stdout,"     -erp override ERP in .lrp file (Watts)\n");
 		fprintf(stdout,"     -ano name of alphanumeric output file\n");
 		fprintf(stdout,"     -ani name of alphanumeric input file\n");
@@ -8702,7 +8702,7 @@ int main(int argc, char *argv[])
 			WritePPMLR(mapfile,geo,kml,ngs,tx_site,txsites);
 		else
 		{
-		       	if (dbm)
+			   	if (dbm)
 				WritePPMDBM(mapfile,geo,kml,ngs,tx_site,txsites);
 			else
 				WritePPMSS(mapfile,geo,kml,ngs,tx_site,txsites);
@@ -8879,18 +8879,18 @@ int main(int argc, char *argv[])
 	if (udt_file[0])
 		LoadUDT(udt_file);
 
-    /**** Set terrain elevation to zero for sites providing AMSL antenna heights ****
+	/**** Set terrain elevation to zero for sites providing AMSL antenna heights ****
 
-    for (z=0; z<txsites && z<max_txsites; z++)
-    {
-        if (tx_site[z].amsl_flag)
-            x=SetElevation(tx_site[z].lat,tx_site[z].lon,0.0);
-    }
+	for (z=0; z<txsites && z<max_txsites; z++)
+	{
+		if (tx_site[z].amsl_flag)
+			x=SetElevation(tx_site[z].lat,tx_site[z].lon,0.0);
+	}
 
-    if (rxsite && rx_site.amsl_flag)
-            SetElevation(rx_site.lat,rx_site.lon,0.0);
+	if (rxsite && rx_site.amsl_flag)
+			SetElevation(rx_site.lat,rx_site.lon,0.0);
 
-    *********************************************************************************/
+	*********************************************************************************/
 
 	/***** Let the SPLATting begin! *****/
 
@@ -8912,7 +8912,7 @@ int main(int argc, char *argv[])
 				for (z=x+1; z<=y && (z-(x+1))<10; z++)
 					ext[z-(x+1)]=tolower(terrain_file[z]);
 
-				ext[z-(x+1)]=0;	    /* Ensure an ending 0 */
+				ext[z-(x+1)]=0;		/* Ensure an ending 0 */
 				terrain_file[x]=0;  /* Chop off extension */
 			}
 
@@ -8934,7 +8934,7 @@ int main(int argc, char *argv[])
 				for (z=x+1; z<=y && (z-(x+1))<10; z++)
 					ext[z-(x+1)]=tolower(elevation_file[z]);
 
-				ext[z-(x+1)]=0;       /* Ensure an ending 0 */
+				ext[z-(x+1)]=0;	   /* Ensure an ending 0 */
 				elevation_file[x]=0;  /* Chop off extension */
 			}
 
@@ -8956,7 +8956,7 @@ int main(int argc, char *argv[])
 				for (z=x+1; z<=y && (z-(x+1))<10; z++)
 					ext[z-(x+1)]=tolower(height_file[z]);
 
-				ext[z-(x+1)]=0;    /* Ensure an ending 0 */
+				ext[z-(x+1)]=0;	/* Ensure an ending 0 */
 				height_file[x]=0;  /* Chop off extension */
 			}
 
@@ -8978,7 +8978,7 @@ int main(int argc, char *argv[])
 				for (z=x+1; z<=y && (z-(x+1))<10; z++)
 					ext[z-(x+1)]=tolower(longley_file[z]);
 
-				ext[z-(x+1)]=0;     /* Ensure an ending 0 */
+				ext[z-(x+1)]=0;	 /* Ensure an ending 0 */
 				longley_file[x]=0;  /* Chop off extension */
 			}
 
@@ -9073,7 +9073,7 @@ int main(int argc, char *argv[])
 	{
 		for (x=0; x<txsites && x<max_txsites; x++)
 		{
-            std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+			std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
 			if (coverage)
 				PlotLOSMap(tx_site[x],altitude, multithread);
@@ -9081,10 +9081,10 @@ int main(int argc, char *argv[])
 			else if (ReadLRParm(tx_site[x],1))
 					PlotLRMap(tx_site[x],altitudeLR,ano_filename, multithread);
 
-            std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::seconds>( t2 - t1 ).count();
-            fprintf(stdout, "Calculation time: %lld sec\n", (long long)duration);
-            fflush(stdout);
+			std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+			auto duration = std::chrono::duration_cast<std::chrono::seconds>( t2 - t1 ).count();
+			fprintf(stdout, "Calculation time: %lld sec\n", (long long)duration);
+			fflush(stdout);
 
 			SiteReport(tx_site[x]);
 		}
