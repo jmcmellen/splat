@@ -27,7 +27,6 @@
 #include <ctype.h>
 #include <bzlib.h>
 #include <unistd.h>
-#include <chrono>
 
 #include "fontdata.h"
 #include "splat.h"
@@ -129,6 +128,8 @@
 #define	KM_PER_MILE 1.609344
 #define FOUR_THIRDS 1.3333333333333
 
+#define MAXPATHLEN 255
+
 /*****************************
  * Typedefs
  *****************************/
@@ -138,7 +139,7 @@ typedef struct Site {
     float alt;
     unsigned char amsl_flag;
     char name[50];
-    char filename[255];
+    char filename[MAXPATHLEN];
 } Site;
 
 // data about a path between two points
@@ -189,7 +190,7 @@ typedef struct Region {
 /*****************************
  * Globals
  *****************************/
-char 	string[255], sdf_path[255], opened=0, gpsav=0, dashes[80], itwom;
+char 	sdf_path[MAXPATHLEN], opened=0, gpsav=0, dashes[80], itwom;
 
 double	earthradius, max_range=0.0, forced_erp=-1.0, dpp, ppd,
 	fzone_clearance=0.6, forced_freq, clutter;
@@ -338,11 +339,16 @@ double LonDiff(double lon1, double lon2)
 char *dec2dms(double decimal)
 {
 	/* Converts decimal degrees to degrees, minutes, seconds,
-	   (DMS) and returns the result as a character string. */
+	   (DMS) and returns the result as a character string.
+
+       Uses an internal static buffer; NOT THREADSAFE.
+     */
 
 	char	sign;
 	int	degrees, minutes, seconds;
 	double	a, b, c, d;
+
+    static char buf[255];
 
 	if (decimal<0.0)
 	{
@@ -368,9 +374,9 @@ char *dec2dms(double decimal)
 	if (seconds>59)
 		seconds=59;
 
-	string[0]=0;
-	snprintf(string,250,"%d%c %d\' %d\"", degrees*sign, 176, minutes, seconds);
-	return (string);
+	buf[0]=0;
+	snprintf(buf,250,"%d%c %d\' %d\"", degrees*sign, 176, minutes, seconds);
+	return (buf);
 }
 
 /*****************************
@@ -1237,40 +1243,40 @@ double ReadBearing(char *input)
 	   input string.  Decimal seconds are permitted. */
  
 	double	seconds, bearing=0.0;
-	char	string[20];
+	char	buf[20];
 	int	a, b, length, degrees, minutes;
 
-	/* Copy "input" to "string", and ignore any extra
+	/* Copy "input" to "buf", and ignore any extra
 	   spaces that might be present in the process. */
 
-	string[0]=0;
+	buf[0]=0;
 	length=strlen(input);
 
 	for (a=0, b=0; a<length && a<18; a++)
 	{
 		if ((input[a]!=32 && input[a]!='\n') || (input[a]==32 && input[a+1]!=32 && input[a+1]!='\n' && b!=0))
 		{
-			string[b]=input[a];
+			buf[b]=input[a];
 			b++;
 		}	 
 	}
 
-	string[b]=0;
+	buf[b]=0;
 
 	/* Count number of spaces in the clean string. */
 
-	length=strlen(string);
+	length=strlen(buf);
 
 	for (a=0, b=0; a<length; a++)
-		if (string[a]==32)
+		if (buf[a]==32)
 			b++;
 
 	if (b==0)  /* Decimal Format (40.139722) */
-		sscanf(string,"%lf",&bearing);
+		sscanf(buf,"%lf",&bearing);
 
 	if (b==2)  /* Degree, Minute, Second Format (40 08 23.xx) */
 	{
-		sscanf(string,"%d %d %lf",&degrees, &minutes, &seconds);
+		sscanf(buf,"%d %d %lf",&degrees, &minutes, &seconds);
 
 		bearing=fabs((double)degrees);
 		bearing+=fabs(((double)minutes)/60.0);
@@ -1304,12 +1310,12 @@ Site LoadQTH(char *filename)
 	   above ground (AGL), and the amsl_flag is set accordingly. */
 
 	int	x;
-	char	string[50], qthfile[255];
+	char	buf[50], qthfile[MAXPATHLEN];
 	Site    tempsite;
 	FILE	*fd=NULL;
 
 	x=strlen(filename);
-	strncpy(qthfile, filename, 254);
+	strncpy(qthfile, filename, MAXPATHLEN-1);
 
 	if (qthfile[x-3]!='q' || qthfile[x-2]!='t' || qthfile[x-1]!='h')
 	{
@@ -1330,44 +1336,44 @@ Site LoadQTH(char *filename)
 	if (fd!=NULL)
 	{
 		/* Site Name */
-		fgets(string,49,fd);
+		fgets(buf,49,fd);
 
 		/* Strip <CR> and/or <LF> from end of site name */
 
-		for (x=0; string[x]!=13 && string[x]!=10 && string[x]!=0; tempsite.name[x]=string[x], x++);
+		for (x=0; buf[x]!=13 && buf[x]!=10 && buf[x]!=0; tempsite.name[x]=buf[x], x++);
 
 		tempsite.name[x]=0;
 
 		/* Site Latitude */
-		fgets(string,49,fd);
-		tempsite.lat=ReadBearing(string);
+		fgets(buf,49,fd);
+		tempsite.lat=ReadBearing(buf);
 
 		/* Site Longitude */
-		fgets(string,49,fd);
-		tempsite.lon=ReadBearing(string);
+		fgets(buf,49,fd);
+		tempsite.lon=ReadBearing(buf);
 
 		if (tempsite.lon<0.0)
 			tempsite.lon+=360.0;
 
 		/* Antenna Height */
-		fgets(string,49,fd);
+		fgets(buf,49,fd);
 		fclose(fd);
 
 		/* Remove <CR> and/or <LF> from antenna height
-		   string and convert any related text to uppercase */
+		   buf and convert any related text to uppercase */
 
-		for (x=0; string[x]!=13 && string[x]!=10 && string[x]!=0; string[x]=toupper(string[x]), x++);
+		for (x=0; buf[x]!=13 && buf[x]!=10 && buf[x]!=0; buf[x]=toupper(buf[x]), x++);
 
-		string[x]=0;
+		buf[x]=0;
 
-		/* Read antenna height from string */
+		/* Read antenna height from buf */
 
-		sscanf(string,"%f",&tempsite.alt);
+		sscanf(buf,"%f",&tempsite.alt);
 
-		if ((string[x-1]=='M') || strstr(string,"M ") || strstr(string,"METERS"))
+		if ((buf[x-1]=='M') || strstr(buf,"M ") || strstr(buf,"METERS"))
 			tempsite.alt*=3.28084;
 
-		if (strstr(string,"AMSL"))
+		if (strstr(buf,"AMSL"))
 			tempsite.amsl_flag=1;
 		else
 			tempsite.amsl_flag=0;
@@ -1388,19 +1394,26 @@ void LoadPAT(char *filename)
 	   loaded SPLAT! .lrp files.  */
 
 	int	a, b, w, x, y, z, last_index, next_index, span;
-	char	string[255], azfile[255], elfile[255], *pointer=NULL;
+	char	buf[255], azfile[MAXPATHLEN], elfile[MAXPATHLEN], *pointer=NULL;
 	float	az, xx, elevation, amplitude, rotation, valid1, valid2,
 		delta, azimuth[361], azimuth_pattern[361], el_pattern[10001],
 		elevation_pattern[361][1001], slant_angle[361], tilt,
 		mechanical_tilt=0.0, tilt_azimuth, tilt_increment, sum;
+    char *p;
 	FILE	*fd=NULL;
 	unsigned char read_count[10001];
 
-	for (x=0; filename[x]!='.' && filename[x]!=0 && x<250; x++)
+    /* copy the whole thing and then find the last .
+     * This lets us start our paths with ./blah
+     */
+	for (x=0; filename[x]!=0 && x<(MAXPATHLEN-5); x++)
 	{
 		azfile[x]=filename[x];
 		elfile[x]=filename[x];
 	}
+    if ( (p = strrchr(filename, '.')) ) {
+        x = p - filename;
+    }
 
 	azfile[x]='.';
 	azfile[x+1]='a';
@@ -1418,11 +1431,12 @@ void LoadPAT(char *filename)
 	got_elevation_pattern=0;
 
 	/* Load .az antenna pattern file */
-
 	fd=fopen(azfile,"r");
 
 	if (fd!=NULL)
 	{
+        printf("Loading %s\n", azfile);
+
 		/* Clear azimuth pattern array */
 
 		for (x=0; x<=360; x++)
@@ -1436,26 +1450,26 @@ void LoadPAT(char *filename)
 		   in degrees measured clockwise
 		   from true North. */
 
-		fgets(string,254,fd);
-		pointer=strchr(string,';');
+		fgets(buf,254,fd);
+		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
 			*pointer=0;
 
-		sscanf(string,"%f",&rotation);
+		sscanf(buf,"%f",&rotation);
 
 
 		/* Read azimuth (degrees) and corresponding
 		   normalized field radiation pattern amplitude
 		   (0.0 to 1.0) until EOF is reached. */
 
-		fgets(string,254,fd);
-		pointer=strchr(string,';');
+		fgets(buf,254,fd);
+		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
 			*pointer=0;
 
-		sscanf(string,"%f %f",&az, &amplitude);
+		sscanf(buf,"%f %f",&az, &amplitude);
 
 		do
 		{
@@ -1467,13 +1481,13 @@ void LoadPAT(char *filename)
 				read_count[x]++;
 			}
 
-			fgets(string,254,fd);
-			pointer=strchr(string,';');
+			fgets(buf,254,fd);
+			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
 				*pointer=0;
 
-			sscanf(string,"%f %f",&az, &amplitude);
+			sscanf(buf,"%f %f",&az, &amplitude);
 
 		} while (feof(fd)==0);
 
@@ -1560,6 +1574,8 @@ void LoadPAT(char *filename)
 
 	if (fd!=NULL)
 	{
+        printf("Loading %s\n", elfile);
+
 		for (x=0; x<=10000; x++)
 		{
 			el_pattern[x]=0.0;
@@ -1570,25 +1586,25 @@ void LoadPAT(char *filename)
 		   tilt azimuth in degrees measured
 		   clockwise from true North. */  
 
-		fgets(string,254,fd);
-		pointer=strchr(string,';');
+		fgets(buf,254,fd);
+		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
 			*pointer=0;
 
-		sscanf(string,"%f %f",&mechanical_tilt, &tilt_azimuth);
+		sscanf(buf,"%f %f",&mechanical_tilt, &tilt_azimuth);
 
 		/* Read elevation (degrees) and corresponding
 		   normalized field radiation pattern amplitude
 		   (0.0 to 1.0) until EOF is reached. */
 
-		fgets(string,254,fd);
-		pointer=strchr(string,';');
+		fgets(buf,254,fd);
+		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
 			*pointer=0;
 
-		sscanf(string,"%f %f", &elevation, &amplitude);
+		sscanf(buf,"%f %f", &elevation, &amplitude);
 
 		while (feof(fd)==0)
 		{
@@ -1604,13 +1620,13 @@ void LoadPAT(char *filename)
 				read_count[x]++;
 			}
 
-			fgets(string,254,fd);
-			pointer=strchr(string,';');
+			fgets(buf,254,fd);
+			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
 				*pointer=0;
 
-			sscanf(string,"%f %f", &elevation, &amplitude);
+			sscanf(buf,"%f %f", &elevation, &amplitude);
 		}
 
 		fclose(fd);
@@ -1756,12 +1772,15 @@ int LoadSDF_SDF(char *name)
 	   dem[] structure. */
 
 	int	x, y, data, indx, minlat, minlon, maxlat, maxlon;
-	char	found, free_page=0, line[20], sdf_file[255],
-		path_plus_name[512];
+	char	found, free_page=0, line[20], sdf_file[MAXPATHLEN], path_plus_name[MAXPATHLEN];
+    char *p;
 	FILE	*fd;
 
-	for (x=0; name[x]!='.' && name[x]!=0 && x<250; x++)
+	for (x=0; name[x]!=0 && x<(MAXPATHLEN-5); x++)
 		sdf_file[x]=name[x];
+    if ( (p = strrchr(sdf_file, '.')) ) {
+        x = p - sdf_file;
+    }
 
 	sdf_file[x]=0;
 
@@ -1798,7 +1817,7 @@ int LoadSDF_SDF(char *name)
 	{
 		/* Search for SDF file in current working directory first */
 
-		strncpy(path_plus_name,sdf_file,255);
+		strncpy(path_plus_name,sdf_file,MAXPATHLEN);
 
 		fd=fopen(path_plus_name,"rb");
 
@@ -1807,8 +1826,8 @@ int LoadSDF_SDF(char *name)
 			/* Next, try loading SDF file from path specified
 			   in $HOME/.splat_path file or by -d argument */
 
-			strncpy(path_plus_name,sdf_path,255);
-			strncat(path_plus_name,sdf_file,254);
+			strncpy(path_plus_name,sdf_path,MAXPATHLEN);
+			strncat(path_plus_name,sdf_file,MAXPATHLEN-1);
 
 			fd=fopen(path_plus_name,"rb");
 		}
@@ -1923,8 +1942,8 @@ char *BZfgets(BZFILE *bzfd, unsigned length)
 	   of characters from a bz2 compressed file whose file descriptor
 	   is pointed to by *bzfd.  In operation, a buffer is filled with
 	   uncompressed data (size = BZBUFFER), which is then parsed
-	   and doled out as NULL terminated character strings every time
-	   this function is invoked.  A NULL string indicates an EOF
+	   and doled out as NULL terminated character bufs every time
+	   this function is invoked.  A NULL buf indicates an EOF
 	   or error condition. */
 
 	static int x, y, nBuf;
@@ -1953,7 +1972,7 @@ char *BZfgets(BZFILE *bzfd, unsigned length)
 			x=0;
 		}
 
-		/* Build a string from buffer contents */
+		/* Build a buf from buffer contents */
 
 		output[y]=buffer[x];
 
@@ -1985,7 +2004,7 @@ int LoadSDF_BZ(char *name)
 
 	int	x, y, data, indx, minlat, minlon, maxlat, maxlon;
 	char	found, free_page=0, sdf_file[255], path_plus_name[512],
-		*string;
+		*buf;
 	FILE	*fd;
 	BZFILE	*bzfd;
 
@@ -2041,8 +2060,8 @@ int LoadSDF_BZ(char *name)
 			/* Next, try loading SDF file from path specified
 			   in $HOME/.splat_path file or by -d argument */
 
-			strncpy(path_plus_name,sdf_path,255);
-			strncat(path_plus_name,sdf_file,254);
+			strncpy(path_plus_name,sdf_path,MAXPATHLEN);
+			strncat(path_plus_name,sdf_file,MAXPATHLEN-1);
 
 			fd=fopen(path_plus_name,"rb");
 			bzfd=BZ2_bzReadOpen(&bzerror,fd,0,0,NULL,0);
@@ -2061,8 +2080,8 @@ int LoadSDF_BZ(char *name)
 			for (x=0; x<ippd; x++)
 				for (y=0; y<ippd; y++)
 				{
-					string=BZfgets(bzfd,20);
-					data=atoi(string);
+					buf=BZfgets(bzfd,20);
+					data=atoi(buf);
 
 					dem[indx].data[x][y]=data;
 					dem[indx].signal[x][y]=0;
@@ -2407,7 +2426,7 @@ void LoadUDT(char *filename)
 			if (longitude<0.0)
 				longitude+=360.0;
 
-			/* Remove <CR> and/or <LF> from antenna height string */
+			/* Remove <CR> and/or <LF> from antenna height buf */
 
 			for (i=0; str[2][i]!=13 && str[2][i]!=10 && str[2][i]!=0; i++);
 
@@ -2415,7 +2434,7 @@ void LoadUDT(char *filename)
 
 			/* The terrain feature may be expressed in either
 			   feet or meters.  If the letter 'M' or 'm' is
-			   discovered in the string, then this is an
+			   discovered in the buf, then this is an
 			   indication that the value given is expressed
 			   in meters.  Otherwise the height is interpreted
 			   as being expressed in feet.  */
@@ -2515,7 +2534,7 @@ void LoadBoundaries(char *filename)
 
 	int	x;
 	double	lat0, lon0, lat1, lon1;
-	char	string[80];
+	char	buf[80];
 	Site    source, destination;
 	FILE	*fd=NULL;
 
@@ -2523,20 +2542,20 @@ void LoadBoundaries(char *filename)
 
 	if (fd!=NULL)
 	{
-		fgets(string,78,fd);
+		fgets(buf,78,fd);
 
 		fprintf(stdout,"\nReading \"%s\"... ",filename);
 		fflush(stdout);
 
 		do
 		{
-			fgets(string,78,fd);
-			sscanf(string,"%lf %lf", &lon0, &lat0);
-			fgets(string,78,fd);
+			fgets(buf,78,fd);
+			sscanf(buf,"%lf %lf", &lon0, &lat0);
+			fgets(buf,78,fd);
 
 			do
 			{
-				sscanf(string,"%lf %lf", &lon1, &lat1);
+				sscanf(buf,"%lf %lf", &lon1, &lat1);
 
 				source.lat=lat0;
 				source.lon=(lon0>0.0 ? 360.0-lon0 : -lon0);
@@ -2554,13 +2573,13 @@ void LoadBoundaries(char *filename)
 				lat0=lat1;
 				lon0=lon1;
 
-				fgets(string,78,fd);
+				fgets(buf,78,fd);
 
-			} while (strncmp(string,"END",3)!=0 && feof(fd)==0);
+			} while (strncmp(buf,"END",3)!=0 && feof(fd)==0);
 
-			fgets(string,78,fd);
+			fgets(buf,78,fd);
 
-		} while (strncmp(string,"END",3)!=0 && feof(fd)==0);
+		} while (strncmp(buf,"END",3)!=0 && feof(fd)==0);
 
 		fclose(fd);
 
@@ -2583,7 +2602,8 @@ char ReadLRParm(Site txsite, char forced_read)
 	   into this function to be used and written to "splat.lrp". */
 
 	double	din;
-	char	filename[255], string[80], *pointer=NULL, return_value=0;
+	char	filename[MAXPATHLEN], buf[80], *pointer=NULL, return_value=0;
+    char *p;
 	int	iin, ok=0, x;
 	FILE	*fd=NULL, *outfile=NULL;
 
@@ -2601,14 +2621,22 @@ char ReadLRParm(Site txsite, char forced_read)
 
 	/* Generate .lrp filename from txsite filename. */
 
-	for (x=0; txsite.filename[x]!='.' && txsite.filename[x]!=0 && x<250; x++)
+    /* copy the whole thing and then find the last .
+     * This lets us start our paths with ./blah
+     */
+	for (x=0; txsite.filename[x]!=0 && x<(MAXPATHLEN-5); x++)
 		filename[x]=txsite.filename[x];
+    if ( (p = strrchr(filename, '.')) ) {
+        x = p - filename;
+    }
 
 	filename[x]='.';
 	filename[x+1]='l';
 	filename[x+2]='r';
 	filename[x+3]='p';
 	filename[x+4]=0;
+
+    printf("Loading %s\n", filename);
 
 	fd=fopen(filename,"r");
 
@@ -2622,111 +2650,111 @@ char ReadLRParm(Site txsite, char forced_read)
 
 	if (fd!=NULL)
 	{
-		fgets(string,80,fd);
+		fgets(buf,80,fd);
 
-		pointer=strchr(string,';');
+		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
 			*pointer=0;
 
-		ok=sscanf(string,"%lf", &din);
+		ok=sscanf(buf,"%lf", &din);
 
 		if (ok)
 		{
 			LR.eps_dielect=din;
 
-			fgets(string,80,fd);
+			fgets(buf,80,fd);
 
-			pointer=strchr(string,';');
+			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
 				*pointer=0;
 
-			ok=sscanf(string,"%lf", &din);
+			ok=sscanf(buf,"%lf", &din);
 		}
 
 		if (ok)
 		{
 			LR.sgm_conductivity=din;
 
-			fgets(string,80,fd);
+			fgets(buf,80,fd);
 
-			pointer=strchr(string,';');
+			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
 				*pointer=0;
 
-			ok=sscanf(string,"%lf", &din);
+			ok=sscanf(buf,"%lf", &din);
 		}
 
 		if (ok)
 		{
 			LR.eno_ns_surfref=din;
 
-			fgets(string,80,fd);
+			fgets(buf,80,fd);
 
-			pointer=strchr(string,';');
+			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
 				*pointer=0;
 
-			ok=sscanf(string,"%lf", &din);
+			ok=sscanf(buf,"%lf", &din);
 		}
 
 		if (ok)
 		{
 			LR.frq_mhz=din;
 
-			fgets(string,80,fd);
+			fgets(buf,80,fd);
 
-			pointer=strchr(string,';');
+			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
 				*pointer=0;
 
-			ok=sscanf(string,"%d", &iin);
+			ok=sscanf(buf,"%d", &iin);
 		}
 
 		if (ok)
 		{
 			LR.radio_climate=iin;
 
-			fgets(string,80,fd);
+			fgets(buf,80,fd);
 
-			pointer=strchr(string,';');
+			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
 				*pointer=0;
 
-			ok=sscanf(string,"%d", &iin);
+			ok=sscanf(buf,"%d", &iin);
 		}
 
 		if (ok)
 		{
 			LR.pol=iin;
 
-			fgets(string,80,fd);
+			fgets(buf,80,fd);
 
-			pointer=strchr(string,';');
+			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
 				*pointer=0;
 
-			ok=sscanf(string,"%lf", &din);
+			ok=sscanf(buf,"%lf", &din);
 		}
 
 		if (ok)
 		{
 			LR.conf=din;
 
-			fgets(string,80,fd);
+			fgets(buf,80,fd);
 
-			pointer=strchr(string,';');
+			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
 				*pointer=0;
 
-			ok=sscanf(string,"%lf", &din);
+			ok=sscanf(buf,"%lf", &din);
 		}
 
 		if (ok)
@@ -2735,14 +2763,14 @@ char ReadLRParm(Site txsite, char forced_read)
 			din=0.0;
 			return_value=1;
 
-			if (fgets(string,80,fd)!=NULL)
+			if (fgets(buf,80,fd)!=NULL)
 			{
-				pointer=strchr(string,';');
+				pointer=strchr(buf,';');
 
 				if (pointer!=NULL)
 					*pointer=0;
 
-				if (sscanf(string,"%lf", &din))
+				if (sscanf(buf,"%lf", &din))
 					LR.erp=din;
 
 				/* ERP in SPLAT! is referenced to 1 Watt
@@ -2751,7 +2779,7 @@ char ReadLRParm(Site txsite, char forced_read)
 				   0 dBi radiator), convert dBm in EIRP
 				   to ERP.  */
 
-				if ((strstr(string, "dBm")!=NULL) || (strstr(string,"dbm")!=NULL))
+				if ((strstr(buf, "dBm")!=NULL) || (strstr(buf,"dbm")!=NULL))
 					LR.erp=(pow(10.0,(LR.erp-32.14)/10.0));
 			}
 		}
@@ -3618,7 +3646,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 void LoadSignalColors(Site xmtr)
 {
 	int x, y, ok, val[4];
-	char filename[255], string[80], *pointer=NULL;
+	char filename[255], buf[80], *pointer=NULL;
 	FILE *fd=NULL;
 
 	for (x=0; xmtr.filename[x]!='.' && xmtr.filename[x]!=0 && x<250; x++)
@@ -3727,16 +3755,16 @@ void LoadSignalColors(Site xmtr)
 	else
 	{
 		x=0;
-		fgets(string,80,fd);
+		fgets(buf,80,fd);
 
 		while (x<32 && feof(fd)==0)
 		{
-			pointer=strchr(string,';');
+			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
 				*pointer=0;
 
-			ok=sscanf(string,"%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
+			ok=sscanf(buf,"%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
 
 			if (ok==4)
 			{
@@ -3756,7 +3784,7 @@ void LoadSignalColors(Site xmtr)
 				x++;
 			}
 
-			fgets(string,80,fd);
+			fgets(buf,80,fd);
 		}
 
 		fclose(fd);
@@ -3767,7 +3795,7 @@ void LoadSignalColors(Site xmtr)
 void LoadLossColors(Site xmtr)
 {
 	int x, y, ok, val[4];
-	char filename[255], string[80], *pointer=NULL;
+	char filename[255], buf[80], *pointer=NULL;
 	FILE *fd=NULL;
 
 	for (x=0; xmtr.filename[x]!='.' && xmtr.filename[x]!=0 && x<250; x++)
@@ -3891,16 +3919,16 @@ void LoadLossColors(Site xmtr)
 	else
 	{
 		x=0;
-		fgets(string,80,fd);
+		fgets(buf,80,fd);
 
 		while (x<32 && feof(fd)==0)
 		{
-			pointer=strchr(string,';');
+			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
 				*pointer=0;
 
-			ok=sscanf(string,"%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
+			ok=sscanf(buf,"%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
 
 			if (ok==4)
 			{
@@ -3920,7 +3948,7 @@ void LoadLossColors(Site xmtr)
 				x++;
 			}
 
-			fgets(string,80,fd);
+			fgets(buf,80,fd);
 		}
 
 		fclose(fd);
@@ -3931,7 +3959,7 @@ void LoadLossColors(Site xmtr)
 void LoadDBMColors(Site xmtr)
 {
 	int x, y, ok, val[4];
-	char filename[255], string[80], *pointer=NULL;
+	char filename[255], buf[80], *pointer=NULL;
 	FILE *fd=NULL;
 
 	for (x=0; xmtr.filename[x]!='.' && xmtr.filename[x]!=0 && x<250; x++)
@@ -4055,16 +4083,16 @@ void LoadDBMColors(Site xmtr)
 	else
 	{
 		x=0;
-		fgets(string,80,fd);
+		fgets(buf,80,fd);
 
 		while (x<32 && feof(fd)==0)
 		{
-			pointer=strchr(string,';');
+			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
 				*pointer=0;
 
-			ok=sscanf(string,"%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
+			ok=sscanf(buf,"%d: %d, %d, %d", &val[0], &val[1], &val[2], &val[3]);
 
 			if (ok==4)
 			{
@@ -4091,7 +4119,7 @@ void LoadDBMColors(Site xmtr)
 				x++;
 			}
 
-			fgets(string,80,fd);
+			fgets(buf,80,fd);
 		}
 
 		fclose(fd);
@@ -4869,7 +4897,10 @@ void WritePPMSS(char *filename, unsigned char geo, unsigned char kml, unsigned c
 	   (PPM) format based on the signal strength values held in the
 	   signal[][] array.  The image created is rotated counter-clockwise
 	   90 degrees from its representation in dem[][] so that north
-	   points up and east points right in the image generated. */
+	   points up and east points right in the image generated.
+
+       In this version of the WritePPM function the Signal Strength is
+       plotted (vs the Power Level, plotted by WritePPMDBM). */
 
 	char mapfile[255], geofile[255], kmlfile[255], ckfile[255];
 	unsigned width, height, terrain, red, green, blue;
@@ -5383,7 +5414,10 @@ void WritePPMDBM(char *filename, unsigned char geo, unsigned char kml, unsigned 
 	   (PPM) format based on the signal power level values held in the
 	   signal[][] array.  The image created is rotated counter-clockwise
 	   90 degrees from its representation in dem[][] so that north
-	   points up and east points right in the image generated. */
+	   points up and east points right in the image generated. 
+
+       In this version of the WritePPM function the PowerLevel is
+       plotted (vs the Signal Strength, plotted by WritePPMSS). */
 
 	char mapfile[255], geofile[255], kmlfile[255], ckfile[255];
 	unsigned width, height, terrain, red, green, blue;
@@ -6734,7 +6768,7 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 	double	h_r, h_t, h_x, h_r_orig, cos_tx_angle, cos_test_angle,
 		cos_tx_angle_f1, cos_tx_angle_fpt6, d_tx, d_x,
 		h_r_f1, h_r_fpt6, h_f, h_los, lambda=0.0;
-	char	string[255], string_fpt6[255], string_f1[255];
+	char	buf[255], buf_fpt6[255], buf_f1[255];
 
     Path *path = (Path*)malloc(sizeof(Path));
 	ReadPath(xmtr,rcvr,path);
@@ -6865,48 +6899,48 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 	if (h_r>h_r_orig)
 	{
 		if (metric)
-			snprintf(string,150,"\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear all obstructions detected by %s.\n",rcvr.name, METERS_PER_FOOT*(h_r-GetElevation(rcvr)-earthradius),SPLAT_NAME);
+			snprintf(buf,150,"\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear all obstructions detected by %s.\n",rcvr.name, METERS_PER_FOOT*(h_r-GetElevation(rcvr)-earthradius),SPLAT_NAME);
 		else
-			snprintf(string,150,"\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear all obstructions detected by %s.\n",rcvr.name, h_r-GetElevation(rcvr)-earthradius,SPLAT_NAME);
+			snprintf(buf,150,"\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear all obstructions detected by %s.\n",rcvr.name, h_r-GetElevation(rcvr)-earthradius,SPLAT_NAME);
 	}
 
 	else
-		snprintf(string,150,"\nNo obstructions to LOS path due to terrain were detected by %s\n",SPLAT_NAME);
+		snprintf(buf,150,"\nNo obstructions to LOS path due to terrain were detected by %s\n",SPLAT_NAME);
 
 	if (f)
 	{
 		if (h_r_fpt6>h_r_orig)
 		{
 			if (metric)
-				snprintf(string_fpt6,150,"\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear %.0f%c of the first Fresnel zone.\n",rcvr.name, METERS_PER_FOOT*(h_r_fpt6-GetElevation(rcvr)-earthradius),fzone_clearance*100.0,37);
+				snprintf(buf_fpt6,150,"\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear %.0f%c of the first Fresnel zone.\n",rcvr.name, METERS_PER_FOOT*(h_r_fpt6-GetElevation(rcvr)-earthradius),fzone_clearance*100.0,37);
 
 			else
-				snprintf(string_fpt6,150,"\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear %.0f%c of the first Fresnel zone.\n",rcvr.name, h_r_fpt6-GetElevation(rcvr)-earthradius,fzone_clearance*100.0,37);
+				snprintf(buf_fpt6,150,"\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear %.0f%c of the first Fresnel zone.\n",rcvr.name, h_r_fpt6-GetElevation(rcvr)-earthradius,fzone_clearance*100.0,37);
 		}
 
 		else
-			snprintf(string_fpt6,150,"\n%.0f%c of the first Fresnel zone is clear.\n",fzone_clearance*100.0,37);
+			snprintf(buf_fpt6,150,"\n%.0f%c of the first Fresnel zone is clear.\n",fzone_clearance*100.0,37);
 	
 		if (h_r_f1>h_r_orig)
 		{
 			if (metric)
-				snprintf(string_f1,150,"\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear the first Fresnel zone.\n",rcvr.name, METERS_PER_FOOT*(h_r_f1-GetElevation(rcvr)-earthradius));
+				snprintf(buf_f1,150,"\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear the first Fresnel zone.\n",rcvr.name, METERS_PER_FOOT*(h_r_f1-GetElevation(rcvr)-earthradius));
 
 			else			
-				snprintf(string_f1,150,"\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear the first Fresnel zone.\n",rcvr.name, h_r_f1-GetElevation(rcvr)-earthradius);
+				snprintf(buf_f1,150,"\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear the first Fresnel zone.\n",rcvr.name, h_r_f1-GetElevation(rcvr)-earthradius);
 
 		}
 
 		else
-    		    snprintf(string_f1,150,"\nThe first Fresnel zone is clear.\n");
+    		    snprintf(buf_f1,150,"\nThe first Fresnel zone is clear.\n");
 	}
 
-	fprintf(outfile,"%s",string);
+	fprintf(outfile,"%s",buf);
 
 	if (f)
 	{
-		fprintf(outfile,"%s",string_f1);
-		fprintf(outfile,"%s",string_fpt6);
+		fprintf(outfile,"%s",buf_f1);
+		fprintf(outfile,"%s",buf_fpt6);
 	}
 
     free(path);
@@ -6925,7 +6959,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 
 	int	x, y, z, errnum;
 	char	basename[255], term[30], ext[15], strmode[100],
-		report_name[80], block=0, propstring[20];
+		report_name[80], block=0, propbuf[20];
 	double	maxloss=-100000.0, minloss=100000.0, loss, haavt,
 		angle1, angle2, azimuth, pattern=1.0, patterndB=0.0,
 		total_loss=0.0, cos_xmtr_angle, cos_test_angle=0.0,
@@ -7427,17 +7461,17 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 				y=19;
 
 			for (x=6; x<y; x++)
-				propstring[x-6]=strmode[x];
+				propbuf[x-6]=strmode[x];
 
-			propstring[x]=0;
+			propbuf[x]=0;
 
-			if (strncmp(propstring,"_Diff",5)==0)
+			if (strncmp(propbuf,"_Diff",5)==0)
 				fprintf(fd2,"Diffraction Dominant\n");
 
-			if (strncmp(propstring,"_Tropo",6)==0)
+			if (strncmp(propbuf,"_Tropo",6)==0)
 				fprintf(fd2,"Troposcatter Dominant\n");
 
-			if (strncmp(propstring,"_Peak",5)==0)
+			if (strncmp(propbuf,"_Peak",5)==0)
 				fprintf(fd2,"RX at Peak Terrain Along Path\n");
 
 			fprintf(fd2,"ITWOM error number: %d",errnum);
@@ -7684,6 +7718,7 @@ void LoadTopoData(int max_lon, int min_lon, int max_lat, int min_lat)
 	   to cover the limits of the region specified. */ 
 
 	int x, y, width, ymin, ymax;
+    char sdffilename[MAXPATHLEN];
 
 	width=ReduceAngle(max_lon-min_lon);
 
@@ -7709,10 +7744,10 @@ void LoadTopoData(int max_lon, int min_lon, int max_lat, int min_lat)
 					ymax-=360;
 
 				if (ippd==3600)
-					snprintf(string,19,"%d:%d:%d:%d-hd",x, x+1, ymin, ymax);
+					snprintf(sdffilename,19,"%d:%d:%d:%d-hd",x, x+1, ymin, ymax);
 				else
-					snprintf(string,16,"%d:%d:%d:%d",x, x+1, ymin, ymax);
-				LoadSDF(string);
+					snprintf(sdffilename,16,"%d:%d:%d:%d",x, x+1, ymin, ymax);
+				LoadSDF(sdffilename);
 			}
 	}
 
@@ -7738,10 +7773,10 @@ void LoadTopoData(int max_lon, int min_lon, int max_lat, int min_lat)
 					ymax-=360;
 
 				if (ippd==3600)
-					snprintf(string,19,"%d:%d:%d:%d-hd",x, x+1, ymin, ymax);
+					snprintf(sdffilename,19,"%d:%d:%d:%d-hd",x, x+1, ymin, ymax);
 				else
-					snprintf(string,16,"%d:%d:%d:%d",x, x+1, ymin, ymax);
-				LoadSDF(string);
+					snprintf(sdffilename,16,"%d:%d:%d:%d",x, x+1, ymin, ymax);
+				LoadSDF(sdffilename);
 			}
 	}
 }
@@ -7752,7 +7787,7 @@ int LoadANO(char *filename)
 	   file (-ani option) for analysis and/or map generation. */
 
 	int	error=0, max_west, min_west, max_north, min_north;
-	char	string[80], *pointer=NULL;
+	char	buf[80], *pointer=NULL;
 	double	latitude=0.0, longitude=0.0, azimuth=0.0, elevation=0.0,
 		ano=0.0;
 	FILE	*fd;
@@ -7761,24 +7796,24 @@ int LoadANO(char *filename)
 
 	if (fd!=NULL)
 	{
-		fgets(string,78,fd);
-		pointer=strchr(string,';');
+		fgets(buf,78,fd);
+		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
 			*pointer=0;
 
-		sscanf(string,"%d, %d",&max_west, &min_west);
+		sscanf(buf,"%d, %d",&max_west, &min_west);
 
-		fgets(string,78,fd);
-		pointer=strchr(string,';');
+		fgets(buf,78,fd);
+		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
 			*pointer=0;
 
-		sscanf(string,"%d, %d",&max_north, &min_north);
+		sscanf(buf,"%d, %d",&max_north, &min_north);
 
-		fgets(string,78,fd);
-		pointer=strchr(string,';');
+		fgets(buf,78,fd);
+		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
 			*pointer=0;
@@ -7788,8 +7823,8 @@ int LoadANO(char *filename)
 		fprintf(stdout,"\nReading \"%s\"... ",filename);
 		fflush(stdout);
 
-		fgets(string,78,fd);
-		sscanf(string,"%lf, %lf, %lf, %lf, %lf",&latitude, &longitude, &azimuth, &elevation, &ano);
+		fgets(buf,78,fd);
+		sscanf(buf,"%lf, %lf, %lf, %lf, %lf",&latitude, &longitude, &azimuth, &elevation, &ano);
 
 		while (feof(fd)==0)
 		{
@@ -7844,8 +7879,8 @@ int LoadANO(char *filename)
 				}
 			}
 
-			fgets(string,78,fd);
-			sscanf(string,"%lf, %lf, %lf, %lf, %lf",&latitude, &longitude, &azimuth, &elevation, &ano);
+			fgets(buf,78,fd);
+			sscanf(buf,"%lf, %lf, %lf, %lf, %lf",&latitude, &longitude, &azimuth, &elevation, &ano);
 		}
 
 		fclose(fd);
@@ -8098,7 +8133,7 @@ int main(int argc, char *argv[])
 	char		mapfile[255], header[80], city_file[5][255], 
 			elevation_file[255], height_file[255], 
 			longley_file[255], terrain_file[255],
-			string[255], rxfile[255], *env=NULL,
+			buf[255], rxfile[255], *env=NULL,
 			txfile[255], boundary_file[5][255],
 			udt_file[255], rxsite=0, ani_filename[255],
 			ano_filename[255], ext[20], logfile[255];
@@ -8185,7 +8220,7 @@ int main(int argc, char *argv[])
 	metric=0;
 	rxfile[0]=0;
 	txfile[0]=0;
-	string[0]=0;
+	buf[0]=0;
 	mapfile[0]=0;
 	clutter=0.0;
 	forced_erp=-1.0;
@@ -8430,7 +8465,7 @@ int main(int argc, char *argv[])
 			z=x+1;
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
-				strncpy(sdf_path,argv[z],253);
+				strncpy(sdf_path,argv[z],MAXPATHLEN-2);
 		}
 
 		if (strcmp(argv[x],"-t")==0)
@@ -8635,19 +8670,19 @@ int main(int argc, char *argv[])
 	if (sdf_path[0]==0)
 	{
 		env=getenv("HOME");
-		snprintf(string,253,"%s/.splat_path",env);
-		fd=fopen(string,"r");
+		snprintf(buf,MAXPATHLEN-2,"%s/.splat_path",env);
+		fd=fopen(buf,"r");
 
 		if (fd!=NULL)
 		{
-			fgets(string,253,fd);
+			fgets(buf,253,fd);
 
-			/* Remove <CR> and/or <LF> from string */
+			/* Remove <CR> and/or <LF> from buf */
 
-			for (x=0; string[x]!=13 && string[x]!=10 && string[x]!=0 && x<253; x++);
-			string[x]=0;
+			for (x=0; buf[x]!=13 && buf[x]!=10 && buf[x]!=0 && x<253; x++);
+			buf[x]=0;
 
-			strncpy(sdf_path,string,253);
+			strncpy(sdf_path,buf,MAXPATHLEN-2);
 
 			fclose(fd);
 		}
@@ -8702,7 +8737,7 @@ int main(int argc, char *argv[])
 			WritePPMLR(mapfile,geo,kml,ngs,tx_site,txsites);
 		else
 		{
-		       	if (dbm)
+			if (dbm)
 				WritePPMDBM(mapfile,geo,kml,ngs,tx_site,txsites);
 			else
 				WritePPMSS(mapfile,geo,kml,ngs,tx_site,txsites);
@@ -9018,53 +9053,53 @@ int main(int argc, char *argv[])
 				WriteKML(tx_site[x],rx_site);
 
 			if (txsites>1)
-				snprintf(string,250,"%s-%c.%s%c",longley_file,'1'+x,ext,0);
+				snprintf(buf,250,"%s-%c.%s%c",longley_file,'1'+x,ext,0);
 			else
-				snprintf(string,250,"%s.%s%c",longley_file,ext,0);
+				snprintf(buf,250,"%s.%s%c",longley_file,ext,0);
 
 			if (nositereports==0)
 			{
 				if (longley_file[0]==0)
 				{
 					ReadLRParm(tx_site[x],0);
-					PathReport(tx_site[x],rx_site,string,0);
+					PathReport(tx_site[x],rx_site,buf,0);
 				}
 
 				else
 				{
 					ReadLRParm(tx_site[x],1);
-					PathReport(tx_site[x],rx_site,string,longley_file[0]);
+					PathReport(tx_site[x],rx_site,buf,longley_file[0]);
 				}
 			}
 
 			if (terrain_plot)
 			{
 				if (txsites>1)
-					snprintf(string,250,"%s-%c.%s%c",terrain_file,'1'+x,ext,0);
+					snprintf(buf,250,"%s-%c.%s%c",terrain_file,'1'+x,ext,0);
 				else
-					snprintf(string,250,"%s.%s%c",terrain_file,ext,0);
+					snprintf(buf,250,"%s.%s%c",terrain_file,ext,0);
 
-				GraphTerrain(tx_site[x],rx_site,string);
+				GraphTerrain(tx_site[x],rx_site,buf);
 			}
 
 			if (elevation_plot)
 			{
 				if (txsites>1)
-					snprintf(string,250,"%s-%c.%s%c",elevation_file,'1'+x,ext,0);
+					snprintf(buf,250,"%s-%c.%s%c",elevation_file,'1'+x,ext,0);
 				else
-					snprintf(string,250,"%s.%s%c",elevation_file,ext,0);
+					snprintf(buf,250,"%s.%s%c",elevation_file,ext,0);
 
-				GraphElevation(tx_site[x],rx_site,string);
+				GraphElevation(tx_site[x],rx_site,buf);
 			}
 
 			if (height_plot)
 			{
 				if (txsites>1)
-					snprintf(string,250,"%s-%c.%s%c",height_file,'1'+x,ext,0);
+					snprintf(buf,250,"%s-%c.%s%c",height_file,'1'+x,ext,0);
 				else
-					snprintf(string,250,"%s.%s%c",height_file,ext,0);
+					snprintf(buf,250,"%s.%s%c",height_file,ext,0);
 
-				GraphHeight(tx_site[x],rx_site,string,fresnel_plot,norm);
+				GraphHeight(tx_site[x],rx_site,buf,fresnel_plot,norm);
 			}
 		}
 	}
@@ -9073,18 +9108,11 @@ int main(int argc, char *argv[])
 	{
 		for (x=0; x<txsites && x<max_txsites; x++)
 		{
-            std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
 			if (coverage)
 				PlotLOSMap(tx_site[x],altitude, multithread);
 
 			else if (ReadLRParm(tx_site[x],1))
 					PlotLRMap(tx_site[x],altitudeLR,ano_filename, multithread);
-
-            std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::seconds>( t2 - t1 ).count();
-            fprintf(stdout, "Calculation time: %lld sec\n", (long long)duration);
-            fflush(stdout);
 
 			SiteReport(tx_site[x]);
 		}
