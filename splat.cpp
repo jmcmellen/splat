@@ -4331,8 +4331,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 
 	fd=fopen(mapfile,"wb");
 
-	fprintf(stdout,"\nWriting \"%s\" (%ux%u %s image)... ",mapfile,width,height,
-			imagetype==IMAGETYPE_JPG?"jpg":"pixmap");
+	fprintf(stdout,"\nWriting \"%s\" (%ux%u image)... ",mapfile,width,height);
 	fflush(stdout);
 
 	if (imagetype == IMAGETYPE_PNG) {
@@ -4502,7 +4501,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 			imgline[x*3+2]=GetBValue(pixel);
 		}
 
-
+        /* emit the line */
 		if (imagetype==IMAGETYPE_PNG) {
 			png_write_row(png_ptr, (png_bytep)imgline);
 		} else if (imagetype==IMAGETYPE_JPG) {
@@ -4537,12 +4536,20 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 	char mapfile[255], geofile[255], kmlfile[255],  ckfile[255];
 	unsigned int width, height, red, green, blue, terrain=0;
-	unsigned char found, mask, cityorcounty; 
+    unsigned int imgheight, imgwidth;
+	unsigned char found, mask;
 	int indx, x, y, z, colorwidth, x0, y0, loss, level,
 		hundreds, tens, units, match;
 	double lat, lon, conversion, one_over_gamma,
 	north, south, east, west, minwest;
 	FILE *fd;
+
+	Pixel pixel;
+	unsigned char *imgline = NULL;
+	struct jpeg_compress_struct cinfo;
+	struct jpeg_error_mgr jerr;
+	png_structp png_ptr = NULL;
+	png_infop info_ptr = NULL;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -4579,7 +4586,18 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	}
 
 	mapfile[x]=0;
-    strcat(mapfile, ".ppm");
+	switch (imagetype) {
+		case IMAGETYPE_JPG:
+			strcat(mapfile, ".jpg");
+			break;
+		case IMAGETYPE_PPM:
+			strcat(mapfile, ".ppm");
+			break;
+		case IMAGETYPE_PNG:
+		default:
+			strcat(mapfile, ".png");
+			break;
+	}
 
 	geofile[x]=0;
     strcat(geofile, ".geo");
@@ -4693,20 +4711,49 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	if (kml || geo)
 	{
 		/* No bottom legend */
-
-		fprintf(fd,"P6\n%u %u\n255\n",width,height);
-		fprintf(stdout,"\nWriting \"%s\" (%ux%u pixmap image)... ",mapfile,width,height);
-	}
-
-	else
-	{
+        imgwidth = width;
+        imgheight = height;
+    }
+    else
+    {
 		/* Allow space for bottom legend */
+        imgwidth = width;
+        imgheight = height + 30;
+    }
 
-		fprintf(fd,"P6\n%u %u\n255\n",width,height+30);
-		fprintf(stdout,"\nWriting \"%s\" (%ux%u pixmap image)... ",mapfile,width,height+30);
+    fprintf(stdout,"\nWriting LR map \"%s\" (%ux%u image)... ",mapfile,imgwidth,imgheight);
+	fflush(stdout);
+
+	if (imagetype == IMAGETYPE_PNG) {
+		png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+		info_ptr = png_create_info_struct(png_ptr);
+		png_init_io(png_ptr, fd);
+		png_set_IHDR(png_ptr, info_ptr,
+					imgwidth, imgheight,
+					8, /* 8 bits per color or 24 bits per pixel for RGB */
+					PNG_COLOR_TYPE_RGB,
+					PNG_INTERLACE_NONE,
+					PNG_COMPRESSION_TYPE_DEFAULT,
+					PNG_FILTER_TYPE_BASE);
+		png_write_info(png_ptr, info_ptr);
+		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
+	} else if (imagetype == IMAGETYPE_JPG) {
+		cinfo.err = jpeg_std_error(&jerr);
+		jpeg_create_compress(&cinfo);
+		jpeg_stdio_dest(&cinfo, fd);
+		cinfo.image_width = imgwidth;
+		cinfo.image_height = imgheight;
+		cinfo.input_components = 3;	   /* # of color components per pixel */
+		cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
+		jpeg_set_defaults(&cinfo); /* default compression */
+		jpeg_set_quality(&cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
+		jpeg_start_compress(&cinfo, TRUE); /* start compressor. */
+		imgline = (JSAMPROW)malloc(sizeof(JSAMPLE) * RGB_PIXELSIZE * width);
+	} else {
+        fprintf(fd,"P6\n%u %u\n255\n",imgwidth,imgheight);
+		imgline = (unsigned char*)malloc(3 * width);
 	}
 
-	fflush(stdout);
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
 	{
@@ -4730,7 +4777,6 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 			{
 				mask=dem[indx].mask[x0][y0];
 				loss=(dem[indx].signal[x0][y0]);
-				cityorcounty=0;
 
 				match=255;
 
@@ -4771,71 +4817,74 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 					/* Text Labels: Red or otherwise */
 
 					if (red>=180 && green<=75 && blue<=75 && loss!=0)
-												fprintf(fd,"%c%c%c",255^red,255^green,255^blue);
-										else
-												fprintf(fd,"%c%c%c",255,0,0);
-
-										cityorcounty=1;
+                        pixel=RGB(255^red,255^green,255^blue);
+                    else
+                        pixel=COLOR_RED;
 				}
-
 				else if (mask&4)
 				{
 					/* County Boundaries: Black */
-
-					fprintf(fd,"%c%c%c",0,0,0);
-
-					cityorcounty=1;
+                    pixel=COLOR_BLACK;
 				}
-
-				if (cityorcounty==0)
+                else
 				{
 					if (loss==0 || (contour_threshold!=0 && loss>abs(contour_threshold)))
 					{
 						if (ngs)  /* No terrain */
-							fprintf(fd,"%c%c%c",255,255,255);
+                            pixel=COLOR_WHITE;
 						else
 						{
 							/* Display land or sea elevation */
 
 							if (dem[indx].data[x0][y0]==0)
-								fprintf(fd,"%c%c%c",0,0,170);
+                                pixel=COLOR_MEDIUMBLUE;
 							else
 							{
 								terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-								fprintf(fd,"%c%c%c",terrain,terrain,terrain);
+                                pixel=RGB(terrain,terrain,terrain);
 							}
 						}
 					}
-
 					else
 					{
 						/* Plot path loss in color */
 
 						if (red!=0 || green!=0 || blue!=0)
-							fprintf(fd,"%c%c%c",red,green,blue);
+                            pixel=RGB(red,green,blue);
 
 						else  /* terrain / sea-level */
 						{
 							if (dem[indx].data[x0][y0]==0)
-								fprintf(fd,"%c%c%c",0,0,170);
+                                pixel=COLOR_MEDIUMBLUE;
 							else
 							{
 								/* Elevation: Greyscale */
 								terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-								fprintf(fd,"%c%c%c",terrain,terrain,terrain);
+                                pixel=RGB(terrain,terrain,terrain);
 							}
 						}
 					}
 				}
 			}
-
 			else
 			{
 				/* We should never get here, but if */
 				/* we do, display the region as black */
-
-				fprintf(fd,"%c%c%c",0,0,0);
+                pixel=COLOR_BLACK;
 			}
+
+            imgline[x*3]=GetRValue(pixel);
+            imgline[x*3+1]=GetGValue(pixel);
+            imgline[x*3+2]=GetBValue(pixel);
+		}
+
+        /* emit the line */
+		if (imagetype==IMAGETYPE_PNG) {
+			png_write_row(png_ptr, (png_bytep)imgline);
+		} else if (imagetype==IMAGETYPE_JPG) {
+			jpeg_write_scanlines(&cinfo, &imgline, 1);
+		} else {
+			fwrite(imgline, RGB_PIXELSIZE, width, fd);
 		}
 	}
 
@@ -4867,12 +4916,12 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 				units=level;
 
-			   		if (y0>=8 && y0<=23)
+                if (y0>=8 && y0<=23)
 				{  
 					if (hundreds>0)
 					{
 				  		if (x>=11 && x<=18)	 
-					  			if (fontdata[16*(hundreds+'0')+(y0-8)]&(128>>(x-11)))
+                            if (fontdata[16*(hundreds+'0')+(y0-8)]&(128>>(x-11)))
 								indx=255; 
 						}
 
@@ -4894,21 +4943,44 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 					if (x>=50 && x<=57)
 						if (fontdata[16*('B')+(y0-8)]&(128>>(x-50)))
 							indx=255;
-			   		}
+                }
 
 				if (indx>region.levels)
-					fprintf(fd,"%c%c%c",0,0,0);
+                    pixel=COLOR_BLACK;
 				else
 				{
 					red=region.color[indx][0];
 					green=region.color[indx][1];
 					blue=region.color[indx][2];
 
-					fprintf(fd,"%c%c%c",red,green,blue);
+                    pixel=RGB(red,green,blue);
 				}
-			} 
+
+                imgline[x0*3]=GetRValue(pixel);
+                imgline[x0*3+1]=GetGValue(pixel);
+                imgline[x0*3+2]=GetBValue(pixel);
+			}
+
+            /* emit the line */
+            if (imagetype==IMAGETYPE_PNG) {
+                png_write_row(png_ptr, (png_bytep)imgline);
+            } else if (imagetype==IMAGETYPE_JPG) {
+                jpeg_write_scanlines(&cinfo, &imgline, 1);
+            } else {
+                fwrite(imgline, RGB_PIXELSIZE, width, fd);
+            }
 		}
 	}
+
+	if (imagetype==IMAGETYPE_PNG) {
+		png_write_end(png_ptr, info_ptr);
+		png_destroy_write_struct(&png_ptr, &info_ptr);
+	} else if (imagetype==IMAGETYPE_JPG) {
+		jpeg_finish_compress(&cinfo);
+		jpeg_destroy_compress(&cinfo);
+	}
+
+	free(imgline);
 
 	fclose(fd);
 
@@ -4951,7 +5023,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 				  		if (x>=11 && x<=18)	 
 					  			if (fontdata[16*(hundreds+'0')+((y0%30)-8)]&(128>>(x-11)))
 								indx=255; 
-						}
+                    }
 
 					if (tens>0 || hundreds>0)
 					{
@@ -4971,7 +5043,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 					if (x>=50 && x<=57)
 						if (fontdata[16*('B')+((y0%30)-8)]&(128>>(x-50)))
 							indx=255;
-			   		}
+                }
 
 				if (indx>region.levels)
 					fprintf(fd,"%c%c%c",0,0,0);
@@ -5006,12 +5078,20 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 	char mapfile[255], geofile[255], kmlfile[255], ckfile[255];
 	unsigned width, height, terrain, red, green, blue;
-	unsigned char found, mask, cityorcounty;
+    unsigned int imgheight, imgwidth;
+	unsigned char found, mask;
 	int indx, x, y, z=1, x0, y0, signal, level, hundreds,
 		tens, units, match, colorwidth;
 	double conversion, one_over_gamma, lat, lon,
 	north, south, east, west, minwest;
 	FILE *fd;
+
+	Pixel pixel;
+	unsigned char *imgline = NULL;
+	struct jpeg_compress_struct cinfo;
+	struct jpeg_error_mgr jerr;
+	png_structp png_ptr = NULL;
+	png_infop info_ptr = NULL;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -5047,7 +5127,18 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	}
 
 	mapfile[x]=0;
-    strcat(mapfile, ".ppm");
+	switch (imagetype) {
+		case IMAGETYPE_JPG:
+			strcat(mapfile, ".jpg");
+			break;
+		case IMAGETYPE_PPM:
+			strcat(mapfile, ".ppm");
+			break;
+		case IMAGETYPE_PNG:
+		default:
+			strcat(mapfile, ".png");
+			break;
+	}
 
 	geofile[x]=0;
     strcat(geofile, ".geo");
@@ -5161,20 +5252,49 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	if (kml || geo)
 	{
 		/* No bottom legend */
-
-		fprintf(fd,"P6\n%u %u\n255\n",width,height);
-		fprintf(stdout,"\nWriting \"%s\" (%ux%u pixmap image)... ",mapfile,width,height);
-	}
-
-	else
-	{
+        imgwidth = width;
+        imgheight = height;
+    }
+    else
+    {
 		/* Allow space for bottom legend */
+        imgwidth = width;
+        imgheight = height + 30;
+    }
 
-		fprintf(fd,"P6\n%u %u\n255\n",width,height+30);
-		fprintf(stdout,"\nWriting \"%s\" (%ux%u pixmap image)... ",mapfile,width,height+30);
+    fprintf(stdout,"\nWriting Signal Strength map \"%s\" (%ux%u image)... ",mapfile,imgwidth,imgheight);
+	fflush(stdout);
+
+	if (imagetype == IMAGETYPE_PNG) {
+		png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+		info_ptr = png_create_info_struct(png_ptr);
+		png_init_io(png_ptr, fd);
+		png_set_IHDR(png_ptr, info_ptr,
+					imgwidth, imgheight,
+					8, /* 8 bits per color or 24 bits per pixel for RGB */
+					PNG_COLOR_TYPE_RGB,
+					PNG_INTERLACE_NONE,
+					PNG_COMPRESSION_TYPE_DEFAULT,
+					PNG_FILTER_TYPE_BASE);
+		png_write_info(png_ptr, info_ptr);
+		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
+	} else if (imagetype == IMAGETYPE_JPG) {
+		cinfo.err = jpeg_std_error(&jerr);
+		jpeg_create_compress(&cinfo);
+		jpeg_stdio_dest(&cinfo, fd);
+		cinfo.image_width = imgwidth;
+		cinfo.image_height = imgheight;
+		cinfo.input_components = 3;	   /* # of color components per pixel */
+		cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
+		jpeg_set_defaults(&cinfo); /* default compression */
+		jpeg_set_quality(&cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
+		jpeg_start_compress(&cinfo, TRUE); /* start compressor. */
+		imgline = (JSAMPROW)malloc(sizeof(JSAMPLE) * RGB_PIXELSIZE * width);
+	} else {
+        fprintf(fd,"P6\n%u %u\n255\n",imgwidth,imgheight);
+		imgline = (unsigned char*)malloc(3 * width);
 	}
 
-	fflush(stdout);
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
 	{
@@ -5198,7 +5318,6 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 			{
 				mask=dem[indx].mask[x0][y0];
 				signal=(dem[indx].signal[x0][y0])-100;
-				cityorcounty=0;
 
 				match=255;
 
@@ -5239,38 +5358,31 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 					/* Text Labels: Red or otherwise */
 
 					if (red>=180 && green<=75 && blue<=75)
-						fprintf(fd,"%c%c%c",255^red,255^green,255^blue);
+                        pixel=RGB(255^red,255^green,255^blue);
 					else
-						fprintf(fd,"%c%c%c",255,0,0);
-
-					cityorcounty=1;
+                        pixel=COLOR_RED;
 				}
-
 				else if (mask&4)
 				{
 					/* County Boundaries: Black */
-
-					fprintf(fd,"%c%c%c",0,0,0);
-
-					cityorcounty=1;
-				}
-
-				if (cityorcounty==0)
+                    pixel=COLOR_BLACK;
+				} 
+                else
 				{
 					if (contour_threshold!=0 && signal<contour_threshold)
 					{
-						if (ngs)
-							fprintf(fd,"%c%c%c",255,255,255);
+						if (ngs)  /* No terrain */
+                            pixel=COLOR_WHITE;
 						else
 						{
 							/* Display land or sea elevation */
 
 							if (dem[indx].data[x0][y0]==0)
-								fprintf(fd,"%c%c%c",0,0,170);
+                                pixel=COLOR_MEDIUMBLUE;
 							else
 							{
 								terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-								fprintf(fd,"%c%c%c",terrain,terrain,terrain);
+                                pixel=RGB(terrain,terrain,terrain);
 							}
 						}
 					}
@@ -5280,7 +5392,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 						/* Plot field strength regions in color */
 
 						if (red!=0 || green!=0 || blue!=0)
-							fprintf(fd,"%c%c%c",red,green,blue);
+                            pixel=RGB(red,green,blue);
 
 						else  /* terrain / sea-level */
 						{
@@ -5289,12 +5401,12 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 							else
 							{
 								if (dem[indx].data[x0][y0]==0)
-									fprintf(fd,"%c%c%c",0,0,170);
+                                    pixel=COLOR_MEDIUMBLUE;
 								else
 								{
 									/* Elevation: Greyscale */
 									terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-									fprintf(fd,"%c%c%c",terrain,terrain,terrain);
+                                    pixel=RGB(terrain,terrain,terrain);
 								}
 							}
 						}
@@ -5307,8 +5419,21 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 				/* We should never get here, but if */
 				/* we do, display the region as black */
 
-				fprintf(fd,"%c%c%c",0,0,0);
+                pixel=COLOR_BLACK;
 			}
+
+            imgline[x*3]=GetRValue(pixel);
+            imgline[x*3+1]=GetGValue(pixel);
+            imgline[x*3+2]=GetBValue(pixel);
+		}
+
+        /* emit the line */
+		if (imagetype==IMAGETYPE_PNG) {
+			png_write_row(png_ptr, (png_bytep)imgline);
+		} else if (imagetype==IMAGETYPE_JPG) {
+			jpeg_write_scanlines(&cinfo, &imgline, 1);
+		} else {
+			fwrite(imgline, RGB_PIXELSIZE, width, fd);
 		}
 	}
 
@@ -5347,7 +5472,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 				  		if (x>=5 && x<=12)	 
 					  			if (fontdata[16*(hundreds+'0')+(y0-8)]&(128>>(x-5)))
 								indx=255; 
-						}
+                    }
 
 					if (tens>0 || hundreds>0)
 					{
@@ -5383,21 +5508,44 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 					if (x>=76 && x<=83)
 						if (fontdata[16*('m')+(y0-8)]&(128>>(x-76)))
 							indx=255;
-			   		}
+                }
 
 				if (indx>region.levels)
-					fprintf(fd,"%c%c%c",0,0,0);
+                    pixel=COLOR_BLACK;
 				else
 				{
 					red=region.color[indx][0];
 					green=region.color[indx][1];
 					blue=region.color[indx][2];
 
-					fprintf(fd,"%c%c%c",red,green,blue);
+                    pixel=RGB(red,green,blue);
 				}
-			} 
+
+				imgline[x0*3]=GetRValue(pixel);
+				imgline[x0*3+1]=GetGValue(pixel);
+				imgline[x0*3+2]=GetBValue(pixel);
+			}
+
+			/* emit the line */
+			if (imagetype==IMAGETYPE_PNG) {
+				png_write_row(png_ptr, (png_bytep)imgline);
+			} else if (imagetype==IMAGETYPE_JPG) {
+				jpeg_write_scanlines(&cinfo, &imgline, 1);
+			} else {
+				fwrite(imgline, RGB_PIXELSIZE, width, fd);
+			}
 		}
 	}
+
+	if (imagetype==IMAGETYPE_PNG) {
+		png_write_end(png_ptr, info_ptr);
+		png_destroy_write_struct(&png_ptr, &info_ptr);
+	} else if (imagetype==IMAGETYPE_JPG) {
+		jpeg_finish_compress(&cinfo);
+		jpeg_destroy_compress(&cinfo);
+	}
+
+	free(imgline);
 
 	fclose(fd);
 
@@ -5418,6 +5566,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 			{
 				indx=y0/30;
 				x=x0;
+
 				level=region.level[indx];
 
 				hundreds=level/100;
@@ -5439,7 +5588,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 				  		if (x>=5 && x<=12)	 
 					  			if (fontdata[16*(hundreds+'0')+((y0%30)-8)]&(128>>(x-5)))
 								indx=255; 
-						}
+                    }
 
 					if (tens>0 || hundreds>0)
 					{
@@ -5475,7 +5624,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 					if (x>=76 && x<=83)
 						if (fontdata[16*('m')+((y0%30)-8)]&(128>>(x-76)))
 							indx=255;
-			   		}
+                }
 
 				if (indx>region.levels)
 					fprintf(fd,"%c%c%c",0,0,0);
@@ -5510,12 +5659,20 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 
 	char mapfile[255], geofile[255], kmlfile[255], ckfile[255];
 	unsigned width, height, terrain, red, green, blue;
-	unsigned char found, mask, cityorcounty;
+    unsigned int imgheight, imgwidth;
+	unsigned char found, mask;
 	int indx, x, y, z=1, x0, y0, dBm, level, hundreds,
 		tens, units, match, colorwidth;
 	double conversion, one_over_gamma, lat, lon,
 	north, south, east, west, minwest;
 	FILE *fd;
+
+	Pixel pixel;
+	unsigned char *imgline = NULL;
+	struct jpeg_compress_struct cinfo;
+	struct jpeg_error_mgr jerr;
+	png_structp png_ptr = NULL;
+	png_infop info_ptr = NULL;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -5551,7 +5708,18 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	}
 
 	mapfile[x]=0;
-    strcat(mapfile, ".ppm");
+	switch (imagetype) {
+		case IMAGETYPE_JPG:
+			strcat(mapfile, ".jpg");
+			break;
+		case IMAGETYPE_PPM:
+			strcat(mapfile, ".ppm");
+			break;
+		case IMAGETYPE_PNG:
+		default:
+			strcat(mapfile, ".png");
+			break;
+	}
 
 	geofile[x]=0;
     strcat(geofile, ".geo");
@@ -5665,20 +5833,48 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	if (kml || geo)
 	{
 		/* No bottom legend */
+        imgwidth = width;
+        imgheight = height;
+    }
+    else
+    {
+		/* Allow space for bottom legend */
+        imgwidth = width;
+        imgheight = height + 30;
+    }
 
-		fprintf(fd,"P6\n%u %u\n255\n",width,height);
-		fprintf(stdout,"\nWriting \"%s\" (%ux%u pixmap image)... ",mapfile,width,height);
-	}
-
-	else
-	{
-		/* Allow for bottom legend */
-
-		fprintf(fd,"P6\n%u %u\n255\n",width,height+30);
-		fprintf(stdout,"\nWriting \"%s\" (%ux%u pixmap image)... ",mapfile,width,height+30);
-	}
-
+    fprintf(stdout,"\nWriting Power Level (dBm) map \"%s\" (%ux%u image)... ",mapfile,imgwidth,imgheight);
 	fflush(stdout);
+
+	if (imagetype == IMAGETYPE_PNG) {
+		png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+		info_ptr = png_create_info_struct(png_ptr);
+		png_init_io(png_ptr, fd);
+		png_set_IHDR(png_ptr, info_ptr,
+					imgwidth, imgheight,
+					8, /* 8 bits per color or 24 bits per pixel for RGB */
+					PNG_COLOR_TYPE_RGB,
+					PNG_INTERLACE_NONE,
+					PNG_COMPRESSION_TYPE_DEFAULT,
+					PNG_FILTER_TYPE_BASE);
+		png_write_info(png_ptr, info_ptr);
+		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
+	} else if (imagetype == IMAGETYPE_JPG) {
+		cinfo.err = jpeg_std_error(&jerr);
+		jpeg_create_compress(&cinfo);
+		jpeg_stdio_dest(&cinfo, fd);
+		cinfo.image_width = imgwidth;
+		cinfo.image_height = imgheight;
+		cinfo.input_components = 3;	   /* # of color components per pixel */
+		cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
+		jpeg_set_defaults(&cinfo); /* default compression */
+		jpeg_set_quality(&cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
+		jpeg_start_compress(&cinfo, TRUE); /* start compressor. */
+		imgline = (JSAMPROW)malloc(sizeof(JSAMPLE) * RGB_PIXELSIZE * width);
+	} else {
+        fprintf(fd,"P6\n%u %u\n255\n",imgwidth,imgheight);
+		imgline = (unsigned char*)malloc(3 * width);
+	}
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
 	{
@@ -5702,7 +5898,6 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 			{
 				mask=dem[indx].mask[x0][y0];
 				dBm=(dem[indx].signal[x0][y0])-200;
-				cityorcounty=0;
 
 				match=255;
 
@@ -5743,38 +5938,31 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 					/* Text Labels: Red or otherwise */
 
 					if (red>=180 && green<=75 && blue<=75 && dBm!=0)
-						fprintf(fd,"%c%c%c",255^red,255^green,255^blue);
+                        pixel=RGB(255^red,255^green,255^blue);
 					else
-						fprintf(fd,"%c%c%c",255,0,0);
-
-					cityorcounty=1;
+                        pixel=COLOR_RED;
 				}
-
 				else if (mask&4)
 				{
 					/* County Boundaries: Black */
-
-					fprintf(fd,"%c%c%c",0,0,0);
-
-					cityorcounty=1;
+                    pixel=COLOR_BLACK;
 				}
-
-				if (cityorcounty==0)
+                else
 				{
 					if (contour_threshold!=0 && dBm<contour_threshold)
 					{
 						if (ngs) /* No terrain */
-							fprintf(fd,"%c%c%c",255,255,255);
+                            pixel=COLOR_WHITE;
 						else
 						{
 							/* Display land or sea elevation */
 
 							if (dem[indx].data[x0][y0]==0)
-								fprintf(fd,"%c%c%c",0,0,170);
+                                pixel=COLOR_MEDIUMBLUE;
 							else
 							{
 								terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-								fprintf(fd,"%c%c%c",terrain,terrain,terrain);
+                                pixel=RGB(terrain,terrain,terrain);
 							}
 						}
 					}
@@ -5784,21 +5972,21 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 						/* Plot signal power level regions in color */
 
 						if (red!=0 || green!=0 || blue!=0)
-							fprintf(fd,"%c%c%c",red,green,blue);
+                            pixel=RGB(red,green,blue);
 
 						else  /* terrain / sea-level */
 						{
 							if (ngs)
-								fprintf(fd,"%c%c%c",255,255,255);
+                                pixel=COLOR_WHITE;
 							else
 							{
 								if (dem[indx].data[x0][y0]==0)
-									fprintf(fd,"%c%c%c",0,0,170);
+                                    pixel=COLOR_MEDIUMBLUE;
 								else
 								{
 									/* Elevation: Greyscale */
 									terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-									fprintf(fd,"%c%c%c",terrain,terrain,terrain);
+                                    pixel=RGB(terrain,terrain,terrain);
 								}
 							}
 						}
@@ -5810,9 +5998,21 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 			{
 				/* We should never get here, but if */
 				/* we do, display the region as black */
-
-				fprintf(fd,"%c%c%c",0,0,0);
+                pixel=COLOR_BLACK;
 			}
+
+            imgline[x*3]=GetRValue(pixel);
+            imgline[x*3+1]=GetGValue(pixel);
+            imgline[x*3+2]=GetBValue(pixel);
+		}
+
+        /* emit the line */
+		if (imagetype==IMAGETYPE_PNG) {
+			png_write_row(png_ptr, (png_bytep)imgline);
+		} else if (imagetype==IMAGETYPE_JPG) {
+			jpeg_write_scanlines(&cinfo, &imgline, 1);
+		} else {
+			fwrite(imgline, RGB_PIXELSIZE, width, fd);
 		}
 	}
 
@@ -5926,18 +6126,42 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 			   		}
 
 				if (indx>region.levels)
-					fprintf(fd,"%c%c%c",0,0,0);
+					pixel=COLOR_BLACK;
 				else
 				{
 					red=region.color[indx][0];
 					green=region.color[indx][1];
 					blue=region.color[indx][2];
 
-					fprintf(fd,"%c%c%c",red,green,blue);
+					pixel=RGB(red,green,blue);
 				}
+
+				imgline[x0*3]=GetRValue(pixel);
+				imgline[x0*3+1]=GetGValue(pixel);
+				imgline[x0*3+2]=GetBValue(pixel);
 			} 
+
+            /* emit the line */
+            if (imagetype==IMAGETYPE_PNG) {
+                png_write_row(png_ptr, (png_bytep)imgline);
+            } else if (imagetype==IMAGETYPE_JPG) {
+                jpeg_write_scanlines(&cinfo, &imgline, 1);
+            } else {
+                fwrite(imgline, RGB_PIXELSIZE, width, fd);
+            }
 		}
+
 	}
+
+	if (imagetype==IMAGETYPE_PNG) {
+		png_write_end(png_ptr, info_ptr);
+		png_destroy_write_struct(&png_ptr, &info_ptr);
+	} else if (imagetype==IMAGETYPE_JPG) {
+		jpeg_finish_compress(&cinfo);
+		jpeg_destroy_compress(&cinfo);
+	}
+
+	free(imgline);
 
 	fclose(fd);
 
