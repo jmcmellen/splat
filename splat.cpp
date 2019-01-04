@@ -32,6 +32,9 @@
 #include "splat.h"
 #include "workqueue.hpp"
 
+#include "jpeglib.h"
+#include "png.h"
+
 
 #define GAMMA 2.5
 #define BZBUFFER 65536
@@ -187,9 +190,11 @@ typedef struct Region {
 } Region;
 
 typedef enum ImageType {
-    IMAGETYPE_PPM = 0,
-    IMAGETYPE_JPG
+    IMAGETYPE_PNG = 0,
+    IMAGETYPE_JPG,
+    IMAGETYPE_PPM,
 } ImageType;
+
 
 
 /*****************************
@@ -208,6 +213,49 @@ unsigned char got_elevation_pattern, got_azimuth_pattern, metric=0, dbm=0, smoot
 LongleyRiceData LR;
 Dem dem[MAXPAGES];
 Region region;
+
+/****************************
+ * Color handling stuff
+ ****************************/
+
+/* 100: area plot image size is about 550KB (best quality)
+ *  95: area plot image size is about 290KB.
+ *  90: area plot image size is about 200KB. This is about what "convert"'s default is.
+ *  80: area plot image size is about 130KB, but has noticeable artifacts when zoomed in.
+ */
+#define DEFAULT_JPEG_QUALITY 90
+
+#ifndef RGB_PIXELSIZE
+#define RGB_PIXELSIZE 3
+#endif
+
+typedef uint32_t Pixel;
+
+#define RGB(r,g,b) ( ((uint32_t)(uint8_t)r)|((uint32_t)((uint8_t)g)<<8)|((uint32_t)((uint8_t)b)<<16) )
+#define GetRValue(RGBColor) (uint8_t) (RGBColor)
+#define GetGValue(RGBColor) (uint8_t) (((uint32_t)RGBColor) >> 8)
+#define GetBValue(RGBColor) (uint8_t) (((uint32_t)RGBColor) >> 16)
+
+#define COLOR_RED				RGB(255, 0, 0)
+#define COLOR_LIGHTCYAN			RGB(128,128,255)
+#define COLOR_GREEN				RGB(0,255,0)
+#define COLOR_DARKGREEN			RGB(0,100,0)
+#define COLOR_DARKSEAGREEN1		RGB(193,255,193)
+#define COLOR_CYAN				RGB(0,255,255)
+#define COLOR_YELLOW			RGB(255,255,0)
+#define COLOR_GREENYELLOW		RGB(173,255,47)
+#define COLOR_MEDIUMSPRINGGREEN	RGB(0,250,154)
+#define COLOR_MEDIUMVIOLET		RGB(147,112,219)
+#define COLOR_PINK				RGB(255,192,203)
+#define COLOR_ORANGE			RGB(255,165,0)
+#define COLOR_SIENNA			RGB(255,130,71)
+#define COLOR_BLANCHEDALMOND	RGB(255,235,205)
+#define COLOR_DARKTURQUOISE		RGB(0,206,209)
+#define COLOR_TAN				RGB(210,180,140)
+#define COLOR_GOLD2				RGB(238,201,0)
+#define COLOR_MEDIUMBLUE		RGB(0,0,170)
+#define COLOR_WHITE				RGB(255,255,255)
+#define COLOR_BLACK				RGB(0,0,0)
 
 
 /*****************************
@@ -4149,6 +4197,18 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	north, south, east, west, minwest;
 	FILE *fd;
 
+	Pixel pixel;
+
+	unsigned char *ppmline = NULL;
+
+	struct jpeg_compress_struct cinfo;
+	struct jpeg_error_mgr jerr;
+	JSAMPROW jpgline = NULL;
+
+    png_structp png_ptr = NULL;
+    png_infop info_ptr = NULL;
+    png_bytep pngline = NULL;
+
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
 
@@ -4176,21 +4236,25 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 		kmlfile[x]=filename[x];
 	}
 
-	mapfile[x]='.';
-	geofile[x]='.';
-	kmlfile[x]='.';
-	mapfile[x+1]='p';
-	geofile[x+1]='g';
-	kmlfile[x+1]='k';
-	mapfile[x+2]='p';
-	geofile[x+2]='e';
-	kmlfile[x+2]='m';
-	mapfile[x+3]='m';
-	geofile[x+3]='o';
-	kmlfile[x+3]='l';
-	mapfile[x+4]=0;
-	geofile[x+4]=0;
-	kmlfile[x+4]=0;
+	mapfile[x]=0;
+    switch (imagetype) {
+        case IMAGETYPE_JPG:
+            strcat(mapfile, ".jpg");
+            break;
+        case IMAGETYPE_PPM:
+            strcat(mapfile, ".ppm");
+            break;
+        case IMAGETYPE_PNG:
+        default:
+            strcat(mapfile, ".png");
+            break;
+    }
+
+	geofile[x]=0;
+    strcat(geofile, ".geo");
+
+	kmlfile[x]=0;
+    strcat(kmlfile, ".kml");
 
 	minwest=((double)min_west)+dpp;
 
@@ -4273,9 +4337,39 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 
 	fd=fopen(mapfile,"wb");
 
-	fprintf(fd,"P6\n%u %u\n255\n",width,height);
-	fprintf(stdout,"\nWriting \"%s\" (%ux%u pixmap image)... ",mapfile,width,height);
+	fprintf(stdout,"\nWriting \"%s\" (%ux%u %s image)... ",mapfile,width,height,
+			imagetype==IMAGETYPE_JPG?"jpg":"pixmap");
 	fflush(stdout);
+
+    if (imagetype == IMAGETYPE_PNG) {
+        png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+        info_ptr = png_create_info_struct(png_ptr);
+        png_init_io(png_ptr, fd);
+        png_set_IHDR(png_ptr, info_ptr,
+                    width, height,
+                    8, /* 8 bits per color or 24 bits per pixel for RGB */
+                    PNG_COLOR_TYPE_RGB,
+                    PNG_INTERLACE_NONE,
+                    PNG_COMPRESSION_TYPE_DEFAULT,
+                    PNG_FILTER_TYPE_BASE);
+        png_write_info(png_ptr, info_ptr);
+		pngline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
+    } else if (imagetype == IMAGETYPE_JPG) {
+		cinfo.err = jpeg_std_error(&jerr);
+		jpeg_create_compress(&cinfo);
+        jpeg_stdio_dest(&cinfo, fd);
+		cinfo.image_width = width;
+		cinfo.image_height = height;
+		cinfo.input_components = 3;       /* # of color components per pixel */
+		cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
+		jpeg_set_defaults(&cinfo); /* default compression */
+		jpeg_set_quality(&cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
+		jpeg_start_compress(&cinfo, TRUE); /* start compressor. */
+		jpgline = (JSAMPROW)malloc(sizeof(JSAMPLE) * RGB_PIXELSIZE * width);
+    } else {
+		fprintf(fd,"P6\n%u %u\n255\n",width,height);
+		ppmline = (unsigned char*)malloc(3 * width);
+	}
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
 	{
@@ -4301,118 +4395,152 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 
 				if (mask&2)
 					/* Text Labels: Red */
-					fprintf(fd,"%c%c%c",255,0,0);
+					pixel=COLOR_RED;
 
 				else if (mask&4)
 					/* County Boundaries: Light Cyan */
-					fprintf(fd,"%c%c%c",128,128,255);
+					pixel=COLOR_LIGHTCYAN;
 
 				else switch (mask&57)
 				{
 					case 1:
 					/* TX1: Green */
-					fprintf(fd,"%c%c%c",0,255,0);
+					pixel=COLOR_GREEN;
 					break;
 
 					case 8:
 					/* TX2: Cyan */
-					fprintf(fd,"%c%c%c",0,255,255);
+					pixel=COLOR_CYAN;
 					break;
 
 					case 9:
 					/* TX1 + TX2: Yellow */
-					fprintf(fd,"%c%c%c",255,255,0);
+					pixel=COLOR_YELLOW;
 					break;
 
 					case 16:
 					/* TX3: Medium Violet */
-					fprintf(fd,"%c%c%c",147,112,219);
+					pixel=COLOR_MEDIUMVIOLET;
 					break;
 
 					case 17:
 					/* TX1 + TX3: Pink */
-					fprintf(fd,"%c%c%c",255,192,203);
+					pixel=COLOR_PINK;
 					break;
 
 					case 24:
 					/* TX2 + TX3: Orange */
-					fprintf(fd,"%c%c%c",255,165,0);
+					pixel=COLOR_ORANGE;
 					break;
 
 				 	case 25:
 					/* TX1 + TX2 + TX3: Dark Green */
-					fprintf(fd,"%c%c%c",0,100,0);
+					pixel=COLOR_DARKGREEN;
 					break;
 
 					case 32:
 					/* TX4: Sienna 1 */
-					fprintf(fd,"%c%c%c",255,130,71);
+					pixel=COLOR_SIENNA;
 					break;
 
 					case 33:
 					/* TX1 + TX4: Green Yellow */
-					fprintf(fd,"%c%c%c",173,255,47);
+					pixel=COLOR_GREENYELLOW;
 					break;
 
 					case 40:
 					/* TX2 + TX4: Dark Sea Green 1 */
-					fprintf(fd,"%c%c%c",193,255,193);
+					pixel=COLOR_DARKSEAGREEN1;
 					break;
 
 					case 41:
 					/* TX1 + TX2 + TX4: Blanched Almond */
-					fprintf(fd,"%c%c%c",255,235,205);
+					pixel=COLOR_BLANCHEDALMOND;
 					break;
 
 					case 48:
 					/* TX3 + TX4: Dark Turquoise */
-					fprintf(fd,"%c%c%c",0,206,209);
+					pixel=COLOR_DARKTURQUOISE;
 					break;
 
 					case 49:
 					/* TX1 + TX3 + TX4: Medium Spring Green */
-					fprintf(fd,"%c%c%c",0,250,154);
+					pixel=COLOR_MEDIUMSPRINGGREEN;
 					break;
 
 					case 56:
 					/* TX2 + TX3 + TX4: Tan */
-					fprintf(fd,"%c%c%c",210,180,140);
+					pixel=COLOR_TAN;
 					break;
 
 					case 57:
 					/* TX1 + TX2 + TX3 + TX4: Gold2 */
-					fprintf(fd,"%c%c%c",238,201,0);
+					pixel=COLOR_GOLD2;
 					break;
 
 					default:
 					if (ngs)  /* No terrain */
-						fprintf(fd,"%c%c%c",255,255,255);
+						pixel=COLOR_WHITE;
 					else
 					{
 						/* Sea-level: Medium Blue */
 						if (dem[indx].data[x0][y0]==0)
-							fprintf(fd,"%c%c%c",0,0,170);
+							pixel = COLOR_MEDIUMBLUE;
 						else
 						{
 							/* Elevation: Greyscale */
 							terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-							fprintf(fd,"%c%c%c",terrain,terrain,terrain);
+							pixel=RGB(terrain,terrain,terrain);
 						}
 					}
 				}
 			}
-
 			else
 			{
 				/* We should never get here, but if */
 				/* we do, display the region as black */
 
-				fprintf(fd,"%c%c%c",0,0,0);
+				pixel=COLOR_BLACK;
 			}
+
+			if (imagetype==IMAGETYPE_PNG) {
+				pngline[x*3]=GetRValue(pixel);
+				pngline[x*3+1]=GetGValue(pixel);
+				pngline[x*3+2]=GetBValue(pixel);
+            } else if (imagetype==IMAGETYPE_JPG) {
+				jpgline[x*3]=GetRValue(pixel);
+				jpgline[x*3+1]=GetGValue(pixel);
+				jpgline[x*3+2]=GetBValue(pixel);
+			} else {
+				ppmline[x*3]=GetRValue(pixel);
+				ppmline[x*3+1]=GetGValue(pixel);
+				ppmline[x*3+2]=GetBValue(pixel);
+			}
+		}
+
+
+		if (imagetype==IMAGETYPE_PNG) {
+            png_write_row(png_ptr, pngline);
+		} else if (imagetype==IMAGETYPE_JPG) {
+			jpeg_write_scanlines(&cinfo, &jpgline, 1);
+		} else {
+			fwrite(ppmline, RGB_PIXELSIZE, width, fd);
 		}
 	}
 
-	fclose(fd);
+	if (imagetype==IMAGETYPE_PNG) {
+        png_write_end(png_ptr, info_ptr);
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        free(pngline);
+    } else if (imagetype==IMAGETYPE_JPG) {
+		jpeg_finish_compress(&cinfo);
+		jpeg_destroy_compress(&cinfo);
+		free(jpgline);
+	} else {
+		free(ppmline);
+	}
+
+    fclose(fd);
 	fprintf(stdout,"Done!\n");
 	fflush(stdout);
 }
@@ -4468,30 +4596,17 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 		ckfile[x]=filename[x];
 	}
 
-	mapfile[x]='.';
-	geofile[x]='.';
-	kmlfile[x]='.';
-	mapfile[x+1]='p';
-	geofile[x+1]='g';
-	kmlfile[x+1]='k';
-	mapfile[x+2]='p';
-	geofile[x+2]='e';
-	kmlfile[x+2]='m';
-	mapfile[x+3]='m';
-	geofile[x+3]='o';
-	kmlfile[x+3]='l';
-	mapfile[x+4]=0;
-	geofile[x+4]=0;
-	kmlfile[x+4]=0;
+	mapfile[x]=0;
+    strcat(mapfile, ".ppm");
 
-	ckfile[x]='-';
-	ckfile[x+1]='c';
-	ckfile[x+2]='k';
-	ckfile[x+3]='.';
-	ckfile[x+4]='p';
-	ckfile[x+5]='p';
-	ckfile[x+6]='m';
-	ckfile[x+7]=0;
+	geofile[x]=0;
+    strcat(geofile, ".geo");
+
+	kmlfile[x]=0;
+    strcat(kmlfile, ".kml");
+
+    ckfile[x]=0;
+    strcat(ckfile, "-ck.ppm");
 
 	minwest=((double)min_west)+dpp;
 
@@ -4949,30 +5064,17 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 		ckfile[x]=filename[x];
 	}
 
-	mapfile[x]='.';
-	geofile[x]='.';
-	kmlfile[x]='.';
-	mapfile[x+1]='p';
-	geofile[x+1]='g';
-	kmlfile[x+1]='k';
-	mapfile[x+2]='p';
-	geofile[x+2]='e';
-	kmlfile[x+2]='m';
-	mapfile[x+3]='m';
-	geofile[x+3]='o';
-	kmlfile[x+3]='l';
-	mapfile[x+4]=0;
-	geofile[x+4]=0;
-	kmlfile[x+4]=0;
+	mapfile[x]=0;
+    strcat(mapfile, ".ppm");
 
-	ckfile[x]='-';
-	ckfile[x+1]='c';
-	ckfile[x+2]='k';
-	ckfile[x+3]='.';
-	ckfile[x+4]='p';
-	ckfile[x+5]='p';
-	ckfile[x+6]='m';
-	ckfile[x+7]=0;
+	geofile[x]=0;
+    strcat(geofile, ".geo");
+
+	kmlfile[x]=0;
+    strcat(kmlfile, ".kml");
+
+    ckfile[x]=0;
+    strcat(ckfile, "-ck.ppm");
 
 	minwest=((double)min_west)+dpp;
 
@@ -5466,30 +5568,17 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 		ckfile[x]=filename[x];
 	}
 
-	mapfile[x]='.';
-	geofile[x]='.';
-	kmlfile[x]='.';
-	mapfile[x+1]='p';
-	geofile[x+1]='g';
-	kmlfile[x+1]='k';
-	mapfile[x+2]='p';
-	geofile[x+2]='e';
-	kmlfile[x+2]='m';
-	mapfile[x+3]='m';
-	geofile[x+3]='o';
-	kmlfile[x+3]='l';
-	mapfile[x+4]=0;
-	geofile[x+4]=0;
-	kmlfile[x+4]=0;
+	mapfile[x]=0;
+    strcat(mapfile, ".ppm");
 
-	ckfile[x]='-';
-	ckfile[x+1]='c';
-	ckfile[x+2]='k';
-	ckfile[x+3]='.';
-	ckfile[x+4]='p';
-	ckfile[x+5]='p';
-	ckfile[x+6]='m';
-	ckfile[x+7]=0;
+	geofile[x]=0;
+    strcat(geofile, ".geo");
+
+	kmlfile[x]=0;
+    strcat(kmlfile, ".kml");
+
+    ckfile[x]=0;
+    strcat(ckfile, "-ck.ppm");
 
 	minwest=((double)min_west)+dpp;
 
@@ -8134,7 +8223,9 @@ int main(int argc, char *argv[])
 			norm=0, topomap=0, geo=0, kml=0, pt2pt_mode=0,
 			area_mode=0, max_txsites, ngs=0, nolospath=0,
 			nositereports=0, fresnel_plot=1, command_line_log=0;
+
     ImageType imagetype=IMAGETYPE_PPM;
+    unsigned char imagetype_set = 0;
  
 	char		mapfile[255], header[80], city_file[5][255], 
 			elevation_file[255], height_file[255], 
@@ -8185,7 +8276,8 @@ int main(int argc, char *argv[])
 		fprintf(stdout,"      -nf do not plot Fresnel zones in height plots\n");
 		fprintf(stdout,"      -fz Fresnel zone clearance percentage (default = 60)\n");
 		fprintf(stdout,"      -gc ground clutter height (feet/meters)\n");
-		fprintf(stdout,"     -jpg when generating maps, create jpegs intead of ppms\n");
+		fprintf(stdout,"     -png when generating maps, create pngs instead of ppms or jpgs\n");
+		fprintf(stdout,"     -jpg when generating maps, create jpgs instead of ppms or pngs\n");
 		fprintf(stdout,"     -ngs display greyscale topography as white in .ppm files\n"); 
 		fprintf(stdout,"     -erp override ERP in .lrp file (Watts)\n");
 		fprintf(stdout,"     -ano name of alphanumeric output file\n");
@@ -8428,8 +8520,23 @@ int main(int argc, char *argv[])
 				norm=0;
 		}
 
-		if (strcmp(argv[x],"-jpg")==0)
-			imagetype=IMAGETYPE_JPG;
+		if (strcmp(argv[x],"-jpg")==0) {
+            if (imagetype_set && imagetype != IMAGETYPE_JPG) {
+					fprintf(stdout,"-jpg and -png are exclusive options, ignoring -jpg.\n");
+            } else {
+                imagetype=IMAGETYPE_JPG;
+                imagetype_set = 1;
+            }
+        }
+
+		if (strcmp(argv[x],"-png")==0) {
+            if (imagetype_set && imagetype != IMAGETYPE_PNG) {
+					fprintf(stdout,"-jpg and -png are exclusive options, ignoring -png.\n");
+            } else {
+                imagetype=IMAGETYPE_PNG;
+                imagetype_set = 1;
+            }
+        }
 
 		if (strcmp(argv[x],"-metric")==0)
 			metric=1;

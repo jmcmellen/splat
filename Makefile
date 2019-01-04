@@ -30,7 +30,7 @@ OBJS = $(SRCS:.cpp=.o)
 C_SRCS = itwom3.0.c
 C_OBJS = $(C_SRCS:.c=.o)
 
-LDFLAGS = -lm -lbz2 -lpthread
+LDFLAGS = -lm -lz -lbz2 -lpthread -ljpeg -lpng
 
 all: splat splat-hd utils
 
