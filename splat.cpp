@@ -4198,16 +4198,11 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	FILE *fd;
 
 	Pixel pixel;
-
-	unsigned char *ppmline = NULL;
-
+	unsigned char *imgline = NULL;
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
-	JSAMPROW jpgline = NULL;
-
     png_structp png_ptr = NULL;
     png_infop info_ptr = NULL;
-    png_bytep pngline = NULL;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -4353,7 +4348,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
                     PNG_COMPRESSION_TYPE_DEFAULT,
                     PNG_FILTER_TYPE_BASE);
         png_write_info(png_ptr, info_ptr);
-		pngline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
+		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
     } else if (imagetype == IMAGETYPE_JPG) {
 		cinfo.err = jpeg_std_error(&jerr);
 		jpeg_create_compress(&cinfo);
@@ -4365,10 +4360,10 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 		jpeg_set_defaults(&cinfo); /* default compression */
 		jpeg_set_quality(&cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
 		jpeg_start_compress(&cinfo, TRUE); /* start compressor. */
-		jpgline = (JSAMPROW)malloc(sizeof(JSAMPLE) * RGB_PIXELSIZE * width);
+		imgline = (JSAMPROW)malloc(sizeof(JSAMPLE) * RGB_PIXELSIZE * width);
     } else {
 		fprintf(fd,"P6\n%u %u\n255\n",width,height);
-		ppmline = (unsigned char*)malloc(3 * width);
+		imgline = (unsigned char*)malloc(3 * width);
 	}
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
@@ -4503,42 +4498,30 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 				pixel=COLOR_BLACK;
 			}
 
-			if (imagetype==IMAGETYPE_PNG) {
-				pngline[x*3]=GetRValue(pixel);
-				pngline[x*3+1]=GetGValue(pixel);
-				pngline[x*3+2]=GetBValue(pixel);
-            } else if (imagetype==IMAGETYPE_JPG) {
-				jpgline[x*3]=GetRValue(pixel);
-				jpgline[x*3+1]=GetGValue(pixel);
-				jpgline[x*3+2]=GetBValue(pixel);
-			} else {
-				ppmline[x*3]=GetRValue(pixel);
-				ppmline[x*3+1]=GetGValue(pixel);
-				ppmline[x*3+2]=GetBValue(pixel);
-			}
+            imgline[x*3]=GetRValue(pixel);
+            imgline[x*3+1]=GetGValue(pixel);
+            imgline[x*3+2]=GetBValue(pixel);
 		}
 
 
 		if (imagetype==IMAGETYPE_PNG) {
-            png_write_row(png_ptr, pngline);
+            png_write_row(png_ptr, (png_bytep)imgline);
 		} else if (imagetype==IMAGETYPE_JPG) {
-			jpeg_write_scanlines(&cinfo, &jpgline, 1);
+			jpeg_write_scanlines(&cinfo, &imgline, 1);
 		} else {
-			fwrite(ppmline, RGB_PIXELSIZE, width, fd);
+			fwrite(imgline, RGB_PIXELSIZE, width, fd);
 		}
 	}
 
 	if (imagetype==IMAGETYPE_PNG) {
         png_write_end(png_ptr, info_ptr);
         png_destroy_write_struct(&png_ptr, &info_ptr);
-        free(pngline);
     } else if (imagetype==IMAGETYPE_JPG) {
 		jpeg_finish_compress(&cinfo);
 		jpeg_destroy_compress(&cinfo);
-		free(jpgline);
-	} else {
-		free(ppmline);
 	}
+
+    free(imgline);
 
     fclose(fd);
 	fprintf(stdout,"Done!\n");
