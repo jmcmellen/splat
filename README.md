@@ -66,11 +66,18 @@ Debian (Buster):
 
 * splat.cpp
 
+  * Incorporate John's antenna height changes from SPLAT 1.4.3 (unreleased).
+  
+  * Revert to using the ITM model by default, in accordance with SPLAT 1.4.3.
+  
   * The PlotLOSMap() and PlotLRMap() functions have been converted to run multithreaded if a "-mt" flag is
     passed on the command line.
 
   * WritePPM(), WritePPMSS(), etc were converted to WriteImage(), WriteImageSS(), etc, and functionality
-    to allow them to emit png or jpg images instead of pixmaps was added.
+    was added to allow them to emit png or jpg images instead of pixmaps. Add "-png" or "-jpg" to the command
+    line as you like. The generated jpg's are smaller but the text can be hard to read in some instances. The
+    png's are, of course, lossless, and nice and crisp, but they are larger and take slightly longer to generate.
+    Both are an order of magnitude smaller than the pixmaps though.
 
 ## To Do
 
