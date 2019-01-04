@@ -35,6 +35,9 @@ Debian (Buster):
 
 `apt-get install libbz2-dev zlib1g-dev libjpeg-dev libpng-dev`
 
+OSX (High Sierra):
+
+`brew install jpeg libpng`
 
 ## Changes
 
