@@ -2213,10 +2213,12 @@ void z1sq2(double z[], const double x1, const double x2, double *z0, double *zn)
  *  ir: the quantile desired.
  *
  * returns the value of a(ir)
- * 
- * See ITWOM-SUB-ROUTINES.pdf p265
  *
- * This is called twice on the same array from 
+ * This is essentially a quickselect with Hoare's partition scheme. See
+ * https://en.wikipedia.org/wiki/Quickselect for info on the algorithm.
+ * 
+ * Also see ITWOM-SUB-ROUTINES.pdf p265
+ *
  */
 double qtile (const int nn, double a[], const int ir)
 {
