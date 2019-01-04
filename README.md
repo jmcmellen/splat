@@ -20,18 +20,20 @@ For this version, you must have either clang or gcc installed, and it must be a 
 least C++11 .
 
 You also need several utility libraries:
-    * zlib
-    * libbzip2
-    * libpng
-    * libjpeg
+* libbzip2
+* zlib
+* libpng
+* libjpeg
 
 You can generally get these via system packages. For instance:
     
 Centos 7:
-yum install bzip2-devel zlib-devel libpng-devel libjpeg-turbo-devel
 
-Debian (Buster)
-apt-get install libbz2-dev zlib1g-dev libjpeg-dev libpng-dev
+`yum install bzip2-devel zlib-devel libpng-devel libjpeg-turbo-devel`
+
+Debian (Buster):
+
+`apt-get install libbz2-dev zlib1g-dev libjpeg-dev libpng-dev`
 
 
 ## Changes
