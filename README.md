@@ -19,9 +19,19 @@ Build instructions are in the file README.
 For this version, you must have either clang or gcc installed, and it must be a version that supports at
 least C++11 .
 
-You also need libzip and libbzip. You can often install these from packages. For instance, on Debian:
+You also need several utility libraries:
+    * zlib
+    * libbzip2
+    * libpng
+    * libjpeg
 
-apt-get install zlib1g-dev libbz2-dev
+You can generally get these via system packages. For instance:
+    
+Centos 7:
+yum install bzip2-devel zlib-devel libpng-devel libjpeg-turbo-devel
+
+Debian (Buster)
+apt-get install libbz2-dev zlib1g-dev libjpeg-dev libpng-dev
 
 
 ## Changes
@@ -57,10 +67,12 @@ apt-get install zlib1g-dev libbz2-dev
   * The PlotLOSMap() and PlotLRMap() functions have been converted to run multithreaded if a "-mt" flag is
     passed on the command line.
 
+  * WritePPM(), WritePPMSS(), etc were converted to WriteImage(), WriteImageSS(), etc, and functionality
+    to allow them to emit png or jpg images instead of pixmaps was added.
+
 ## To Do
 
 * Make the memory allocation for the arrays in splat.cpp be dynamic so there's no need for two different
   versions of splat.
 
-* Add the OpenCL parallelizing.
-
+* Much much code cleanup.
