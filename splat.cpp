@@ -4182,11 +4182,10 @@ void LoadDBMColors(Site xmtr)
 
 void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned char kml, unsigned char ngs, Site *xmtr, unsigned char txsites)
 {
-	/* This function generates a topographic map in Portable Pix Map
-	   (PPM) format based on logarithmically scaled topology data,
-	   as well as the content of flags held in the mask[][] array.
-	   The image created is rotated counter-clockwise 90 degrees
-	   from its representation in dem[][] so that north points
+	/* This function generates a topographic map based on logarithmically
+	   scaled topology data as well as the content of flags held in the
+	   mask[][] array. The image created is rotated counter-clockwise 90
+	   degrees from its representation in dem[][] so that north points
 	   up and east points right in the image generated. */
 
 	char mapfile[255], geofile[255], kmlfile[255];
@@ -4201,8 +4200,8 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	unsigned char *imgline = NULL;
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
-    png_structp png_ptr = NULL;
-    png_infop info_ptr = NULL;
+	png_structp png_ptr = NULL;
+	png_infop info_ptr = NULL;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -4232,24 +4231,24 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	}
 
 	mapfile[x]=0;
-    switch (imagetype) {
-        case IMAGETYPE_JPG:
-            strcat(mapfile, ".jpg");
-            break;
-        case IMAGETYPE_PPM:
-            strcat(mapfile, ".ppm");
-            break;
-        case IMAGETYPE_PNG:
-        default:
-            strcat(mapfile, ".png");
-            break;
-    }
+	switch (imagetype) {
+		case IMAGETYPE_JPG:
+			strcat(mapfile, ".jpg");
+			break;
+		case IMAGETYPE_PPM:
+			strcat(mapfile, ".ppm");
+			break;
+		case IMAGETYPE_PNG:
+		default:
+			strcat(mapfile, ".png");
+			break;
+	}
 
 	geofile[x]=0;
-    strcat(geofile, ".geo");
+	strcat(geofile, ".geo");
 
 	kmlfile[x]=0;
-    strcat(kmlfile, ".kml");
+	strcat(kmlfile, ".kml");
 
 	minwest=((double)min_west)+dpp;
 
@@ -4336,32 +4335,32 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 			imagetype==IMAGETYPE_JPG?"jpg":"pixmap");
 	fflush(stdout);
 
-    if (imagetype == IMAGETYPE_PNG) {
-        png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-        info_ptr = png_create_info_struct(png_ptr);
-        png_init_io(png_ptr, fd);
-        png_set_IHDR(png_ptr, info_ptr,
-                    width, height,
-                    8, /* 8 bits per color or 24 bits per pixel for RGB */
-                    PNG_COLOR_TYPE_RGB,
-                    PNG_INTERLACE_NONE,
-                    PNG_COMPRESSION_TYPE_DEFAULT,
-                    PNG_FILTER_TYPE_BASE);
-        png_write_info(png_ptr, info_ptr);
+	if (imagetype == IMAGETYPE_PNG) {
+		png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+		info_ptr = png_create_info_struct(png_ptr);
+		png_init_io(png_ptr, fd);
+		png_set_IHDR(png_ptr, info_ptr,
+					width, height,
+					8, /* 8 bits per color or 24 bits per pixel for RGB */
+					PNG_COLOR_TYPE_RGB,
+					PNG_INTERLACE_NONE,
+					PNG_COMPRESSION_TYPE_DEFAULT,
+					PNG_FILTER_TYPE_BASE);
+		png_write_info(png_ptr, info_ptr);
 		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
-    } else if (imagetype == IMAGETYPE_JPG) {
+	} else if (imagetype == IMAGETYPE_JPG) {
 		cinfo.err = jpeg_std_error(&jerr);
 		jpeg_create_compress(&cinfo);
-        jpeg_stdio_dest(&cinfo, fd);
+		jpeg_stdio_dest(&cinfo, fd);
 		cinfo.image_width = width;
 		cinfo.image_height = height;
-		cinfo.input_components = 3;       /* # of color components per pixel */
+		cinfo.input_components = 3;	   /* # of color components per pixel */
 		cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
 		jpeg_set_defaults(&cinfo); /* default compression */
 		jpeg_set_quality(&cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
 		jpeg_start_compress(&cinfo, TRUE); /* start compressor. */
 		imgline = (JSAMPROW)malloc(sizeof(JSAMPLE) * RGB_PIXELSIZE * width);
-    } else {
+	} else {
 		fprintf(fd,"P6\n%u %u\n255\n",width,height);
 		imgline = (unsigned char*)malloc(3 * width);
 	}
@@ -4498,14 +4497,14 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 				pixel=COLOR_BLACK;
 			}
 
-            imgline[x*3]=GetRValue(pixel);
-            imgline[x*3+1]=GetGValue(pixel);
-            imgline[x*3+2]=GetBValue(pixel);
+			imgline[x*3]=GetRValue(pixel);
+			imgline[x*3+1]=GetGValue(pixel);
+			imgline[x*3+2]=GetBValue(pixel);
 		}
 
 
 		if (imagetype==IMAGETYPE_PNG) {
-            png_write_row(png_ptr, (png_bytep)imgline);
+			png_write_row(png_ptr, (png_bytep)imgline);
 		} else if (imagetype==IMAGETYPE_JPG) {
 			jpeg_write_scanlines(&cinfo, &imgline, 1);
 		} else {
@@ -4514,16 +4513,16 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	}
 
 	if (imagetype==IMAGETYPE_PNG) {
-        png_write_end(png_ptr, info_ptr);
-        png_destroy_write_struct(&png_ptr, &info_ptr);
-    } else if (imagetype==IMAGETYPE_JPG) {
+		png_write_end(png_ptr, info_ptr);
+		png_destroy_write_struct(&png_ptr, &info_ptr);
+	} else if (imagetype==IMAGETYPE_JPG) {
 		jpeg_finish_compress(&cinfo);
 		jpeg_destroy_compress(&cinfo);
 	}
 
-    free(imgline);
+	free(imgline);
 
-    fclose(fd);
+	fclose(fd);
 	fprintf(stdout,"Done!\n");
 	fflush(stdout);
 }
