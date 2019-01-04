@@ -1,5 +1,8 @@
 /********************************************************************************
-* ITWOM version 3.0a, January 20, 2011  File: itwom3.0a.cpp                     *
+* Irregular Terrain With Obstructions Model (ITWOM)                             *
+*                                                                               *
+* Version 3.0b, January 2, 2019  File: itwom3.0.c                               *
+*                                                                               *
 * Provenance:   Further test version of itwom2.0m re adj to Hrzn range factors  *
 * 1. This file is based on a thorough debugging, completion, and update of the  *
 * ITM, based on an original, public domain version of this file obtained from:  *
@@ -21,7 +24,7 @@
 * Sid Shumate, of multiple corrections, the replacement of subroutines lrprop   *
 * and alos with lrprop2 and alos2, and the addition of subroutine saalos to     *
 * incorporate Radiative Transfer Engine (RTE) computations in the line of sight *
-* range.									*
+* range.									                                    *
 * Update 8 Jun 2010 to modify alos to match 2010 series of IEEE-BTS             *
 * newsletter articles                                                           *
 * Update June 12, 2010 to z version to change test outputs                      *
@@ -31,6 +34,8 @@
 * Development to 2.0c 8 Aug 2010 after modifying saalos and adiff for full      *
 * addition of saalos treatment to post obstruction calculations and debugging.  *
 * Modified to make 1st obs loss=5.8 only, no clutter loss considered            *
+* Updated to 3.0b after much cleanup, conversion to pure C, and added           *
+* documentation by Michel Hoche-Mong.                                           *
 *                                                                               *
 * Commented out unused variables and calculations to eliminate gcc warnings     *
 *    (-Wunused-but-set-variable)  -- John A. Magliacane -- July 25, 2013        *
