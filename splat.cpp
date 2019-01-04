@@ -4196,7 +4196,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	north, south, east, west, minwest;
 	FILE *fd;
 
-	Pixel pixel;
+	Pixel pixel = 0;
 	unsigned char *imgline = NULL;
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
@@ -4345,6 +4345,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 					PNG_INTERLACE_NONE,
 					PNG_COMPRESSION_TYPE_DEFAULT,
 					PNG_FILTER_TYPE_BASE);
+		png_set_compression_level(png_ptr, 6);  /* default is Z_DEFAULT_COMPRESSION; see zlib.h */
 		png_write_info(png_ptr, info_ptr);
 		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
 	} else if (imagetype == IMAGETYPE_JPG) {
@@ -4544,7 +4545,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	north, south, east, west, minwest;
 	FILE *fd;
 
-	Pixel pixel;
+	Pixel pixel = 0;
 	unsigned char *imgline = NULL;
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
@@ -4735,6 +4736,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 					PNG_INTERLACE_NONE,
 					PNG_COMPRESSION_TYPE_DEFAULT,
 					PNG_FILTER_TYPE_BASE);
+		png_set_compression_level(png_ptr, 6);  /* default is Z_DEFAULT_COMPRESSION; see zlib.h */
 		png_write_info(png_ptr, info_ptr);
 		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
 	} else if (imagetype == IMAGETYPE_JPG) {
@@ -5086,7 +5088,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	north, south, east, west, minwest;
 	FILE *fd;
 
-	Pixel pixel;
+	Pixel pixel = 0;
 	unsigned char *imgline = NULL;
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
@@ -5276,6 +5278,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 					PNG_INTERLACE_NONE,
 					PNG_COMPRESSION_TYPE_DEFAULT,
 					PNG_FILTER_TYPE_BASE);
+		png_set_compression_level(png_ptr, 6);  /* default is Z_DEFAULT_COMPRESSION; see zlib.h */
 		png_write_info(png_ptr, info_ptr);
 		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
 	} else if (imagetype == IMAGETYPE_JPG) {
@@ -5667,7 +5670,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	north, south, east, west, minwest;
 	FILE *fd;
 
-	Pixel pixel;
+	Pixel pixel = 0;
 	unsigned char *imgline = NULL;
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
@@ -5857,6 +5860,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 					PNG_INTERLACE_NONE,
 					PNG_COMPRESSION_TYPE_DEFAULT,
 					PNG_FILTER_TYPE_BASE);
+		png_set_compression_level(png_ptr, 6);  /* default is Z_DEFAULT_COMPRESSION; see zlib.h */
 		png_write_info(png_ptr, info_ptr);
 		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
 	} else if (imagetype == IMAGETYPE_JPG) {
