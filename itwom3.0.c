@@ -2330,6 +2330,12 @@ double qerf(const double z)
  * range is a specific interquartile range, computed as the difference between
  * the 10th and 90th percentiles.
  *
+ * pfl[]: profile elevation array, with:
+ *		  pfl[0]: number of points in pfl
+ *		  pfl[1]: distance between points in pfl (in meters)
+ *	x1: start point along the pfl path, in meters
+ *	x2: end point along the pfl path, in meters
+ *
  * See notes for d1thx2(), the newer version, below. This version is only used
  * with ITM 1.2.2.
  *
@@ -2341,27 +2347,30 @@ double d1thx(double pfl[], const double x1, const double x2)
 	double *s;
 
 	np=(int)pfl[0];
-	xa=x1/pfl[1];
-	xb=x2/pfl[1];
+	xa=x1/pfl[1];                  /* start point's array element */
+	xb=x2/pfl[1];                  /* end point's array element */
 	d1thxv=0.0;
 
-	if (xb-xa<2.0)
+	if (xb-xa<2.0) 
 		return d1thxv;
 
-	ka=(int)(0.1*(xb-xa+8.0));
-	ka=min(max(4,ka),25);
-	n=10*ka-5;
-	kb=n-ka+1;
-	sn=n-1;
+	ka=(int)(0.1*(xb-xa+8.0));     /* from 32 to 242 points */
+	ka=min(max(4,ka),25);          /* ka can range from 4-25. */
+	n=10*ka-5;                     /* n can range from 35-245 */
+	kb=n-ka+1;                     /* kb can range from 32-221 */
+	sn=n-1;                        /* index of last path element to consider */
 
     s = (double*)calloc(n+2, sizeof(double));
 	assert(s!=NULL);
 	s[0]=sn;
 	s[1]=1.0;
-	xb=(xb-xa)/sn;
-	k=(int)(xa+1.0);
-	xa-=(double)k;
 
+	xb=(xb-xa)/sn;                 /* rescale xb to the new distance */
+
+	k=(int)(xa+1.0);
+	xa-=(double)k;                 /* xa now ranges from -1.0 to near 0 */
+
+    /* Load up a temporary height array, smoothed */
 	for (j=0; j<n; j++)
 	{
 		while (xa>0.0 && k<np)
@@ -2374,17 +2383,27 @@ double d1thx(double pfl[], const double x1, const double x2)
 		xa=xa+xb;
 	}
 
+    /* Do a least-squares fit of the terrain from point 0.0 to sn meters out
+	   returning the heights of the endpoints in xa and xb */
 	z1sq1(s,0.0,sn,&xa,&xb);
-	xb=(xb-xa)/sn;
+
+	xb=(xb-xa)/sn;      /* xa and xb are now heights, so xb is now a slope */
 
 	for (j=0; j<n; j++)
 	{
-		s[j+2]-=xa;
+		s[j+2]-=xa; /* difference between the original height and new slope */
 		xa=xa+xb;
 	}
 
+	/* Now find the difference between the 90% and 10% heights.
+	 * These two qtiles calls take a (relatively) enormous amount of
+	 * processing time. See notes in d1thx2() below. Here they are limited to
+	 * a max of 245 elements so it's not so bad. */
 	d1thxv=qtile(n-1,s+2,ka-1)-qtile(n-1,s+2,kb-1);
+
+	/* apply empirical data matching magic scaling. See ITWOM p124. */
 	d1thxv/=1.0-0.8*exp(-(x2-x1)/50.0e3);
+
     free(s);
 
 	return d1thxv;
@@ -2401,8 +2420,8 @@ double d1thx(double pfl[], const double x1, const double x2)
  * pfl[]: profile elevation array, with:
  *		  pfl[0]: number of points in pfl
  *		  pfl[1]: distance between points in pfl (in meters)
- *	x1: start point in meters
- *	x2: end point in meters
+ *	x1: start point along the pfl path, in meters
+ *	x2: end point along the pfl path, in meters
  *
  * returns the delta h
  *
@@ -2415,27 +2434,32 @@ double d1thx2(double pfl[], const double x1, const double x2)
 	double *s;
 
 	np=(int)pfl[0];
-	xa=x1/pfl[1];
-	xb=x2/pfl[1];
+	xa=x1/pfl[1];                  /* start point's array element */
+	xb=x2/pfl[1];                  /* end point's array element */
 	d1thx2v=0.0;
 
 	if (xb-xa<2.0)
 		return d1thx2v;
 
+    /* Compare this section to d1thx() above. */
 	ka=(int)(0.1*(xb-xa+8.0));
-	kmx=max(25,(int)(83350/(pfl[1])));
-	ka=min(max(4,ka),kmx);
+	kmx=max(25,(int)(83350/(pfl[1]))); /* Sid's fix: dynamically figure out the max elements */
+	ka=min(max(4,ka),kmx);         /* range from 4 to kmax */
 	n=10*ka-5;
 	kb=n-ka+1;
 	sn=n-1;
+
     s = (double*)calloc(n+2, sizeof(double));
 	assert(s!=NULL);
 	s[0]=sn;
 	s[1]=1.0;
-	xb=(xb-xa)/sn;
-	k=(trunc(xa+1.0));
-	xc=xa-((double)k);
+
+	xb=(xb-xa)/sn;                  /* rescale xb to the new distance */
+
+	k=(trunc(xa+1.0));              /* was a cast to int. trunc() works too. */
+	xc=xa-((double)k);              /* xa now ranges from -1.0 to near 0 */
 	
+    /* Load up a temporary height array, smoothed */
 	for (j=0; j<n; j++)
 	{
 		while (xc>0.0 && k<np)
@@ -2448,28 +2472,27 @@ double d1thx2(double pfl[], const double x1, const double x2)
 		xc=xc+xb;
 	}
 
+    /* Do a least-squares fit of the terrain from point 0.0 to sn meters out
+	   returning the heights of the endpoints in xa and xb */
 	z1sq2(s,0.0,sn,&xa,&xb);
-	xb=(xb-xa)/sn;
+
+	xb=(xb-xa)/sn;      /* xa and xb are now heights, so xb is now a slope */
 	
 	for (j=0; j<n; j++)
 	{
-		s[j+2]-=xa;
+		s[j+2]-=xa; /* difference between the original height and new slope */
 		xa=xa+xb;
 	}
 
-	/*
-	 * qtile() returns a quantile. It's called twice on the same array s, using the same path
-	 * length (n-1), once for quantile (ka-1), the 90th percentile quantile, and the second
-	 * time for quantile (kb-1), the 10th percentile quantile.
-	 *
-	 * (We start at s+2 because the locations s[0] and s[1] store the increment
-	 * length and quantity values; the elevations start at s[2].)
-	 *
-	 * By far the greatest amount of processing time is spent in these two qtile calls, which
-	 * for "normal" splat (not HD) can have 500-700 elements.
+	/* Now find the difference between the 90% and 10% heights.
+	 * By far the greatest amount of processing time is spent in these two
+	 * qtile calls, which for "normal" splat (not HD) can have 500-700 elements.
 	 */
 	d1thx2v=qtile(n-1,s+2,ka-1)-qtile(n-1,s+2,kb-1);
+
+	/* apply empirical data matching magic scaling. See ITWOM p124. */
 	d1thx2v/=1.0-0.8*exp(-(x2-x1)/50.0e3);
+
     free(s);
 
 	return d1thx2v;
