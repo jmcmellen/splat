@@ -303,19 +303,19 @@ private:
 };
 
 /*****************************
- * Image writing functions
+ * Image writing functions. This should just be a class.
  *****************************/
 
 typedef struct ImageWriter_st
 {
-    bool initialized;
+	bool initialized;
 
-    FILE *fp;
-    ImageType imagetype;
-    int width;
-    int height;
+	FILE *fp;
+	ImageType imagetype;
+	int width;
+	int height;
 
-    int xoffset;
+	int xoffset;
 
 	unsigned char *imgline;
 
@@ -331,102 +331,102 @@ int ImageWriterInit(ImageWriter *iw, const char* filename, ImageType imagetype, 
 	memset(iw, 0, sizeof(ImageWriter));
 
 	if ( (iw->fp=fopen(filename,"wb")) == NULL) {
-        return -1;
-    }
+		return -1;
+	}
     
-    iw->imagetype = imagetype;
-    iw->width = width;
-    iw->height = height;
-    iw->xoffset = 0;
+	iw->imagetype = imagetype;
+	iw->width = width;
+	iw->height = height;
+	iw->xoffset = 0;
 
-    iw->imgline = (unsigned char*)malloc(3 * width);
+	iw->imgline = (unsigned char*)malloc(3 * width);
 
-    // XXX TODO: error handling
-    switch (iw->imagetype) {
-        case IMAGETYPE_PNG:
-            iw->png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-            iw->info_ptr = png_create_info_struct(iw->png_ptr);
-            png_init_io(iw->png_ptr, iw->fp);
-            png_set_IHDR(iw->png_ptr, iw->info_ptr,
-                        iw->width, iw->height,
-                        8, /* 8 bits per color or 24 bits per pixel for RGB */
-                        PNG_COLOR_TYPE_RGB,
-                        PNG_INTERLACE_NONE,
-                        PNG_COMPRESSION_TYPE_DEFAULT,
-                        PNG_FILTER_TYPE_BASE);
-            png_set_compression_level(iw->png_ptr, 6);  /* default is Z_DEFAULT_COMPRESSION; see zlib.h */
-            png_write_info(iw->png_ptr, iw->info_ptr);
-            break;
-        case IMAGETYPE_JPG:
-            iw->cinfo.err = jpeg_std_error(&iw->jerr);
-            jpeg_create_compress(&iw->cinfo);
-            jpeg_stdio_dest(&iw->cinfo, iw->fp);
-            iw->cinfo.image_width = iw->width;
-            iw->cinfo.image_height = iw->height;
-            iw->cinfo.input_components = 3;	   /* # of color components per pixel */
-            iw->cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
-            jpeg_set_defaults(&iw->cinfo); /* default compression */
-            jpeg_set_quality(&iw->cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
-            jpeg_start_compress(&iw->cinfo, TRUE); /* start compressor. */
-            break;
-        default: /* PPM */
-            fprintf(iw->fp,"P6\n%u %u\n255\n",iw->width,iw->height);
-    }
+	// XXX TODO: error handling
+	switch (iw->imagetype) {
+		case IMAGETYPE_PNG:
+			iw->png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+			iw->info_ptr = png_create_info_struct(iw->png_ptr);
+			png_init_io(iw->png_ptr, iw->fp);
+			png_set_IHDR(iw->png_ptr, iw->info_ptr,
+						 iw->width, iw->height,
+						 8, /* 8 bits per color or 24 bits per pixel for RGB */
+						 PNG_COLOR_TYPE_RGB,
+						 PNG_INTERLACE_NONE,
+						 PNG_COMPRESSION_TYPE_DEFAULT,
+						 PNG_FILTER_TYPE_BASE);
+			png_set_compression_level(iw->png_ptr, 6);  /* default is Z_DEFAULT_COMPRESSION; see zlib.h */
+			png_write_info(iw->png_ptr, iw->info_ptr);
+			break;
+		case IMAGETYPE_JPG:
+			iw->cinfo.err = jpeg_std_error(&iw->jerr);
+			jpeg_create_compress(&iw->cinfo);
+			jpeg_stdio_dest(&iw->cinfo, iw->fp);
+			iw->cinfo.image_width = iw->width;
+			iw->cinfo.image_height = iw->height;
+			iw->cinfo.input_components = 3;	   /* # of color components per pixel */
+			iw->cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
+			jpeg_set_defaults(&iw->cinfo); /* default compression */
+			jpeg_set_quality(&iw->cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
+			jpeg_start_compress(&iw->cinfo, TRUE); /* start compressor. */
+			break;
+		default: /* PPM */
+			fprintf(iw->fp,"P6\n%u %u\n255\n",iw->width,iw->height);
+	}
 
-    iw->initialized = true;
-    return 0;
+	iw->initialized = true;
+	return 0;
 }
 
 void ImageWriterAppendPixel(ImageWriter *iw, Pixel pixel)
 {
-    if (!iw->initialized)
-        return;
-    
-    if ((iw->xoffset+3) > (iw->width*3)) {
-        return;
-    }
+	if (!iw->initialized)
+		return;
 
-    iw->imgline[iw->xoffset++]=GetRValue(pixel);
-    iw->imgline[iw->xoffset++]=GetGValue(pixel);
-    iw->imgline[iw->xoffset++]=GetBValue(pixel);
+	if ((iw->xoffset+3) > (iw->width*3)) {
+		return;
+	}
+
+	iw->imgline[iw->xoffset++]=GetRValue(pixel);
+	iw->imgline[iw->xoffset++]=GetGValue(pixel);
+	iw->imgline[iw->xoffset++]=GetBValue(pixel);
 }
 
 void ImageWriterEmitLine(ImageWriter *iw)
 {
-    if (!iw->initialized)
-        return;
-    
-    switch (iw->imagetype) {
-        case IMAGETYPE_PNG:
+	if (!iw->initialized)
+		return;
+
+	switch (iw->imagetype) {
+		case IMAGETYPE_PNG:
 			png_write_row(iw->png_ptr, (png_bytep)(iw->imgline));
-            break;
-        case IMAGETYPE_JPG:
+			break;
+		case IMAGETYPE_JPG:
 			jpeg_write_scanlines(&iw->cinfo, &iw->imgline, 1);
-            break;
-        default:
+			break;
+		default:
 			fwrite(iw->imgline, 3, iw->width, iw->fp);
-            break;
-    }
-    iw->xoffset = 0;
+			break;
+	}
+	iw->xoffset = 0;
 }
 
 void ImageWriterFinish(ImageWriter *iw)
 {
-    if (!iw->initialized)
-        return;
-    
-    switch (iw->imagetype) {
-        case IMAGETYPE_PNG:
-            png_write_end(iw->png_ptr, iw->info_ptr);
-            png_destroy_write_struct(&iw->png_ptr, &iw->info_ptr);
-            break;
-        case IMAGETYPE_JPG:
-            jpeg_finish_compress(&iw->cinfo);
-            jpeg_destroy_compress(&iw->cinfo);
-            break;
-        default:
-            /* do nothing */
-            ;
+	if (!iw->initialized)
+		return;
+
+	switch (iw->imagetype) {
+		case IMAGETYPE_PNG:
+			png_write_end(iw->png_ptr, iw->info_ptr);
+			png_destroy_write_struct(&iw->png_ptr, &iw->info_ptr);
+			break;
+		case IMAGETYPE_JPG:
+			jpeg_finish_compress(&iw->cinfo);
+			jpeg_destroy_compress(&iw->cinfo);
+			break;
+		default:
+			/* do nothing */
+			;
 	}
 
 	fclose(iw->fp);
@@ -565,6 +565,27 @@ char *dec2dms(double decimal)
 /*****************************
  * Functions for manipulating the data in the DEM array.
  *****************************/
+
+int FindDEM(double lat, double lon, int &x, int &y)
+{
+	/* Returns the index of the DEM containing the lat/long,
+	 * or -1 if not found.
+	 *
+	 * x and y will contain the offsets into the DEM array of
+	 * the coordinate.
+	 */
+
+	for (int i=0; i<MAXPAGES; ++i)
+	{
+		x=(int)rint(ppd*(lat-dem[i].min_north));
+		y=mpi-(int)rint(ppd*(LonDiff(dem[i].max_west,lon)));
+
+		if (x>=0 && x<=mpi && y>=0 && y<=mpi)
+			return i;
+	}
+	return -1;
+}
+
 int PutMask(double lat, double lon, int value)
 {
 	/* Lines, text, markings, and coverage areas are stored in a
@@ -574,20 +595,9 @@ int PutMask(double lat, double lon, int value)
 	   area pointed to. */
 
 	int	x, y, indx;
-	char	found;
 
-	for (indx=0, found=0; indx<MAXPAGES && found==0;)
-	{
-		x=(int)rint(ppd*(lat-dem[indx].min_north));
-		y=mpi-(int)rint(ppd*(LonDiff(dem[indx].max_west,lon)));
-
-		if (x>=0 && x<=mpi && y>=0 && y<=mpi)
-			found=1;
-		else
-			indx++;
-	}
-
-	if (found)
+	indx = FindDEM(lat, lon, x, y);
+	if (indx>=0)
 	{
 		dem[indx].mask[x][y]=value;
 		return ((int)dem[indx].mask[x][y]);
@@ -606,20 +616,9 @@ int OrMask(double lat, double lon, int value)
 	   pointed to. */
 
 	int	x, y, indx;
-	char	found;
 
-	for (indx=0, found=0; indx<MAXPAGES && found==0;)
-	{
-		x=(int)rint(ppd*(lat-dem[indx].min_north));
-		y=mpi-(int)rint(ppd*(LonDiff(dem[indx].max_west,lon)));
-
-		if (x>=0 && x<=mpi && y>=0 && y<=mpi)
-			found=1;
-		else
-			indx++;
-	}
-
-	if (found)
+	indx = FindDEM(lat, lon, x, y);
+	if (indx>=0)
 	{
 		dem[indx].mask[x][y]|=value;
 		return ((int)dem[indx].mask[x][y]);
@@ -643,20 +642,9 @@ int PutSignal(double lat, double lon, unsigned char signal)
 	   at the specified location for later recall. */
 
 	int	x, y, indx;
-	char	found;
 
-	for (indx=0, found=0; indx<MAXPAGES && found==0;)
-	{
-		x=(int)rint(ppd*(lat-dem[indx].min_north));
-		y=mpi-(int)rint(ppd*(LonDiff(dem[indx].max_west,lon)));
-
-		if (x>=0 && x<=mpi && y>=0 && y<=mpi)
-			found=1;
-		else
-			indx++;
-	}
-
-	if (found)
+	indx = FindDEM(lat, lon, x, y);
+	if (indx>=0)
 	{
 		dem[indx].signal[x][y]=signal;
 		return (dem[indx].signal[x][y]);
@@ -673,20 +661,9 @@ unsigned char GetSignal(double lat, double lon)
 	   complimentary PutSignal() function. */
 
 	int	x, y, indx;
-	char	found;
 
-	for (indx=0, found=0; indx<MAXPAGES && found==0;)
-	{
-		x=(int)rint(ppd*(lat-dem[indx].min_north));
-		y=mpi-(int)rint(ppd*(LonDiff(dem[indx].max_west,lon)));
-
-		if (x>=0 && x<=mpi && y>=0 && y<=mpi)
-			found=1;
-		else
-			indx++;
-	}
-
-	if (found)
+	indx = FindDEM(lat, lon, x, y);
+	if (indx>=0)
 		return (dem[indx].signal[x][y]);
 	else
 		return 0;
@@ -698,22 +675,11 @@ double GetElevation(Site location)
 	   represented by the digital elevation model data in memory.
 	   Function returns -5000.0 for locations not found in memory. */
 
-	char	found;
 	int	x, y, indx;
 	double	elevation;
 
-	for (indx=0, found=0; indx<MAXPAGES && found==0;)
-	{
-		x=(int)rint(ppd*(location.lat-dem[indx].min_north));
-		y=mpi-(int)rint(ppd*(LonDiff(dem[indx].max_west,location.lon)));
-
-		if (x>=0 && x<=mpi && y>=0 && y<=mpi)
-			found=1;
-		else
-			indx++;
-	}
-
-	if (found)
+	indx = FindDEM(location.lat, location.lon, x, y);
+	if (indx>=0)
 		elevation=3.28084*dem[indx].data[x][y];
 	else
 		elevation=-5000.0;
@@ -728,24 +694,13 @@ int AddElevation(double lat, double lon, double height)
 	   in memory.  Does nothing and returns 0 for locations
 	   not found in memory. */
 
-	char	found;
 	int	x, y, indx;
 
-	for (indx=0, found=0; indx<MAXPAGES && found==0;)
-	{
-		x=(int)rint(ppd*(lat-dem[indx].min_north));
-		y=mpi-(int)rint(ppd*(LonDiff(dem[indx].max_west,lon)));
-
-		if (x>=0 && x<=mpi && y>=0 && y<=mpi)
-			found=1;
-		else
-			indx++;
-	}
-
-	if (found)
+	indx = FindDEM(lat, lon, x, y);
+	if (indx>=0)
 		dem[indx].data[x][y]+=(short)rint(height);
 
-	return found;
+	return (indx>=0);
 }
 
 int SetElevation(double lat, double lon, double height)
@@ -758,24 +713,13 @@ int SetElevation(double lat, double lon, double height)
 	   above mean sea level is known.  Returns 0 for locations
 	   not found in memory. */
 
-	char	found;
 	int x, y, indx;
 
-	for (indx=0, found=0; indx<MAXPAGES && found==0;)
-	{
-		x=(int)rint(ppd*(lat-dem[indx].min_north));
-		y=mpi-(int)rint(ppd*(LonDiff(dem[indx].max_west,lon)));
-
-		if (x>=0 && x<=mpi && y>=0 && y<=mpi)
-			found=1;
-		else
-			indx++;
-	}
-
-	if (found)
+	indx = FindDEM(lat, lon, x, y);
+	if (indx>=0)
 		dem[indx].data[x][y]=(short)rint(height);
 
-	return found;
+	return (indx>=0);
 }
 
 
