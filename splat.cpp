@@ -2359,7 +2359,7 @@ char LoadSDF(char *name)
 			for (x=0; x<ippd; x++)
 				for (y=0; y<ippd; y++)
 				{
-						dem[indx].data[x][y]=0;
+					dem[indx].data[x][y]=0;
 					dem[indx].signal[x][y]=0;
 					dem[indx].mask[x][y]=0;
 
@@ -4263,7 +4263,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	   up and east points right in the image generated. */
 
 	char mapfile[255], geofile[255], kmlfile[255];
-	unsigned char found, mask;
+	unsigned char mask;
 	unsigned width, height, terrain;
 	int indx, x, y, x0=0, y0=0;
 	double lat, lon, conversion, one_over_gamma,
@@ -4415,18 +4415,8 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 			if (lon<0.0)
 				lon+=360.0;
 
-			for (indx=0, found=0; indx<MAXPAGES && found==0;)
-			{
-				x0=(int)rint(ppd*(lat-(double)dem[indx].min_north));
-				y0=mpi-(int)rint(ppd*(LonDiff((double)dem[indx].max_west,lon)));
-
-				if (x0>=0 && x0<=mpi && y0>=0 && y0<=mpi)
-					found=1;
-				else
-					indx++;
-			}
-
-			if (found)
+			indx = FindDEM(lat, lon, x0, y0);
+			if (indx>=0)
 			{
 				mask=dem[indx].mask[x0][y0];
 
@@ -4563,7 +4553,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	char mapfile[255], geofile[255], kmlfile[255],  ckfile[255];
 	unsigned int width, height, red, green, blue, terrain=0;
     unsigned int imgheight, imgwidth;
-	unsigned char found, mask;
+	unsigned char mask;
 	int indx, x, y, z, colorwidth, x0, y0, loss, level,
 		hundreds, tens, units, match;
 	double lat, lon, conversion, one_over_gamma,
@@ -4757,18 +4747,8 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 			if (lon<0.0)
 				lon+=360.0;
 
-			for (indx=0, found=0; indx<MAXPAGES && found==0;)
-			{
-				x0=(int)rint(ppd*(lat-(double)dem[indx].min_north));
-				y0=mpi-(int)rint(ppd*(LonDiff((double)dem[indx].max_west,lon)));
-
-				if (x0>=0 && x0<=mpi && y0>=0 && y0<=mpi)
-					found=1;
-				else
-					indx++;
-			}
-
-			if (found)
+			indx = FindDEM(lat, lon, x0, y0);
+			if (indx>=0)
 			{
 				mask=dem[indx].mask[x0][y0];
 				loss=(dem[indx].signal[x0][y0]);
@@ -5045,7 +5025,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	char mapfile[255], geofile[255], kmlfile[255], ckfile[255];
 	unsigned width, height, terrain, red, green, blue;
     unsigned int imgheight, imgwidth;
-	unsigned char found, mask;
+	unsigned char mask;
 	int indx, x, y, z=1, x0, y0, signal, level, hundreds,
 		tens, units, match, colorwidth;
 	double conversion, one_over_gamma, lat, lon,
@@ -5238,18 +5218,8 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 			if (lon<0.0)
 				lon+=360.0;
 
-			for (indx=0, found=0; indx<MAXPAGES && found==0;)
-			{
-				x0=(int)rint(ppd*(lat-(double)dem[indx].min_north));
-				y0=mpi-(int)rint(ppd*(LonDiff((double)dem[indx].max_west,lon)));
-
-				if (x0>=0 && x0<=mpi && y0>=0 && y0<=mpi)
-					found=1;
-				else
-					indx++;
-			}
-
-			if (found)
+			indx = FindDEM(lat, lon, x0, y0);
+			if (indx>=0)
 			{
 				mask=dem[indx].mask[x0][y0];
 				signal=(dem[indx].signal[x0][y0])-100;
@@ -5567,7 +5537,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	char mapfile[255], geofile[255], kmlfile[255], ckfile[255];
 	unsigned width, height, terrain, red, green, blue;
     unsigned int imgheight, imgwidth;
-	unsigned char found, mask;
+	unsigned char mask;
 	int indx, x, y, z=1, x0, y0, dBm, level, hundreds,
 		tens, units, match, colorwidth;
 	double conversion, one_over_gamma, lat, lon,
@@ -5760,18 +5730,8 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 			if (lon<0.0)
 				lon+=360.0;
 
-			for (indx=0, found=0; indx<MAXPAGES && found==0;)
-			{
-				x0=(int)rint(ppd*(lat-(double)dem[indx].min_north));
-				y0=mpi-(int)rint(ppd*(LonDiff((double)dem[indx].max_west,lon)));
-
-				if (x0>=0 && x0<=mpi && y0>=0 && y0<=mpi)
-					found=1;
-				else
-					indx++;
-			}
-
-			if (found)
+			indx = FindDEM(lat, lon, x0, y0);
+			if (indx>=0)
 			{
 				mask=dem[indx].mask[x0][y0];
 				dBm=(dem[indx].signal[x0][y0])-200;
