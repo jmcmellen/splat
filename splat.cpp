@@ -225,10 +225,6 @@ Region region;
  */
 #define DEFAULT_JPEG_QUALITY 90
 
-#ifndef RGB_PIXELSIZE
-#define RGB_PIXELSIZE 3
-#endif
-
 typedef uint32_t Pixel;
 
 #define RGB(r,g,b) ( ((uint32_t)(uint8_t)r)|((uint32_t)((uint8_t)g)<<8)|((uint32_t)((uint8_t)b)<<16) )
@@ -256,6 +252,8 @@ typedef uint32_t Pixel;
 #define COLOR_MEDIUMBLUE		RGB(0,0,170)
 #define COLOR_WHITE				RGB(255,255,255)
 #define COLOR_BLACK				RGB(0,0,0)
+
+
 
 
 /*****************************
@@ -303,6 +301,138 @@ public:
 private:
 	bool run;
 };
+
+/*****************************
+ * Image writing functions
+ *****************************/
+
+typedef struct ImageWriter_st
+{
+    bool initialized;
+
+    FILE *fp;
+    ImageType imagetype;
+    int width;
+    int height;
+
+    int xoffset;
+
+	unsigned char *imgline;
+
+	png_structp png_ptr;
+	png_infop info_ptr;
+
+	struct jpeg_compress_struct cinfo;
+	struct jpeg_error_mgr jerr;
+} ImageWriter;
+
+int ImageWriterInit(ImageWriter *iw, const char* filename, ImageType imagetype, int width, int height)
+{
+	memset(iw, 0, sizeof(ImageWriter));
+
+	if ( (iw->fp=fopen(filename,"wb")) == NULL) {
+        return -1;
+    }
+    
+    iw->imagetype = imagetype;
+    iw->width = width;
+    iw->height = height;
+    iw->xoffset = 0;
+
+    iw->imgline = (unsigned char*)malloc(3 * width);
+
+    // XXX TODO: error handling
+    switch (iw->imagetype) {
+        case IMAGETYPE_PNG:
+            iw->png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+            iw->info_ptr = png_create_info_struct(iw->png_ptr);
+            png_init_io(iw->png_ptr, iw->fp);
+            png_set_IHDR(iw->png_ptr, iw->info_ptr,
+                        iw->width, iw->height,
+                        8, /* 8 bits per color or 24 bits per pixel for RGB */
+                        PNG_COLOR_TYPE_RGB,
+                        PNG_INTERLACE_NONE,
+                        PNG_COMPRESSION_TYPE_DEFAULT,
+                        PNG_FILTER_TYPE_BASE);
+            png_set_compression_level(iw->png_ptr, 6);  /* default is Z_DEFAULT_COMPRESSION; see zlib.h */
+            png_write_info(iw->png_ptr, iw->info_ptr);
+            break;
+        case IMAGETYPE_JPG:
+            iw->cinfo.err = jpeg_std_error(&iw->jerr);
+            jpeg_create_compress(&iw->cinfo);
+            jpeg_stdio_dest(&iw->cinfo, iw->fp);
+            iw->cinfo.image_width = iw->width;
+            iw->cinfo.image_height = iw->height;
+            iw->cinfo.input_components = 3;	   /* # of color components per pixel */
+            iw->cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
+            jpeg_set_defaults(&iw->cinfo); /* default compression */
+            jpeg_set_quality(&iw->cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
+            jpeg_start_compress(&iw->cinfo, TRUE); /* start compressor. */
+            break;
+        default: /* PPM */
+            fprintf(iw->fp,"P6\n%u %u\n255\n",iw->width,iw->height);
+    }
+
+    iw->initialized = true;
+    return 0;
+}
+
+void ImageWriterAppendPixel(ImageWriter *iw, Pixel pixel)
+{
+    if (!iw->initialized)
+        return;
+    
+    if ((iw->xoffset+3) > (iw->width*3)) {
+        return;
+    }
+
+    iw->imgline[iw->xoffset++]=GetRValue(pixel);
+    iw->imgline[iw->xoffset++]=GetGValue(pixel);
+    iw->imgline[iw->xoffset++]=GetBValue(pixel);
+}
+
+void ImageWriterEmitLine(ImageWriter *iw)
+{
+    if (!iw->initialized)
+        return;
+    
+    switch (iw->imagetype) {
+        case IMAGETYPE_PNG:
+			png_write_row(iw->png_ptr, (png_bytep)(iw->imgline));
+            break;
+        case IMAGETYPE_JPG:
+			jpeg_write_scanlines(&iw->cinfo, &iw->imgline, 1);
+            break;
+        default:
+			fwrite(iw->imgline, 3, iw->width, iw->fp);
+            break;
+    }
+    iw->xoffset = 0;
+}
+
+void ImageWriterFinish(ImageWriter *iw)
+{
+    if (!iw->initialized)
+        return;
+    
+    switch (iw->imagetype) {
+        case IMAGETYPE_PNG:
+            png_write_end(iw->png_ptr, iw->info_ptr);
+            png_destroy_write_struct(&iw->png_ptr, &iw->info_ptr);
+            break;
+        case IMAGETYPE_JPG:
+            jpeg_finish_compress(&iw->cinfo);
+            jpeg_destroy_compress(&iw->cinfo);
+            break;
+        default:
+            /* do nothing */
+            ;
+	}
+
+	fclose(iw->fp);
+	free(iw->imgline);
+}
+
 
 
 /*****************************
@@ -4197,11 +4327,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	FILE *fd;
 
 	Pixel pixel = 0;
-	unsigned char *imgline = NULL;
-	struct jpeg_compress_struct cinfo;
-	struct jpeg_error_mgr jerr;
-	png_structp png_ptr = NULL;
-	png_infop info_ptr = NULL;
+    ImageWriter iw;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -4329,41 +4455,14 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 		fclose(fd);
 	}
 
-	fd=fopen(mapfile,"wb");
-
-	fprintf(stdout,"\nWriting \"%s\" (%ux%u image)... ",mapfile,width,height);
+	fprintf(stdout,"Writing \"%s\" (%ux%u image)...\n",mapfile,width,height);
 	fflush(stdout);
 
-	if (imagetype == IMAGETYPE_PNG) {
-		png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-		info_ptr = png_create_info_struct(png_ptr);
-		png_init_io(png_ptr, fd);
-		png_set_IHDR(png_ptr, info_ptr,
-					width, height,
-					8, /* 8 bits per color or 24 bits per pixel for RGB */
-					PNG_COLOR_TYPE_RGB,
-					PNG_INTERLACE_NONE,
-					PNG_COMPRESSION_TYPE_DEFAULT,
-					PNG_FILTER_TYPE_BASE);
-		png_set_compression_level(png_ptr, 6);  /* default is Z_DEFAULT_COMPRESSION; see zlib.h */
-		png_write_info(png_ptr, info_ptr);
-		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
-	} else if (imagetype == IMAGETYPE_JPG) {
-		cinfo.err = jpeg_std_error(&jerr);
-		jpeg_create_compress(&cinfo);
-		jpeg_stdio_dest(&cinfo, fd);
-		cinfo.image_width = width;
-		cinfo.image_height = height;
-		cinfo.input_components = 3;	   /* # of color components per pixel */
-		cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
-		jpeg_set_defaults(&cinfo); /* default compression */
-		jpeg_set_quality(&cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
-		jpeg_start_compress(&cinfo, TRUE); /* start compressor. */
-		imgline = (JSAMPROW)malloc(sizeof(JSAMPLE) * RGB_PIXELSIZE * width);
-	} else {
-		fprintf(fd,"P6\n%u %u\n255\n",width,height);
-		imgline = (unsigned char*)malloc(3 * width);
-	}
+    if (ImageWriterInit(&iw,mapfile,imagetype,width,height)<0) {
+        fprintf(stdout,"\nError writing \"%s\"!\n",mapfile);
+        fflush(stdout);
+        return;
+    }
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
 	{
@@ -4497,32 +4596,14 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 				pixel=COLOR_BLACK;
 			}
 
-			imgline[x*3]=GetRValue(pixel);
-			imgline[x*3+1]=GetGValue(pixel);
-			imgline[x*3+2]=GetBValue(pixel);
+            ImageWriterAppendPixel(&iw, pixel);
 		}
 
-        /* emit the line */
-		if (imagetype==IMAGETYPE_PNG) {
-			png_write_row(png_ptr, (png_bytep)imgline);
-		} else if (imagetype==IMAGETYPE_JPG) {
-			jpeg_write_scanlines(&cinfo, &imgline, 1);
-		} else {
-			fwrite(imgline, RGB_PIXELSIZE, width, fd);
-		}
+        ImageWriterEmitLine(&iw);
 	}
 
-	if (imagetype==IMAGETYPE_PNG) {
-		png_write_end(png_ptr, info_ptr);
-		png_destroy_write_struct(&png_ptr, &info_ptr);
-	} else if (imagetype==IMAGETYPE_JPG) {
-		jpeg_finish_compress(&cinfo);
-		jpeg_destroy_compress(&cinfo);
-	}
+    ImageWriterFinish(&iw);
 
-	free(imgline);
-
-	fclose(fd);
 	fprintf(stdout,"Done!\n");
 	fflush(stdout);
 }
@@ -4546,11 +4627,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	FILE *fd;
 
 	Pixel pixel = 0;
-	unsigned char *imgline = NULL;
-	struct jpeg_compress_struct cinfo;
-	struct jpeg_error_mgr jerr;
-	png_structp png_ptr = NULL;
-	png_infop info_ptr = NULL;
+    ImageWriter iw;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -4707,8 +4784,6 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 		fclose(fd);
 	}
 
-	fd=fopen(mapfile,"wb");
-
 	if (kml || geo)
 	{
 		/* No bottom legend */
@@ -4725,37 +4800,11 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
     fprintf(stdout,"\nWriting LR map \"%s\" (%ux%u image)... ",mapfile,imgwidth,imgheight);
 	fflush(stdout);
 
-	if (imagetype == IMAGETYPE_PNG) {
-		png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-		info_ptr = png_create_info_struct(png_ptr);
-		png_init_io(png_ptr, fd);
-		png_set_IHDR(png_ptr, info_ptr,
-					imgwidth, imgheight,
-					8, /* 8 bits per color or 24 bits per pixel for RGB */
-					PNG_COLOR_TYPE_RGB,
-					PNG_INTERLACE_NONE,
-					PNG_COMPRESSION_TYPE_DEFAULT,
-					PNG_FILTER_TYPE_BASE);
-		png_set_compression_level(png_ptr, 6);  /* default is Z_DEFAULT_COMPRESSION; see zlib.h */
-		png_write_info(png_ptr, info_ptr);
-		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
-	} else if (imagetype == IMAGETYPE_JPG) {
-		cinfo.err = jpeg_std_error(&jerr);
-		jpeg_create_compress(&cinfo);
-		jpeg_stdio_dest(&cinfo, fd);
-		cinfo.image_width = imgwidth;
-		cinfo.image_height = imgheight;
-		cinfo.input_components = 3;	   /* # of color components per pixel */
-		cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
-		jpeg_set_defaults(&cinfo); /* default compression */
-		jpeg_set_quality(&cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
-		jpeg_start_compress(&cinfo, TRUE); /* start compressor. */
-		imgline = (JSAMPROW)malloc(sizeof(JSAMPLE) * RGB_PIXELSIZE * width);
-	} else {
-        fprintf(fd,"P6\n%u %u\n255\n",imgwidth,imgheight);
-		imgline = (unsigned char*)malloc(3 * width);
-	}
-
+    if (ImageWriterInit(&iw,mapfile,imagetype,imgwidth,imgheight)<0) {
+        fprintf(stdout,"\nError writing \"%s\"!\n",mapfile);
+        fflush(stdout);
+        return;
+    }
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
 	{
@@ -4875,19 +4924,10 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
                 pixel=COLOR_BLACK;
 			}
 
-            imgline[x*3]=GetRValue(pixel);
-            imgline[x*3+1]=GetGValue(pixel);
-            imgline[x*3+2]=GetBValue(pixel);
+            ImageWriterAppendPixel(&iw, pixel);
 		}
 
-        /* emit the line */
-		if (imagetype==IMAGETYPE_PNG) {
-			png_write_row(png_ptr, (png_bytep)imgline);
-		} else if (imagetype==IMAGETYPE_JPG) {
-			jpeg_write_scanlines(&cinfo, &imgline, 1);
-		} else {
-			fwrite(imgline, RGB_PIXELSIZE, width, fd);
-		}
+        ImageWriterEmitLine(&iw);
 	}
 
 	if (kml==0 && geo==0)
@@ -4958,34 +4998,14 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
                     pixel=RGB(red,green,blue);
 				}
 
-                imgline[x0*3]=GetRValue(pixel);
-                imgline[x0*3+1]=GetGValue(pixel);
-                imgline[x0*3+2]=GetBValue(pixel);
+                ImageWriterAppendPixel(&iw, pixel);
 			}
 
-            /* emit the line */
-            if (imagetype==IMAGETYPE_PNG) {
-                png_write_row(png_ptr, (png_bytep)imgline);
-            } else if (imagetype==IMAGETYPE_JPG) {
-                jpeg_write_scanlines(&cinfo, &imgline, 1);
-            } else {
-                fwrite(imgline, RGB_PIXELSIZE, width, fd);
-            }
+            ImageWriterEmitLine(&iw);
 		}
 	}
 
-	if (imagetype==IMAGETYPE_PNG) {
-		png_write_end(png_ptr, info_ptr);
-		png_destroy_write_struct(&png_ptr, &info_ptr);
-	} else if (imagetype==IMAGETYPE_JPG) {
-		jpeg_finish_compress(&cinfo);
-		jpeg_destroy_compress(&cinfo);
-	}
-
-	free(imgline);
-
-	fclose(fd);
-
+    ImageWriterFinish(&iw);
 
 	if (kml)
 	{
@@ -5089,11 +5109,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	FILE *fd;
 
 	Pixel pixel = 0;
-	unsigned char *imgline = NULL;
-	struct jpeg_compress_struct cinfo;
-	struct jpeg_error_mgr jerr;
-	png_structp png_ptr = NULL;
-	png_infop info_ptr = NULL;
+    ImageWriter iw;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -5249,8 +5265,6 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 		fclose(fd);
 	}
 
-	fd=fopen(mapfile,"wb");
-
 	if (kml || geo)
 	{
 		/* No bottom legend */
@@ -5267,37 +5281,11 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
     fprintf(stdout,"\nWriting Signal Strength map \"%s\" (%ux%u image)... ",mapfile,imgwidth,imgheight);
 	fflush(stdout);
 
-	if (imagetype == IMAGETYPE_PNG) {
-		png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-		info_ptr = png_create_info_struct(png_ptr);
-		png_init_io(png_ptr, fd);
-		png_set_IHDR(png_ptr, info_ptr,
-					imgwidth, imgheight,
-					8, /* 8 bits per color or 24 bits per pixel for RGB */
-					PNG_COLOR_TYPE_RGB,
-					PNG_INTERLACE_NONE,
-					PNG_COMPRESSION_TYPE_DEFAULT,
-					PNG_FILTER_TYPE_BASE);
-		png_set_compression_level(png_ptr, 6);  /* default is Z_DEFAULT_COMPRESSION; see zlib.h */
-		png_write_info(png_ptr, info_ptr);
-		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
-	} else if (imagetype == IMAGETYPE_JPG) {
-		cinfo.err = jpeg_std_error(&jerr);
-		jpeg_create_compress(&cinfo);
-		jpeg_stdio_dest(&cinfo, fd);
-		cinfo.image_width = imgwidth;
-		cinfo.image_height = imgheight;
-		cinfo.input_components = 3;	   /* # of color components per pixel */
-		cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
-		jpeg_set_defaults(&cinfo); /* default compression */
-		jpeg_set_quality(&cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
-		jpeg_start_compress(&cinfo, TRUE); /* start compressor. */
-		imgline = (JSAMPROW)malloc(sizeof(JSAMPLE) * RGB_PIXELSIZE * width);
-	} else {
-        fprintf(fd,"P6\n%u %u\n255\n",imgwidth,imgheight);
-		imgline = (unsigned char*)malloc(3 * width);
-	}
-
+    if (ImageWriterInit(&iw,mapfile,imagetype,imgwidth,imgheight)<0) {
+        fprintf(stdout,"\nError writing \"%s\"!\n",mapfile);
+        fflush(stdout);
+        return;
+    }
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
 	{
@@ -5400,7 +5388,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 						else  /* terrain / sea-level */
 						{
 							if (ngs)
-								fprintf(fd,"%c%c%c",255,255,255);
+                                pixel=COLOR_WHITE;
 							else
 							{
 								if (dem[indx].data[x0][y0]==0)
@@ -5425,19 +5413,10 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
                 pixel=COLOR_BLACK;
 			}
 
-            imgline[x*3]=GetRValue(pixel);
-            imgline[x*3+1]=GetGValue(pixel);
-            imgline[x*3+2]=GetBValue(pixel);
+            ImageWriterAppendPixel(&iw, pixel);
 		}
 
-        /* emit the line */
-		if (imagetype==IMAGETYPE_PNG) {
-			png_write_row(png_ptr, (png_bytep)imgline);
-		} else if (imagetype==IMAGETYPE_JPG) {
-			jpeg_write_scanlines(&cinfo, &imgline, 1);
-		} else {
-			fwrite(imgline, RGB_PIXELSIZE, width, fd);
-		}
+        ImageWriterEmitLine(&iw);
 	}
 
 	if (kml==0 && geo==0)
@@ -5524,33 +5503,14 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
                     pixel=RGB(red,green,blue);
 				}
 
-				imgline[x0*3]=GetRValue(pixel);
-				imgline[x0*3+1]=GetGValue(pixel);
-				imgline[x0*3+2]=GetBValue(pixel);
+                ImageWriterAppendPixel(&iw, pixel);
 			}
 
-			/* emit the line */
-			if (imagetype==IMAGETYPE_PNG) {
-				png_write_row(png_ptr, (png_bytep)imgline);
-			} else if (imagetype==IMAGETYPE_JPG) {
-				jpeg_write_scanlines(&cinfo, &imgline, 1);
-			} else {
-				fwrite(imgline, RGB_PIXELSIZE, width, fd);
-			}
+            ImageWriterEmitLine(&iw);
 		}
 	}
 
-	if (imagetype==IMAGETYPE_PNG) {
-		png_write_end(png_ptr, info_ptr);
-		png_destroy_write_struct(&png_ptr, &info_ptr);
-	} else if (imagetype==IMAGETYPE_JPG) {
-		jpeg_finish_compress(&cinfo);
-		jpeg_destroy_compress(&cinfo);
-	}
-
-	free(imgline);
-
-	fclose(fd);
+    ImageWriterFinish(&iw);
 
 	if (kml)
 	{
@@ -5671,11 +5631,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	FILE *fd;
 
 	Pixel pixel = 0;
-	unsigned char *imgline = NULL;
-	struct jpeg_compress_struct cinfo;
-	struct jpeg_error_mgr jerr;
-	png_structp png_ptr = NULL;
-	png_infop info_ptr = NULL;
+    ImageWriter iw;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -5831,8 +5787,6 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 		fclose(fd);
 	}
 
-	fd=fopen(mapfile,"wb");
-
 	if (kml || geo)
 	{
 		/* No bottom legend */
@@ -5849,36 +5803,11 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
     fprintf(stdout,"\nWriting Power Level (dBm) map \"%s\" (%ux%u image)... ",mapfile,imgwidth,imgheight);
 	fflush(stdout);
 
-	if (imagetype == IMAGETYPE_PNG) {
-		png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-		info_ptr = png_create_info_struct(png_ptr);
-		png_init_io(png_ptr, fd);
-		png_set_IHDR(png_ptr, info_ptr,
-					imgwidth, imgheight,
-					8, /* 8 bits per color or 24 bits per pixel for RGB */
-					PNG_COLOR_TYPE_RGB,
-					PNG_INTERLACE_NONE,
-					PNG_COMPRESSION_TYPE_DEFAULT,
-					PNG_FILTER_TYPE_BASE);
-		png_set_compression_level(png_ptr, 6);  /* default is Z_DEFAULT_COMPRESSION; see zlib.h */
-		png_write_info(png_ptr, info_ptr);
-		imgline = (png_bytep)malloc(sizeof(png_byte) * RGB_PIXELSIZE * width);
-	} else if (imagetype == IMAGETYPE_JPG) {
-		cinfo.err = jpeg_std_error(&jerr);
-		jpeg_create_compress(&cinfo);
-		jpeg_stdio_dest(&cinfo, fd);
-		cinfo.image_width = imgwidth;
-		cinfo.image_height = imgheight;
-		cinfo.input_components = 3;	   /* # of color components per pixel */
-		cinfo.in_color_space = JCS_RGB;   /* colorspace of input image */
-		jpeg_set_defaults(&cinfo); /* default compression */
-		jpeg_set_quality(&cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
-		jpeg_start_compress(&cinfo, TRUE); /* start compressor. */
-		imgline = (JSAMPROW)malloc(sizeof(JSAMPLE) * RGB_PIXELSIZE * width);
-	} else {
-        fprintf(fd,"P6\n%u %u\n255\n",imgwidth,imgheight);
-		imgline = (unsigned char*)malloc(3 * width);
-	}
+    if (ImageWriterInit(&iw,mapfile,imagetype,imgwidth,imgheight)<0) {
+        fprintf(stdout,"\nError writing \"%s\"!\n",mapfile);
+        fflush(stdout);
+        return;
+    }
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
 	{
@@ -6005,19 +5934,10 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
                 pixel=COLOR_BLACK;
 			}
 
-            imgline[x*3]=GetRValue(pixel);
-            imgline[x*3+1]=GetGValue(pixel);
-            imgline[x*3+2]=GetBValue(pixel);
+            ImageWriterAppendPixel(&iw, pixel);
 		}
 
-        /* emit the line */
-		if (imagetype==IMAGETYPE_PNG) {
-			png_write_row(png_ptr, (png_bytep)imgline);
-		} else if (imagetype==IMAGETYPE_JPG) {
-			jpeg_write_scanlines(&cinfo, &imgline, 1);
-		} else {
-			fwrite(imgline, RGB_PIXELSIZE, width, fd);
-		}
+        ImageWriterEmitLine(&iw);
 	}
 
 	if (kml==0 && geo==0)
@@ -6140,35 +6060,14 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 					pixel=RGB(red,green,blue);
 				}
 
-				imgline[x0*3]=GetRValue(pixel);
-				imgline[x0*3+1]=GetGValue(pixel);
-				imgline[x0*3+2]=GetBValue(pixel);
+                ImageWriterAppendPixel(&iw, pixel);
 			} 
 
-            /* emit the line */
-            if (imagetype==IMAGETYPE_PNG) {
-                png_write_row(png_ptr, (png_bytep)imgline);
-            } else if (imagetype==IMAGETYPE_JPG) {
-                jpeg_write_scanlines(&cinfo, &imgline, 1);
-            } else {
-                fwrite(imgline, RGB_PIXELSIZE, width, fd);
-            }
+            ImageWriterEmitLine(&iw);
 		}
-
 	}
 
-	if (imagetype==IMAGETYPE_PNG) {
-		png_write_end(png_ptr, info_ptr);
-		png_destroy_write_struct(&png_ptr, &info_ptr);
-	} else if (imagetype==IMAGETYPE_JPG) {
-		jpeg_finish_compress(&cinfo);
-		jpeg_destroy_compress(&cinfo);
-	}
-
-	free(imgline);
-
-	fclose(fd);
-
+    ImageWriterFinish(&iw);
 
 	if (kml)
 	{
