@@ -566,7 +566,7 @@ char *dec2dms(double decimal)
  * Functions for manipulating the data in the DEM array.
  *****************************/
 
-int FindDEM(double lat, double lon, int &x, int &y)
+Dem *FindDEM(double lat, double lon, int &x, int &y)
 {
 	/* Returns the index of the DEM containing the lat/long,
 	 * or -1 if not found.
@@ -581,9 +581,9 @@ int FindDEM(double lat, double lon, int &x, int &y)
 		y=mpi-(int)rint(ppd*(LonDiff(dem[i].max_west,lon)));
 
 		if (x>=0 && x<=mpi && y>=0 && y<=mpi)
-			return i;
+			return &dem[i];
 	}
-	return -1;
+	return NULL;
 }
 
 int PutMask(double lat, double lon, int value)
@@ -594,17 +594,15 @@ int PutMask(double lat, double lon, int value)
 	   bits in the mask based on the latitude and longitude of the
 	   area pointed to. */
 
-	int	x, y, indx;
+	int	x, y;
+	Dem *pdem; 
 
-	indx = FindDEM(lat, lon, x, y);
-	if (indx>=0)
-	{
-		dem[indx].mask[x][y]=value;
-		return ((int)dem[indx].mask[x][y]);
-	}
-
-	else
+	pdem = FindDEM(lat, lon, x, y);
+	if (!pdem)
 		return -1;
+
+	pdem->mask[x][y]=value;
+	return ((int)pdem->mask[x][y]);
 }
 
 int OrMask(double lat, double lon, int value)
@@ -615,17 +613,15 @@ int OrMask(double lat, double lon, int value)
 	   the mask based on the latitude and longitude of the area
 	   pointed to. */
 
-	int	x, y, indx;
+	int	x, y;
+	Dem *pdem;
 
-	indx = FindDEM(lat, lon, x, y);
-	if (indx>=0)
-	{
-		dem[indx].mask[x][y]|=value;
-		return ((int)dem[indx].mask[x][y]);
-	}
-
-	else
+	pdem = FindDEM(lat, lon, x, y);
+	if (!pdem)
 		return -1;
+
+	pdem->mask[x][y]|=value;
+	return ((int)pdem->mask[x][y]);
 }
 
 int GetMask(double lat, double lon)
@@ -639,19 +635,18 @@ int GetMask(double lat, double lon)
 int PutSignal(double lat, double lon, unsigned char signal)
 {
 	/* This function writes a signal level (0-255)
-	   at the specified location for later recall. */
+	   at the specified location for later recall.
+	   Returns the signal value just set. */
 
-	int	x, y, indx;
+	int	x, y;
+	Dem *pdem;
 
-	indx = FindDEM(lat, lon, x, y);
-	if (indx>=0)
-	{
-		dem[indx].signal[x][y]=signal;
-		return (dem[indx].signal[x][y]);
-	}
-
-	else
+	pdem = FindDEM(lat, lon, x, y);
+	if (!pdem)
 		return 0;
+
+	pdem->signal[x][y]=signal;
+	return (pdem->signal[x][y]);
 }
 
 unsigned char GetSignal(double lat, double lon)
@@ -660,13 +655,14 @@ unsigned char GetSignal(double lat, double lon)
 	   specified location that was previously written by the
 	   complimentary PutSignal() function. */
 
-	int	x, y, indx;
+	int	x, y;
+	Dem *pdem;
 
-	indx = FindDEM(lat, lon, x, y);
-	if (indx>=0)
-		return (dem[indx].signal[x][y]);
-	else
+	pdem = FindDEM(lat, lon, x, y);
+	if (!pdem)
 		return 0;
+
+	return (pdem->signal[x][y]);
 }
 
 double GetElevation(Site location)
@@ -675,16 +671,14 @@ double GetElevation(Site location)
 	   represented by the digital elevation model data in memory.
 	   Function returns -5000.0 for locations not found in memory. */
 
-	int	x, y, indx;
-	double	elevation;
+	int	x, y;
+	Dem *pdem;
 
-	indx = FindDEM(location.lat, location.lon, x, y);
-	if (indx>=0)
-		elevation=3.28084*dem[indx].data[x][y];
-	else
-		elevation=-5000.0;
-	
-	return elevation;
+	pdem = FindDEM(location.lat, location.lon, x, y);
+	if (!pdem)
+		return -5000.0;
+
+	return (3.28084*(double)(pdem->data[x][y]));
 }
 
 int AddElevation(double lat, double lon, double height)
@@ -694,13 +688,15 @@ int AddElevation(double lat, double lon, double height)
 	   in memory.  Does nothing and returns 0 for locations
 	   not found in memory. */
 
-	int	x, y, indx;
+	int	x, y;
+	Dem *pdem;
 
-	indx = FindDEM(lat, lon, x, y);
-	if (indx>=0)
-		dem[indx].data[x][y]+=(short)rint(height);
+	pdem = FindDEM(lat, lon, x, y);
+	if (!pdem)
+		return 0;
 
-	return (indx>=0);
+	pdem->data[x][y]+=(short)rint(height);
+	return 1;
 }
 
 int SetElevation(double lat, double lon, double height)
@@ -713,13 +709,15 @@ int SetElevation(double lat, double lon, double height)
 	   above mean sea level is known.  Returns 0 for locations
 	   not found in memory. */
 
-	int x, y, indx;
+	int x, y;
+	Dem *pdem;
 
-	indx = FindDEM(lat, lon, x, y);
-	if (indx>=0)
-		dem[indx].data[x][y]=(short)rint(height);
+	pdem = FindDEM(lat, lon, x, y);
+	if (!pdem)
+		return 0;
 
-	return (indx>=0);
+	pdem->data[x][y]=(short)rint(height);
+	return 1;
 }
 
 
@@ -4265,7 +4263,8 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	char mapfile[255], geofile[255], kmlfile[255];
 	unsigned char mask;
 	unsigned width, height, terrain;
-	int indx, x, y, x0=0, y0=0;
+	int x, y, x0=0, y0=0;
+	Dem *pdem;
 	double lat, lon, conversion, one_over_gamma,
 	north, south, east, west, minwest;
 	FILE *fd;
@@ -4415,10 +4414,10 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 			if (lon<0.0)
 				lon+=360.0;
 
-			indx = FindDEM(lat, lon, x0, y0);
-			if (indx>=0)
+			pdem = FindDEM(lat, lon, x0, y0);
+			if (pdem)
 			{
-				mask=dem[indx].mask[x0][y0];
+				mask=pdem->mask[x0][y0];
 
 				if (mask&2)
 					/* Text Labels: Red */
@@ -4511,12 +4510,12 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 					else
 					{
 						/* Sea-level: Medium Blue */
-						if (dem[indx].data[x0][y0]==0)
+						if (pdem->data[x0][y0]==0)
 							pixel = COLOR_MEDIUMBLUE;
 						else
 						{
 							/* Elevation: Greyscale */
-							terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+							terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
 							pixel=RGB(terrain,terrain,terrain);
 						}
 					}
@@ -4556,6 +4555,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	unsigned char mask;
 	int indx, x, y, z, colorwidth, x0, y0, loss, level,
 		hundreds, tens, units, match;
+	Dem *pdem;
 	double lat, lon, conversion, one_over_gamma,
 	north, south, east, west, minwest;
 	FILE *fd;
@@ -4747,11 +4747,11 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 			if (lon<0.0)
 				lon+=360.0;
 
-			indx = FindDEM(lat, lon, x0, y0);
-			if (indx>=0)
+			pdem = FindDEM(lat, lon, x0, y0);
+			if (pdem)
 			{
-				mask=dem[indx].mask[x0][y0];
-				loss=(dem[indx].signal[x0][y0]);
+				mask=pdem->mask[x0][y0];
+				loss=(pdem->signal[x0][y0]);
 
 				match=255;
 
@@ -4811,11 +4811,11 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 						{
 							/* Display land or sea elevation */
 
-							if (dem[indx].data[x0][y0]==0)
+							if (pdem->data[x0][y0]==0)
                                 pixel=COLOR_MEDIUMBLUE;
 							else
 							{
-								terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+								terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
                                 pixel=RGB(terrain,terrain,terrain);
 							}
 						}
@@ -4829,12 +4829,12 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 						else  /* terrain / sea-level */
 						{
-							if (dem[indx].data[x0][y0]==0)
+							if (pdem->data[x0][y0]==0)
                                 pixel=COLOR_MEDIUMBLUE;
 							else
 							{
 								/* Elevation: Greyscale */
-								terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+								terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
                                 pixel=RGB(terrain,terrain,terrain);
 							}
 						}
@@ -5028,6 +5028,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	unsigned char mask;
 	int indx, x, y, z=1, x0, y0, signal, level, hundreds,
 		tens, units, match, colorwidth;
+	Dem *pdem;
 	double conversion, one_over_gamma, lat, lon,
 	north, south, east, west, minwest;
 	FILE *fd;
@@ -5218,11 +5219,11 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 			if (lon<0.0)
 				lon+=360.0;
 
-			indx = FindDEM(lat, lon, x0, y0);
-			if (indx>=0)
+			pdem = FindDEM(lat, lon, x0, y0);
+			if (pdem)
 			{
-				mask=dem[indx].mask[x0][y0];
-				signal=(dem[indx].signal[x0][y0])-100;
+				mask=pdem->mask[x0][y0];
+				signal=(pdem->signal[x0][y0])-100;
 
 				match=255;
 
@@ -5282,11 +5283,11 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 						{
 							/* Display land or sea elevation */
 
-							if (dem[indx].data[x0][y0]==0)
+							if (pdem->data[x0][y0]==0)
                                 pixel=COLOR_MEDIUMBLUE;
 							else
 							{
-								terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+								terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
                                 pixel=RGB(terrain,terrain,terrain);
 							}
 						}
@@ -5305,12 +5306,12 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
                                 pixel=COLOR_WHITE;
 							else
 							{
-								if (dem[indx].data[x0][y0]==0)
+								if (pdem->data[x0][y0]==0)
                                     pixel=COLOR_MEDIUMBLUE;
 								else
 								{
 									/* Elevation: Greyscale */
-									terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+									terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
                                     pixel=RGB(terrain,terrain,terrain);
 								}
 							}
@@ -5538,6 +5539,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	unsigned width, height, terrain, red, green, blue;
     unsigned int imgheight, imgwidth;
 	unsigned char mask;
+	Dem *pdem;
 	int indx, x, y, z=1, x0, y0, dBm, level, hundreds,
 		tens, units, match, colorwidth;
 	double conversion, one_over_gamma, lat, lon,
@@ -5730,11 +5732,11 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 			if (lon<0.0)
 				lon+=360.0;
 
-			indx = FindDEM(lat, lon, x0, y0);
-			if (indx>=0)
+			pdem = FindDEM(lat, lon, x0, y0);
+			if (pdem)
 			{
-				mask=dem[indx].mask[x0][y0];
-				dBm=(dem[indx].signal[x0][y0])-200;
+				mask=pdem->mask[x0][y0];
+				dBm=(pdem->signal[x0][y0])-200;
 
 				match=255;
 
@@ -5794,11 +5796,11 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 						{
 							/* Display land or sea elevation */
 
-							if (dem[indx].data[x0][y0]==0)
+							if (pdem->data[x0][y0]==0)
                                 pixel=COLOR_MEDIUMBLUE;
 							else
 							{
-								terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+								terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
                                 pixel=RGB(terrain,terrain,terrain);
 							}
 						}
@@ -5817,12 +5819,12 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
                                 pixel=COLOR_WHITE;
 							else
 							{
-								if (dem[indx].data[x0][y0]==0)
+								if (pdem->data[x0][y0]==0)
                                     pixel=COLOR_MEDIUMBLUE;
 								else
 								{
 									/* Elevation: Greyscale */
-									terrain=(unsigned)(0.5+pow((double)(dem[indx].data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+									terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
                                     pixel=RGB(terrain,terrain,terrain);
 								}
 							}
