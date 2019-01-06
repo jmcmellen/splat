@@ -76,7 +76,7 @@ typedef struct prop_type
 	                 /* setting is 1000 (parts per million).                   */
 	double cch;      /* average height of clutter, AGL                         */
 	double cd;       /* direct signal clutter exposure distance                */
-	double gme;      /* effective earth curvature (actual + refraction)        */
+	double gme;      /* effective earth curvature (actual+refraction): 1/radius */
 	double zgndreal; /* resistive component of earth impedance                 */
 	double zgndimag; /* reactive component of earth impedance                  */
 	double he[2];    /* he[0] = effective height of tx antenna                 */
@@ -1946,124 +1946,169 @@ double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *pro
 	return avarv;
 }
 
-/* Used only with ITM 1.2.2 */
+/*
+ * Horizon calculations.
+ *
+ * Fills out a bunch of elements in prop - takeoff angles and horizon distances and so on.
+ *
+ * This version is only used only with ITM 1.2.2. An updated version with improved obstacle
+ * handling (hzns2()) is below.
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, page 150
+ */
 void hzns(double pfl[], prop_type *prop)
 {
 	bool wq;
 	int np;
 	double xi, za, zb, qc, q, sb, sa;
 
-	np=(int)pfl[0];
-	xi=pfl[1];
-	za=pfl[2]+prop->hg[0];
-	zb=pfl[np+2]+prop->hg[1];
-	qc=0.5*prop->gme;
-	q=qc*prop->dist;
-	prop->the[1]=(zb-za)/prop->dist;
-	prop->the[0]=prop->the[1]-q;
-	prop->the[1]=-prop->the[1]-q;
-	prop->dl[0]=prop->dist;
-	prop->dl[1]=prop->dist;
+	np=(int)pfl[0];                     /* number of elements in pfl array                      */
+	xi=pfl[1];                          /* x increment, the distance between elements           */
 
-	if (np>=2)
+	za=pfl[2]+prop->hg[0];              /* transmitter location height plus ant height AGL      */
+	zb=pfl[np+2]+prop->hg[1];           /* receiver location height plus ant height AGL         */
+
+	qc=0.5*prop->gme;                   /* half the earth's curvature, or 1/(2r)                */
+	q=qc*prop->dist;                    /* q is now dist/2r (i.e. radians)                      */
+
+	prop->the[1]=(zb-za)/prop->dist;    /* temporarily set slope from tx to rx.                 */
+										/* XXX BUG. This really should be an arctan. See        */
+										/* ITWOM pp156-157.                                     */
+
+	prop->the[0]=prop->the[1]-q;        /* set takeoff angle of receiver                        */
+	prop->the[1]=-prop->the[1]-q;       /* and set takeoff angle of transmitter to the opposite */
+
+	prop->dl[0]=prop->dist;             /* optimistically set tx horizon to longest path        */
+	prop->dl[1]=prop->dist;             /* ditto for rx horizon                                 */
+
+	if (np<2)                           /* short path? all done.                                */
+		return;
+
+	sa=0.0;                             /* sa is at tx loc                                      */
+	sb=prop->dist;                      /* sb is at rx loc                                      */
+	wq=true;                            /* line-of-sight study ok?                              */
+
+	for (int i=1; i<np; i++)
 	{
-		sa=0.0;
-		sb=prop->dist;
-		wq=true;
+		sa+=xi;                                         /* move sa towards rx loc               */
+		sb-=xi;                                         /* move sb towards tx loc               */
 
-		for (int i=1; i<np; i++)
+		q=pfl[i+2] - ((qc*sa+prop->the[0])*sa) - za;    /* height difference from pfl pt to sa, */
+													    /* adjusted for curvature               */
+
+		if (q>0.0)                                      /* tx obstruction found?                */
 		{
-			sa+=xi;
-			sb-=xi;
-			q=pfl[i+2]-(qc*sa+prop->the[0])*sa-za;
+			prop->the[0]+=q/sa;
+			prop->dl[0]=sa;
+			wq=false;
+		}
 
-			if (q>0.0)
+		if (!wq)                                       /* no tx obstructions, so examine rx end */
+		{
+			q=pfl[i+2] - ((qc*sb+prop->the[1])*sb) - zb; /* height diff from pfl pt to sb,      */
+														 /* adjusted for curvature              */
+
+			if (q>0.0)                                 /* rx obstruction found?                 */
 			{
-				prop->the[0]+=q/sa;
-				prop->dl[0]=sa;
-				wq=false;
-			}
-
-			if (!wq)
-			{
-				q=pfl[i+2]-(qc*sb+prop->the[1])*sb-zb;
-
-				if (q>0.0)
-				{
-					prop->the[1]+=q/sb;
-					prop->dl[1]=sb;
-				}
+				prop->the[1]+=q/sb;
+				prop->dl[1]=sb;
 			}
 		}
 	}
 }
  
+/*
+ * Horizon calculations.
+ *
+ * Fills out a bunch of elements in prop - takeoff angles and horizon distances and so on.
+ *
+ * This version has improved accuracy and obstacle handling.
+ *
+ * See ITWOM-SUB-ROUTINES.pdf, page 150
+ */
 void hzns2(double pfl[], prop_type *prop)
 {
 	bool wq;
 	int np, rp, i, j;
 	double xi, za, zb, qc, q, sb, sa, dr, dshh;
 
-	np=(int)pfl[0];
-	xi=pfl[1];
-	za=pfl[2]+prop->hg[0];
-	zb=pfl[np+2]+prop->hg[1];
-	prop->tiw=xi;
+	np=(int)pfl[0];                     /* number of elements in pfl array                      */
+	xi=pfl[1];                          /* x increment, the distance between elements           */
+
+	za=pfl[2]+prop->hg[0];              /* transmitter location height plus ant height AGL      */
+	zb=pfl[np+2]+prop->hg[1];           /* receiver location height plus ant height AGL         */
+
+	prop->tiw=xi;                       /* cache some values for later                          */
 	prop->ght=za;
 	prop->ghr=zb;
-	qc=0.5*prop->gme;
-	q=qc*prop->dist;
-	prop->the[1]=atan((zb-za)/prop->dist);
-	prop->the[0]=(prop->the[1])-q;
-	prop->the[1]=-prop->the[1]-q;
-	prop->dl[0]=prop->dist;
-	prop->dl[1]=prop->dist;
-	prop->hht=0.0;
-	prop->hhr=0.0;
-	prop->los=true;
+
+	qc=0.5*prop->gme;                   /* half the earth's curvature, or 1/(2r)                */
+	q=qc*prop->dist;                    /* q is now dist/2r (i.e. radians)                      */
+
+	prop->the[1]=atan((zb-za)/prop->dist);  /* temporarily set the slope from tx to rx          */
+
+	prop->the[0]=prop->the[1]-q;        /* set takeoff angle of receiver                        */
+	prop->the[1]=-prop->the[1]-q;       /* and set takeoff angle of transmitter to the opposite */
+
+	prop->dl[0]=prop->dist;             /* optimistically set tx horizon to longest path        */
+	prop->dl[1]=prop->dist;             /* ditto for rx horizon                                 */
+
+	prop->hht=0.0;                      /* set tx obstacle height to 0                          */
+	prop->hhr=0.0;                      /* set rx obstacle height to 0                          */
+	prop->los=true;                     /* line-of-sight study ok?                              */
     	
 	if(np>=2)
 	{
-		sa=0.0;
-		sb=prop->dist;
-		wq=true;
+		sa=0.0;						    /* sa is at tx loc                                     */
+		sb=prop->dist;                  /* sb is at rx loc                                     */
+		wq=true;                        /* line-of-site study ok?                              */
 
 		for(j=1; j<np; j++)
 		{
-			sa+=xi;
-			q=pfl[j+2]-(qc*sa+prop->the[0])*sa-za;
+			sa+=xi;                                    /* move sa towards rx loc               */
+			q=pfl[j+2] - ((qc*sa+prop->the[0])*sa) - za;  /* height diff from pfl pt to sa,    */
+														  /* adjusted for curvature            */
           		
-			if(q>0.0)
+			if(q>0.0)                                  /* tx obstruction found?                */
 			{
 				prop->los=false;
 				prop->the[0]+=q/sa;
 				prop->dl[0]=sa;
-				prop->the[0]=min(prop->the[0],1.569);
+				prop->the[0]=min(prop->the[0],1.569); /* limit the max radians of takeoff angle */
 				prop->hht=pfl[j+2];				
 				wq=false;
 			}
 		}
 		
-		if(!wq)
+		if(!wq)                                  /* no tx obstructions so examine rx end      */
 		{				
 			for(i=1; i<np; i++)
 			{
-				sb-=xi;
-				q=pfl[np+2-i]-(qc*(prop->dist-sb)+prop->the[1])*(prop->dist-sb)-zb;
+				sb-=xi;                          /* move sb towards tx                        */
+
+												/* and calc height diff                       */
+				q=pfl[np+2-i] - ((qc*(prop->dist-sb)+prop->the[1]) * (prop->dist-sb)) - zb;
+
 				if(q>0.0)
 				{
 					prop->the[1]+=q/(prop->dist-sb);
-					prop->the[1]=min(prop->the[1],1.57);
+
+					prop->the[1]=min(prop->the[1],1.57); /* limit the rx take-off angle range */
 					prop->the[1]=max(prop->the[1],-1.568);					
+
 					prop->hhr=pfl[np+2-i];					
 					prop->dl[1]=max(0.0,prop->dist-sb);
 				}
 			}
+
+			/* recalculate using atan for more accuracy */
 			prop->the[0]=atan((prop->hht-za)/prop->dl[0])-0.5*prop->gme*prop->dl[0];
 			prop->the[1]=atan((prop->hhr-zb)/prop->dl[1])-0.5*prop->gme*prop->dl[1];
 		}
 	}
 
+	/* if the receiver horizon path is shorter than the total path, then there's */
+    /* some obstacle, so let's calculate the 2-ray reflection point.             */
 	if((prop->dl[1])<(prop->dist))
 	{
 		dshh=prop->dist-prop->dl[0]-prop->dl[1];
@@ -2081,6 +2126,7 @@ void hzns2(double pfl[], prop_type *prop)
 	{
 		dr=(prop->dist)/(1+zb/za);
 	}
+
 	rp=2+(int)(floor(0.5+dr/xi));
 	prop->rpl=rp;	
 	prop->rph=pfl[rp];
@@ -2327,8 +2373,7 @@ double qerf(const double z)
  *
  * Used to find delta h, the terrain irregularity factor. delta h is defined
  * as the interdecile range of elevations between two points. The interdecile
- * range is a specific interquartile range, computed as the difference between
- * the 10th and 90th percentiles.
+ * range is defined as the difference between the 10th and 90th percentiles.
  *
  * pfl[]: profile elevation array, with:
  *		  pfl[0]: number of points in pfl
@@ -2336,9 +2381,11 @@ double qerf(const double z)
  *	x1: start point along the pfl path, in meters
  *	x2: end point along the pfl path, in meters
  *
- * See notes for d1thx2(), the newer version, below. This version is only used
- * with ITM 1.2.2.
+ * Returns the delta h value.
  *
+ * See notes for d1thx2(), the newer version, below. This version is only used
+ * with ITM 1.2.2 and is limited to using a maximum of 245 pfl array elements.
+ * It is thus faster but slightly less accurate.
  */
 double d1thx(double pfl[], const double x1, const double x2)
 {
@@ -2414,8 +2461,7 @@ double d1thx(double pfl[], const double x1, const double x2)
  *
  * Used to find delta h, the terrain irregularity factor. delta h is defined
  * as the interdecile range of elevations between two points. The interdecile
- * range is a specific interquartile range, computed as the difference between
- * the 10th and 90th percentiles.
+ * range is defined as the difference between the 10th and 90th percentiles.
  * 
  * pfl[]: profile elevation array, with:
  *		  pfl[0]: number of points in pfl
@@ -2423,9 +2469,10 @@ double d1thx(double pfl[], const double x1, const double x2)
  *	x1: start point along the pfl path, in meters
  *	x2: end point along the pfl path, in meters
  *
- * returns the delta h
+ * Returns the delta h value.
  *
- * See ITWOM-SUB-ROUTINES.pdf p125.
+ * See ITWOM-SUB-ROUTINES.pdf p125. This version has been modified by Sid
+ * Shumate to use the entire range of the pfl array if needed.
  */
 double d1thx2(double pfl[], const double x1, const double x2)
 {
@@ -2456,8 +2503,13 @@ double d1thx2(double pfl[], const double x1, const double x2)
 
 	xb=(xb-xa)/sn;                  /* rescale xb to the new distance */
 
-	k=(trunc(xa+1.0));              /* was a cast to int. trunc() works too. */
-	xc=xa-((double)k);              /* xa now ranges from -1.0 to near 0 */
+	k=(trunc(xa+1.0));              /* was a cast to int. trunc() works too.               */
+	xc=xa-((double)k);              /* xa now ranges from -1.0 to near 0                   */
+									/* This new variable, xc, was added by Sid because     */
+									/* xa's value is later passed to z1sq2 and he wanted   */
+									/* to preserve the original xa value. However, z1sq2() */
+									/* never uses the value and just sets it so this is    */
+									/* pointless. There's no harm in it though.            */
 	
     /* Load up a temporary height array, smoothed */
 	for (j=0; j<n; j++)
