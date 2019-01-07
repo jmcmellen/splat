@@ -580,6 +580,8 @@ char *dec2dms(double decimal)
  * Functions for manipulating the data in the DEM array.
  *****************************/
 
+/* #define USE_BLOCK_MEM 1 */
+
 DEM *AllocateDEM()
 {
 	/* Allocate a DEM struct on the heap. The arrays will be sizeXsize. */
@@ -597,7 +599,7 @@ DEM *AllocateDEM()
 	memset(dem, 0, sizeof(DEM));
 	
 	do {
-#ifndef BLOCK_MEM
+#ifndef USE_BLOCK_MEM
 		dem->data=(short**)malloc(size*sizeof(short*));
 		dem->mask=(unsigned char**)malloc(size*sizeof(unsigned char*));
 		dem->signal=(unsigned char**)malloc(size*sizeof(unsigned char*));
@@ -607,6 +609,10 @@ DEM *AllocateDEM()
 			dem->signal[i]=(unsigned char*)malloc(size*sizeof(unsigned char));
 		}
 #else
+		/* DO NOT USE.
+		 *
+		 * There's a bug in here somewhere.
+		 */
 		int len;
 
 		/* Allocate the 2x2 data array as a single block of memory. */
@@ -660,7 +666,7 @@ DEM *AllocateDEM()
 
 void DestroyDEM(DEM *dem)
 {
-#ifndef BLOCK_MEM
+#ifndef USE_BLOCK_MEM
 	for (int i = 0; i<ippd; ++i) {
 		free(dem->data[i]);
 		free(dem->mask[i]);
@@ -2116,10 +2122,12 @@ int LoadSDF(char *name)
 	};
 	const int known_formats = sizeof(formats)/sizeof(SDFCompressFormat);
 
+	path_plus_name[0] = '\0';
 
+	sdf_file[0] = '\0';
 	for (x=0; name[x]!=0 && x<(MAXPATHLEN-9); x++)
 		sdf_file[x]=name[x];
-    if ( (p = strrchr(sdf_file, '.')) ) {
+    if ( (p = strrchr(sdf_file, '.'))!= NULL) {
         x = p - sdf_file;
     }
 
