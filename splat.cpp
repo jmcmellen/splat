@@ -196,8 +196,8 @@ typedef enum ImageType {
 } ImageType;
 
 typedef enum SDFCompressType {
-    SDF_COMPRESSTYPE_BZIP2 = 0,
-    SDF_COMPRESSTYPE_NONE
+    SDF_COMPRESSTYPE_NONE = 0,
+    SDF_COMPRESSTYPE_BZIP2
 } SDFCompressType;
 
 struct SDFCompressFormat {
@@ -2116,9 +2116,10 @@ int LoadSDF(char *name)
 	FILE *fp = NULL;
 	BZFILE *bzfp = NULL;
 
+    /* this sets both the kinds of formats we understand and the priority */
 	SDFCompressFormat formats[] = {
+		{ SDF_COMPRESSTYPE_NONE, ".sdf" },
 		{ SDF_COMPRESSTYPE_BZIP2, ".sdf.bz2" },
-		{ SDF_COMPRESSTYPE_NONE, ".sdf" }
 	};
 	const int known_formats = sizeof(formats)/sizeof(SDFCompressFormat);
 
