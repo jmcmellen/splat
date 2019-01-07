@@ -158,17 +158,17 @@ typedef struct Path {
 } Path;
 
 // digital elevation model data
-typedef struct Dem {
+typedef struct DEM {
 	int min_north;
 	int max_north;
 	int min_west;
 	int max_west;
 	int max_el;
 	int min_el;
-	short data[IPPD][IPPD];
-	unsigned char mask[IPPD][IPPD];
-	unsigned char signal[IPPD][IPPD];
-} Dem;
+	short **data;
+	unsigned char **mask;
+	unsigned char **signal;
+} DEM;
 
 typedef struct LongleyRiceData {
 	double eps_dielect;
@@ -192,15 +192,26 @@ typedef struct Region {
 typedef enum ImageType {
     IMAGETYPE_PNG = 0,
     IMAGETYPE_JPG,
-    IMAGETYPE_PPM,
+    IMAGETYPE_PPM
 } ImageType;
 
+typedef enum SDFCompressType {
+    SDF_COMPRESSTYPE_BZIP2 = 0,
+    SDF_COMPRESSTYPE_NONE
+} SDFCompressType;
+
+struct SDFCompressFormat {
+    SDFCompressType type;
+    const char* suffix;
+};
 
 
 /*****************************
  * Globals
  *****************************/
-char 	sdf_path[MAXPATHLEN], opened=0, gpsav=0, dashes[80], itwom;
+char sdf_path[MAXPATHLEN], home_sdf_path[MAXPATHLEN];
+
+char opened=0, gpsav=0, dashes[80], itwom;
 
 double	earthradius, max_range=0.0, forced_erp=-1.0, dpp, ppd,
 	fzone_clearance=0.6, forced_freq, clutter;
@@ -211,8 +222,11 @@ int	min_north=90, max_north=-90, min_west=360, max_west=-1, ippd, mpi,
 unsigned char got_elevation_pattern, got_azimuth_pattern, metric=0, dbm=0, smooth_contours=0;
 
 LongleyRiceData LR;
-Dem dem[MAXPAGES];
 Region region;
+
+DEM **aDEM = NULL;
+int demMax = 0;
+int demCount = 0;
 
 /****************************
  * Color handling stuff
@@ -566,22 +580,154 @@ char *dec2dms(double decimal)
  * Functions for manipulating the data in the DEM array.
  *****************************/
 
-Dem *FindDEM(double lat, double lon, int &x, int &y)
+DEM *AllocateDEM()
 {
-	/* Returns the index of the DEM containing the lat/long,
+	/* Allocate a DEM struct on the heap. The arrays will be sizeXsize. */
+	int size = ippd;
+
+	/* not allowed to allocate any more */
+	if (demCount >= demMax) {
+		return NULL;
+	}
+
+	DEM *dem = (DEM*)malloc(sizeof(DEM));
+	if (!dem) {
+		return NULL;
+	}
+	memset(dem, 0, sizeof(DEM));
+	
+	do {
+#ifndef BLOCK_MEM
+		dem->data=(short**)malloc(size*sizeof(short*));
+		dem->mask=(unsigned char**)malloc(size*sizeof(unsigned char*));
+		dem->signal=(unsigned char**)malloc(size*sizeof(unsigned char*));
+		for (int i = 0; i<size; ++i) {
+			dem->data[i]=(short*)malloc(size*sizeof(short));
+			dem->mask[i]=(unsigned char*)malloc(size*sizeof(unsigned char));
+			dem->signal[i]=(unsigned char*)malloc(size*sizeof(unsigned char));
+		}
+#else
+		int len;
+
+		/* Allocate the 2x2 data array as a single block of memory. */
+		len = (sizeof(short*)*size) + (sizeof(short)*size*size);
+		dem->data = (short**)malloc(len);
+		if (!dem->data) {
+			break;
+		}
+
+		/* Same for mask and signal Allocate the 2x2 data array as a single block of memory. */
+		len = (sizeof(unsigned char*)*size) + (sizeof(unsigned char)*size*size);
+		dem->mask = (unsigned char**)malloc(len);
+		if (!dem->mask) {
+			break;
+		}
+		dem->signal = (unsigned char**)malloc(len);
+		if (!dem->signal) {
+			break;
+		}
+
+		/* the first part of each array is itself an array of pointer into the 2x2 data area */
+		short *dptr = (short*)(dem->data + sizeof(short*)*size);
+		unsigned char *mptr = (unsigned char*)(dem->mask + sizeof(unsigned char*)*size);
+		unsigned char *sptr = (unsigned char*)(dem->signal + sizeof(unsigned char*)*size);
+		for (int i = 0; i<size; ++i) {
+			dem->data[i] = dptr + (size * i);
+			dem->mask[i] = mptr + (size * i);
+			dem->signal[i] = sptr + (size * i);
+		}
+#endif
+
+		dem->min_el=32768;
+		dem->max_el=-32768;
+		dem->min_north=90;
+		dem->max_north=-90;
+		dem->min_west=360;
+		dem->max_west=-1;
+
+		return dem;
+
+	} while (0);
+
+	/* if we got here, there was an error */
+	if (dem->signal) free(dem->signal);
+	if (dem->mask) free(dem->mask);
+	if (dem->data) free(dem->data);
+	free(dem);
+
+	return NULL;
+}
+
+void DestroyDEM(DEM *dem)
+{
+#ifndef BLOCK_MEM
+	for (int i = 0; i<ippd; ++i) {
+		free(dem->data[i]);
+		free(dem->mask[i]);
+		free(dem->signal[i]);
+	}
+#endif
+	if (dem->signal) free(dem->signal);
+	if (dem->mask) free(dem->mask);
+	if (dem->data) free(dem->data);
+	free(dem);
+}
+
+int InitDEMs(int count)
+{
+	demMax = count;
+	aDEM = (DEM**)calloc(demMax, sizeof(DEM*));
+	if (aDEM) { return 0; };
+	return -1;  // Insufficient memory?
+}
+
+void FreeDEMs()
+{
+	for (int i=0; i< demCount; ++i) {
+		DestroyDEM(aDEM[i]);
+	}
+	free(aDEM);
+	aDEM = NULL;
+}
+
+int AppendDEM(DEM *dem)
+{
+	/* Appends a DEM to the global adem[] array. */
+	if (aDEM == NULL || (demCount > demMax)) {
+		return -1;
+	}
+	aDEM[demCount++] = dem;
+	return 0;
+}
+
+DEM *FindDEM_Explicit(double minlat, double minlon, double maxlat, double maxlon)
+{
+	for (int i=0; i<demCount; ++i) {
+		if (minlat==aDEM[i]->min_north &&
+				minlon==aDEM[i]->min_west &&
+				maxlat==aDEM[i]->max_north &&
+				maxlon==aDEM[i]->max_west)
+			return aDEM[i];
+	}
+	return NULL;
+}
+
+DEM *FindDEM(double lat, double lon, int &x, int &y)
+{
+	/* Returns the first DEM containing the lat/long,
 	 * or -1 if not found.
 	 *
 	 * x and y will contain the offsets into the DEM array of
 	 * the coordinate.
 	 */
 
-	for (int i=0; i<MAXPAGES; ++i)
+	for (int i=0; i<demCount; ++i)
 	{
-		x=(int)rint(ppd*(lat-dem[i].min_north));
-		y=mpi-(int)rint(ppd*(LonDiff(dem[i].max_west,lon)));
+		x=(int)rint(ppd*(lat-aDEM[i]->min_north));
+		y=mpi-(int)rint(ppd*(LonDiff(aDEM[i]->max_west,lon)));
 
 		if (x>=0 && x<=mpi && y>=0 && y<=mpi)
-			return &dem[i];
+			return aDEM[i];
 	}
 	return NULL;
 }
@@ -595,14 +741,14 @@ int PutMask(double lat, double lon, int value)
 	   area pointed to. */
 
 	int	x, y;
-	Dem *pdem; 
+	DEM *dem; 
 
-	pdem = FindDEM(lat, lon, x, y);
-	if (!pdem)
+	dem = FindDEM(lat, lon, x, y);
+	if (!dem)
 		return -1;
 
-	pdem->mask[x][y]=value;
-	return ((int)pdem->mask[x][y]);
+	dem->mask[x][y]=value;
+	return ((int)dem->mask[x][y]);
 }
 
 int OrMask(double lat, double lon, int value)
@@ -614,14 +760,14 @@ int OrMask(double lat, double lon, int value)
 	   pointed to. */
 
 	int	x, y;
-	Dem *pdem;
+	DEM *dem;
 
-	pdem = FindDEM(lat, lon, x, y);
-	if (!pdem)
+	dem = FindDEM(lat, lon, x, y);
+	if (!dem)
 		return -1;
 
-	pdem->mask[x][y]|=value;
-	return ((int)pdem->mask[x][y]);
+	dem->mask[x][y]|=value;
+	return ((int)dem->mask[x][y]);
 }
 
 int GetMask(double lat, double lon)
@@ -639,14 +785,14 @@ int PutSignal(double lat, double lon, unsigned char signal)
 	   Returns the signal value just set. */
 
 	int	x, y;
-	Dem *pdem;
+	DEM *dem;
 
-	pdem = FindDEM(lat, lon, x, y);
-	if (!pdem)
+	dem = FindDEM(lat, lon, x, y);
+	if (!dem)
 		return 0;
 
-	pdem->signal[x][y]=signal;
-	return (pdem->signal[x][y]);
+	dem->signal[x][y]=signal;
+	return (dem->signal[x][y]);
 }
 
 unsigned char GetSignal(double lat, double lon)
@@ -656,13 +802,13 @@ unsigned char GetSignal(double lat, double lon)
 	   complimentary PutSignal() function. */
 
 	int	x, y;
-	Dem *pdem;
+	DEM *dem;
 
-	pdem = FindDEM(lat, lon, x, y);
-	if (!pdem)
+	dem = FindDEM(lat, lon, x, y);
+	if (!dem)
 		return 0;
 
-	return (pdem->signal[x][y]);
+	return (dem->signal[x][y]);
 }
 
 double GetElevation(Site location)
@@ -672,13 +818,13 @@ double GetElevation(Site location)
 	   Function returns -5000.0 for locations not found in memory. */
 
 	int	x, y;
-	Dem *pdem;
+	DEM *dem;
 
-	pdem = FindDEM(location.lat, location.lon, x, y);
-	if (!pdem)
+	dem = FindDEM(location.lat, location.lon, x, y);
+	if (!dem)
 		return -5000.0;
 
-	return (3.28084*(double)(pdem->data[x][y]));
+	return (3.28084*(double)(dem->data[x][y]));
 }
 
 int AddElevation(double lat, double lon, double height)
@@ -689,13 +835,13 @@ int AddElevation(double lat, double lon, double height)
 	   not found in memory. */
 
 	int	x, y;
-	Dem *pdem;
+	DEM *dem;
 
-	pdem = FindDEM(lat, lon, x, y);
-	if (!pdem)
+	dem = FindDEM(lat, lon, x, y);
+	if (!dem)
 		return 0;
 
-	pdem->data[x][y]+=(short)rint(height);
+	dem->data[x][y]+=(short)rint(height);
 	return 1;
 }
 
@@ -710,13 +856,13 @@ int SetElevation(double lat, double lon, double height)
 	   not found in memory. */
 
 	int x, y;
-	Dem *pdem;
+	DEM *dem;
 
-	pdem = FindDEM(lat, lon, x, y);
-	if (!pdem)
+	dem = FindDEM(lat, lon, x, y);
+	if (!dem)
 		return 0;
 
-	pdem->data[x][y]=(short)rint(height);
+	dem->data[x][y]=(short)rint(height);
 	return 1;
 }
 
@@ -1888,184 +2034,11 @@ void LoadPAT(char *filename)
 	}
 }
 
-int LoadSDF_SDF(char *name)
-{
-	/* This function reads uncompressed SPLAT Data Files (.sdf)
-	   containing digital elevation model data into memory.
-	   Elevation data, maximum and minimum elevations, and
-	   quadrangle limits are stored in the first available
-	   dem[] structure. */
-
-	int	x, y, data, indx, minlat, minlon, maxlat, maxlon;
-	char	found, free_page=0, line[20], sdf_file[MAXPATHLEN], path_plus_name[MAXPATHLEN];
-    char *p;
-	FILE	*fd;
-
-	for (x=0; name[x]!=0 && x<(MAXPATHLEN-5); x++)
-		sdf_file[x]=name[x];
-    if ( (p = strrchr(sdf_file, '.')) ) {
-        x = p - sdf_file;
-    }
-
-	sdf_file[x]=0;
-
-	/* Parse filename for minimum latitude and longitude values */
-
-	sscanf(sdf_file,"%d:%d:%d:%d",&minlat,&maxlat,&minlon,&maxlon);
-
-	sdf_file[x]='.';
-	sdf_file[x+1]='s';
-	sdf_file[x+2]='d';
-	sdf_file[x+3]='f';
-	sdf_file[x+4]=0;
-
-	/* Is it already in memory? */
-
-	for (indx=0, found=0; indx<MAXPAGES && found==0; indx++)
-	{
-		if (minlat==dem[indx].min_north && minlon==dem[indx].min_west && maxlat==dem[indx].max_north && maxlon==dem[indx].max_west)
-			found=1;
-	}
-
-	/* Is room available to load it? */
-
-	if (found==0)
-	{	
-		for (indx=0, free_page=0; indx<MAXPAGES && free_page==0; indx++)
-			if (dem[indx].max_north==-90)
-				free_page=1;
-	}
-
-	indx--;
-
-	if (free_page && found==0 && indx>=0 && indx<MAXPAGES)
-	{
-		/* Search for SDF file in current working directory first */
-
-		strncpy(path_plus_name,sdf_file,MAXPATHLEN);
-
-		fd=fopen(path_plus_name,"rb");
-
-		if (fd==NULL)
-		{
-			/* Next, try loading SDF file from path specified
-			   in $HOME/.splat_path file or by -d argument */
-
-			strncpy(path_plus_name,sdf_path,MAXPATHLEN);
-			strncat(path_plus_name,sdf_file,MAXPATHLEN-1);
-
-			fd=fopen(path_plus_name,"rb");
-		}
-
-		if (fd!=NULL)
-		{
-			fprintf(stdout,"Loading \"%s\" into page %d...",path_plus_name,indx+1);
-			fflush(stdout);
-
-			fgets(line,19,fd);
-			sscanf(line,"%d",&dem[indx].max_west);
-
-			fgets(line,19,fd);
-			sscanf(line,"%d",&dem[indx].min_north);
-
-			fgets(line,19,fd);
-			sscanf(line,"%d",&dem[indx].min_west);
-
-			fgets(line,19,fd);
-			sscanf(line,"%d",&dem[indx].max_north);
-
-			for (x=0; x<ippd; x++)
-				for (y=0; y<ippd; y++)
-				{
-					fgets(line,19,fd);
-					data=atoi(line);
-
-					dem[indx].data[x][y]=data;
-					dem[indx].signal[x][y]=0;
-					dem[indx].mask[x][y]=0;
-
-					if (data>dem[indx].max_el)
-						dem[indx].max_el=data;
-
-					if (data<dem[indx].min_el)
-						dem[indx].min_el=data;
-				}
-
-			fclose(fd);
-
-			if (dem[indx].min_el<min_elevation)
-				min_elevation=dem[indx].min_el;
-
-			if (dem[indx].max_el>max_elevation)
-				max_elevation=dem[indx].max_el;
-
-			if (max_north==-90)
-				max_north=dem[indx].max_north;
-
-			else if (dem[indx].max_north>max_north)
-					max_north=dem[indx].max_north;
-
-			if (min_north==90)
-				min_north=dem[indx].min_north;
-
-			else if (dem[indx].min_north<min_north)
-					min_north=dem[indx].min_north;
-
-			if (max_west==-1)
-				max_west=dem[indx].max_west;
-
-			else
-			{
-				if (abs(dem[indx].max_west-max_west)<180)
-				{
- 					if (dem[indx].max_west>max_west)
-						max_west=dem[indx].max_west;
-				}
-
-				else
-				{
- 					if (dem[indx].max_west<max_west)
-						max_west=dem[indx].max_west;
-				}
-			}
-
-			if (min_west==360)
-				min_west=dem[indx].min_west;
-
-			else
-			{
-				if (abs(dem[indx].min_west-min_west)<180)
-				{
- 					if (dem[indx].min_west<min_west)
-						min_west=dem[indx].min_west;
-				}
-
-				else
-				{
- 					if (dem[indx].min_west>min_west)
-						min_west=dem[indx].min_west;
-				}
-			}
-
-			fprintf(stdout," Done!\n");
-			fflush(stdout);
-
-			return 1;
-		}
-
-		else
-			return -1;
-	}
-
-	else
-		return 0;
-}
-
-char *BZfgets(BZFILE *bzfd, unsigned length)
+char *BZfgets(BZFILE *bzfp, unsigned length)
 {
 	/* This function returns at most one less than 'length' number
 	   of characters from a bz2 compressed file whose file descriptor
-	   is pointed to by *bzfd.  In operation, a buffer is filled with
+	   is pointed to by *bzfp.  In operation, a buffer is filled with
 	   uncompressed data (size = BZBUFFER), which is then parsed
 	   and doled out as NULL terminated character bufs every time
 	   this function is invoked.  A NULL buf indicates an EOF
@@ -2092,7 +2065,7 @@ char *BZfgets(BZFILE *bzfd, unsigned length)
 		{
 			/* Uncompress data into a static buffer */
 
-			nBuf=BZ2_bzRead(&bzerror, bzfd, buffer, BZBUFFER);
+			nBuf=BZ2_bzRead(&bzerror, bzfp, buffer, BZBUFFER);
 			buffer[nBuf]=0;
 			x=0;
 		}
@@ -2120,313 +2093,223 @@ char *BZfgets(BZFILE *bzfd, unsigned length)
 	return (output);
 }
 
-int LoadSDF_BZ(char *name)
+int LoadSDF(char *name)
 {
-	/* This function reads .bz2 compressed SPLAT Data Files containing
-	   digital elevation model data into memory.  Elevation data,
-	   maximum and minimum elevations, and quadrangle limits are
-	   stored in the first available dem[] structure. */
+	/* This function reads SPLAT Data Files (.sdf) containing digital
+	   elevation model data into memory. It loads them into dem structs,
+	   which then get appended to the global dem array.
+     */
 
-	int	x, y, data, indx, minlat, minlon, maxlat, maxlon;
-	char	found, free_page=0, sdf_file[255], path_plus_name[512],
-		*buf;
-	FILE	*fd;
-	BZFILE	*bzfd;
+	int	x, y, data;
+	int minlat, minlon, maxlat, maxlon;
+	char line[64];
+	char sdf_file[MAXPATHLEN], path_plus_name[MAXPATHLEN*2];
+    char *p;
+	SDFCompressType compressType = SDF_COMPRESSTYPE_NONE;
+	DEM *dem;
+	FILE *fp = NULL;
+	BZFILE *bzfp = NULL;
 
-	for (x=0; name[x]!='.' && name[x]!=0 && x<247; x++)
+	SDFCompressFormat formats[] = {
+		{ SDF_COMPRESSTYPE_BZIP2, ".sdf.bz2" },
+		{ SDF_COMPRESSTYPE_NONE, ".sdf" }
+	};
+	const int known_formats = sizeof(formats)/sizeof(SDFCompressFormat);
+
+
+	for (x=0; name[x]!=0 && x<(MAXPATHLEN-9); x++)
 		sdf_file[x]=name[x];
+    if ( (p = strrchr(sdf_file, '.')) ) {
+        x = p - sdf_file;
+    }
 
 	sdf_file[x]=0;
 
-	/* Parse sdf_file name for minimum latitude and longitude values */
+	/* Parse filename for minimum latitude and longitude values */
 
 	sscanf(sdf_file,"%d:%d:%d:%d",&minlat,&maxlat,&minlon,&maxlon);
 
-	sdf_file[x]='.';
-	sdf_file[x+1]='s';
-	sdf_file[x+2]='d';
-	sdf_file[x+3]='f';
-	sdf_file[x+4]='.';
-	sdf_file[x+5]='b';
-	sdf_file[x+6]='z';
-	sdf_file[x+7]='2';
-	sdf_file[x+8]=0;
-
 	/* Is it already in memory? */
 
-	for (indx=0, found=0; indx<MAXPAGES && found==0; indx++)
-	{
-		if (minlat==dem[indx].min_north && minlon==dem[indx].min_west && maxlat==dem[indx].max_north && maxlon==dem[indx].max_west)
-			found=1;
-	}
-
-	/* Is room available to load it? */
-
-	if (found==0)
-	{	
-		for (indx=0, free_page=0; indx<MAXPAGES && free_page==0; indx++)
-			if (dem[indx].max_north==-90)
-				free_page=1;
-	}
-
-	indx--;
-
-	if (free_page && found==0 && indx>=0 && indx<MAXPAGES)
-	{
-		/* Search for SDF file in current working directory first */
-
-		strncpy(path_plus_name,sdf_file,255);
-
-		fd=fopen(path_plus_name,"rb");
-		bzfd=BZ2_bzReadOpen(&bzerror,fd,0,0,NULL,0);
-
-		if (fd==NULL || bzerror!=BZ_OK)
-		{
-			/* Next, try loading SDF file from path specified
-			   in $HOME/.splat_path file or by -d argument */
-
-			strncpy(path_plus_name,sdf_path,MAXPATHLEN);
-			strncat(path_plus_name,sdf_file,MAXPATHLEN-1);
-
-			fd=fopen(path_plus_name,"rb");
-			bzfd=BZ2_bzReadOpen(&bzerror,fd,0,0,NULL,0);
-		}
-
-		if (fd!=NULL && bzerror==BZ_OK)
-		{
-			fprintf(stdout,"Loading \"%s\" into page %d...",path_plus_name,indx+1);
-			fflush(stdout);
-
-			sscanf(BZfgets(bzfd,255),"%d",&dem[indx].max_west);
-			sscanf(BZfgets(bzfd,255),"%d",&dem[indx].min_north);
-			sscanf(BZfgets(bzfd,255),"%d",&dem[indx].min_west);
-			sscanf(BZfgets(bzfd,255),"%d",&dem[indx].max_north);
-	
-			for (x=0; x<ippd; x++)
-				for (y=0; y<ippd; y++)
-				{
-					buf=BZfgets(bzfd,20);
-					data=atoi(buf);
-
-					dem[indx].data[x][y]=data;
-					dem[indx].signal[x][y]=0;
-					dem[indx].mask[x][y]=0;
-
-					if (data>dem[indx].max_el)
-						dem[indx].max_el=data;
-
-					if (data<dem[indx].min_el)
-						dem[indx].min_el=data;
-				}
-
-			fclose(fd);
-
-			BZ2_bzReadClose(&bzerror,bzfd);
-
-			if (dem[indx].min_el<min_elevation)
-				min_elevation=dem[indx].min_el;
-	
-			if (dem[indx].max_el>max_elevation)
-				max_elevation=dem[indx].max_el;
-
-			if (max_north==-90)
-				max_north=dem[indx].max_north;
-
-			else if (dem[indx].max_north>max_north)
-					max_north=dem[indx].max_north;
-
-			if (min_north==90)
-				min_north=dem[indx].min_north;
-
-			else if (dem[indx].min_north<min_north)
-					min_north=dem[indx].min_north;
-
-			if (max_west==-1)
-				max_west=dem[indx].max_west;
-
-			else
-			{
-				if (abs(dem[indx].max_west-max_west)<180)
-				{
- 					if (dem[indx].max_west>max_west)
-						max_west=dem[indx].max_west;
-				}
-
-				else
-				{
- 					if (dem[indx].max_west<max_west)
-						max_west=dem[indx].max_west;
-				}
-			}
-
-			if (min_west==360)
-				min_west=dem[indx].min_west;
-
-			else
-			{
-				if (abs(dem[indx].min_west-min_west)<180)
-				{
- 					if (dem[indx].min_west<min_west)
-						min_west=dem[indx].min_west;
-				}
-
-				else
-				{
- 					if (dem[indx].min_west>min_west)
-						min_west=dem[indx].min_west;
-				}
-			}
-
-			fprintf(stdout," Done!\n");
-			fflush(stdout);
-
-			return 1;
-		}
-
-		else
-			return -1;
-	}
-
-	else
+	dem = FindDEM_Explicit(minlat, minlon, maxlat, maxlon);
+	if (dem != NULL) {
 		return 0;
-}
+	}
 
-char LoadSDF(char *name)
-{
-	/* This function loads the requested SDF file from the filesystem.
-	   It first tries to invoke the LoadSDF_SDF() function to load an
-	   uncompressed SDF file (since uncompressed files load slightly
-	   faster).  If that attempt fails, then it tries to load a
-	   compressed SDF file by invoking the LoadSDF_BZ() function.
-	   If that fails, then we can assume that no elevation data
-	   exists for the region requested, and that the region
-	   requested must be entirely over water. */
+	dem = AllocateDEM();
+	if (dem == NULL) {
+		return -1;
+	}
 
-	int	x, y, indx, minlat, minlon, maxlat, maxlon;
-	char	found, free_page=0;
-	int	return_value=-1;
+	/* Rearranged priority! Old way was:
+	 *	1) look in current workdir first
+	 *	2) look in directory specified by -d argument or .splat_path files
+	 *
+	 * New way:
+	 *	1) Look in directory specified by -d argument
+	 *  2) Look in local directory
+	 *  3) Look in directory named by $HOME/.splat_path
+	 *
+	 * My reasoning is that if someone actively specifies something on the
+	 * command line, they probably mean it to override any other settings.
+	 *
+	 */
 
-	/* Try to load an uncompressed SDF first. */
-
-	return_value=LoadSDF_SDF(name);
-
-	/* If that fails, try loading a compressed SDF. */
-
-	if (return_value==0 || return_value==-1)
-		return_value=LoadSDF_BZ(name);
-
-	/* If neither format can be found, then assume the area is water. */
-
-	if (return_value==0 || return_value==-1)
-	{
-		/* Parse SDF name for minimum latitude and longitude values */
-
-		sscanf(name,"%d:%d:%d:%d",&minlat,&maxlat,&minlon,&maxlon);
-
-		/* Is it already in memory? */
-
-		for (indx=0, found=0; indx<MAXPAGES && found==0; indx++)
-		{
-			if (minlat==dem[indx].min_north && minlon==dem[indx].min_west && maxlat==dem[indx].max_north && maxlon==dem[indx].max_west)
-				found=1;
-		}
-
-		/* Is room available to load it? */
-
-		if (found==0)
-		{	
-			for (indx=0, free_page=0; indx<MAXPAGES && free_page==0; indx++)
-				if (dem[indx].max_north==-90)
-					free_page=1;
-		}
-
-		indx--;
-
-		if (free_page && found==0 && indx>=0 && indx<MAXPAGES)
-		{
-			fprintf(stdout,"Region  \"%s\" assumed as sea-level into page %d...",name,indx+1);
-			fflush(stdout);
-
-			dem[indx].max_west=maxlon;
-			dem[indx].min_north=minlat;
-			dem[indx].min_west=minlon;
-			dem[indx].max_north=maxlat;
-
-			/* Fill DEM with sea-level topography */
-
-			for (x=0; x<ippd; x++)
-				for (y=0; y<ippd; y++)
-				{
-					dem[indx].data[x][y]=0;
-					dem[indx].signal[x][y]=0;
-					dem[indx].mask[x][y]=0;
-
-					if (dem[indx].min_el>0)
-						dem[indx].min_el=0;
-				}
-
-			if (dem[indx].min_el<min_elevation)
-				min_elevation=dem[indx].min_el;
-
-			if (dem[indx].max_el>max_elevation)
-				max_elevation=dem[indx].max_el;
-
-			if (max_north==-90)
-				max_north=dem[indx].max_north;
-
-			else if (dem[indx].max_north>max_north)
-					max_north=dem[indx].max_north;
-
-			if (min_north==90)
-				min_north=dem[indx].min_north;
-
-			else if (dem[indx].min_north<min_north)
-					min_north=dem[indx].min_north;
-
-			if (max_west==-1)
-				max_west=dem[indx].max_west;
-
-			else
-			{
-				if (abs(dem[indx].max_west-max_west)<180)
-				{
- 					if (dem[indx].max_west>max_west)
-						max_west=dem[indx].max_west;
-				}
-
-				else
-				{
- 					if (dem[indx].max_west<max_west)
-						max_west=dem[indx].max_west;
-				}
+	/* check -d directory */
+	if (sdf_path[0]!=0) {
+		for (int i=0; i<known_formats && !fp; ++i) {
+			snprintf(path_plus_name, MAXPATHLEN*2, "%s%s%s", sdf_path, sdf_file, formats[i].suffix);
+			fprintf(stderr, "Trying to load %s\n", path_plus_name);
+			if ((fp=fopen(path_plus_name,"rb"))!= NULL) {
+				compressType=formats[i].type;
 			}
-
-			if (min_west==360)
-				min_west=dem[indx].min_west;
-
-			else
-			{
-				if (abs(dem[indx].min_west-min_west)<180)
-				{
- 					if (dem[indx].min_west<min_west)
-						min_west=dem[indx].min_west;
-				}
-
-				else
-				{
- 					if (dem[indx].min_west>min_west)
-						min_west=dem[indx].min_west;
-				}
-			}
-
-			fprintf(stdout," Done!\n");
-			fflush(stdout);
-
-			return_value=1;
 		}
 	}
 
-	return return_value;
+	/* check local directory */
+	if (!fp) {
+		for (int i=0; i<known_formats && !fp; ++i) {
+			snprintf(path_plus_name, MAXPATHLEN, "%s%s", sdf_file, formats[i].suffix);
+			fprintf(stderr, "Trying to load %s\n", path_plus_name);
+			if ((fp=fopen(path_plus_name,"rb"))!=NULL) {
+				compressType=formats[i].type;
+			}
+		}
+	}
+
+	/* check $HOME/.splat_path directory */
+	if (!fp && home_sdf_path[0]!=0) {
+		for (int i=0; i<known_formats && !fp; ++i) {
+			snprintf(path_plus_name, MAXPATHLEN*2, "%s%s%s", home_sdf_path, sdf_file, formats[i].suffix);
+			fprintf(stderr, "Trying to load %s\n", path_plus_name);
+			if ((fp=fopen(path_plus_name,"rb"))!=NULL) {
+				compressType=formats[i].type;
+			}
+		}
+	}
+
+
+
+	if (fp) {
+		fprintf(stdout,"Loading \"%s\"...", path_plus_name);
+		fflush(stdout);
+
+		if (compressType == SDF_COMPRESSTYPE_BZIP2) {
+			bzfp=BZ2_bzReadOpen(&bzerror,fp,0,0,NULL,0);
+		}
+
+		switch (compressType) {
+			case SDF_COMPRESSTYPE_BZIP2:
+				dem->max_west = atoi(BZfgets(bzfp, 64));
+				dem->min_north = atoi(BZfgets(bzfp, 64));
+				dem->min_west = atoi(BZfgets(bzfp, 64));
+				dem->max_north = atoi(BZfgets(bzfp, 64));
+				break;
+			case SDF_COMPRESSTYPE_NONE:
+			default:
+				dem->max_west = atoi(fgets(line, 64, fp));
+				dem->min_north = atoi(fgets(line, 64, fp));
+				dem->min_west = atoi(fgets(line, 64, fp));
+				dem->max_north = atoi(fgets(line, 64, fp));
+		}
+
+		for (x=0; x<ippd; x++) {
+			for (y=0; y<ippd; y++) {
+				switch (compressType) {
+					case SDF_COMPRESSTYPE_BZIP2:
+						data = atoi(BZfgets(bzfp, 64));
+						break;
+					case SDF_COMPRESSTYPE_NONE:
+					default:
+						data = atoi(fgets(line, 64, fp));
+				}
+
+				dem->data[x][y]=data;
+				dem->signal[x][y]=0;
+				dem->mask[x][y]=0;
+
+				if (data>dem->max_el)
+					dem->max_el=data;
+
+				if (data<dem->min_el)
+					dem->min_el=data;
+			}
+		}
+
+		if (compressType == SDF_COMPRESSTYPE_BZIP2) {
+			BZ2_bzReadClose(&bzerror,bzfp);
+		}
+		fclose(fp);
+
+	} else {
+		fprintf(stdout,"Region \"%s\" assumed as sea-level...", sdf_file);
+		fflush(stdout);
+
+		dem->max_west=maxlon;
+		dem->min_north=minlat;
+		dem->min_west=minlon;
+		dem->max_north=maxlat;
+		dem->max_el=0;
+		dem->min_el=0;
+
+		for (x=0; x<ippd; x++) {
+			for (y=0; y<ippd; y++) {
+				dem->data[x][y]=0;
+				dem->signal[x][y]=0;
+				dem->mask[x][y]=0;
+			}
+		}
+
+	}
+
+	if (dem->min_el<min_elevation)
+		min_elevation=dem->min_el;
+
+	if (dem->max_el>max_elevation)
+		max_elevation=dem->max_el;
+
+	if (max_north==-90)
+		max_north=dem->max_north;
+
+	else if (dem->max_north>max_north)
+			max_north=dem->max_north;
+
+	if (min_north==90)
+		min_north=dem->min_north;
+
+	else if (dem->min_north<min_north)
+			min_north=dem->min_north;
+
+	if (max_west==-1) {
+		max_west=dem->max_west;
+	} else {
+		if (abs(dem->max_west-max_west)<180) {
+			if (dem->max_west>max_west)
+				max_west=dem->max_west;
+		} else {
+			if (dem->max_west<max_west)
+				max_west=dem->max_west;
+		}
+	}
+
+	if (min_west==360) {
+		min_west=dem->min_west;
+	} else {
+		if (abs(dem->min_west-min_west)<180) {
+			if (dem->min_west<min_west)
+				min_west=dem->min_west;
+		} else {
+			if (dem->min_west>min_west)
+				min_west=dem->min_west;
+		}
+	}
+
+	AppendDEM(dem); /* append to global array */
+
+	fprintf(stdout," Done!\n");
+	fflush(stdout);
+
+	return 1;
 }
 
 void LoadCities(char *filename)
@@ -4264,7 +4147,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	unsigned char mask;
 	unsigned width, height, terrain;
 	int x, y, x0=0, y0=0;
-	Dem *pdem;
+	DEM *dem;
 	double lat, lon, conversion, one_over_gamma,
 	north, south, east, west, minwest;
 	FILE *fd;
@@ -4414,10 +4297,10 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 			if (lon<0.0)
 				lon+=360.0;
 
-			pdem = FindDEM(lat, lon, x0, y0);
-			if (pdem)
+			dem = FindDEM(lat, lon, x0, y0);
+			if (dem)
 			{
-				mask=pdem->mask[x0][y0];
+				mask=dem->mask[x0][y0];
 
 				if (mask&2)
 					/* Text Labels: Red */
@@ -4510,12 +4393,12 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 					else
 					{
 						/* Sea-level: Medium Blue */
-						if (pdem->data[x0][y0]==0)
+						if (dem->data[x0][y0]==0)
 							pixel = COLOR_MEDIUMBLUE;
 						else
 						{
 							/* Elevation: Greyscale */
-							terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+							terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
 							pixel=RGB(terrain,terrain,terrain);
 						}
 					}
@@ -4555,7 +4438,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	unsigned char mask;
 	int indx, x, y, z, colorwidth, x0, y0, loss, level,
 		hundreds, tens, units, match;
-	Dem *pdem;
+	DEM *dem;
 	double lat, lon, conversion, one_over_gamma,
 	north, south, east, west, minwest;
 	FILE *fd;
@@ -4747,11 +4630,11 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 			if (lon<0.0)
 				lon+=360.0;
 
-			pdem = FindDEM(lat, lon, x0, y0);
-			if (pdem)
+			dem = FindDEM(lat, lon, x0, y0);
+			if (dem)
 			{
-				mask=pdem->mask[x0][y0];
-				loss=(pdem->signal[x0][y0]);
+				mask=dem->mask[x0][y0];
+				loss=(dem->signal[x0][y0]);
 
 				match=255;
 
@@ -4811,11 +4694,11 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 						{
 							/* Display land or sea elevation */
 
-							if (pdem->data[x0][y0]==0)
+							if (dem->data[x0][y0]==0)
                                 pixel=COLOR_MEDIUMBLUE;
 							else
 							{
-								terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+								terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
                                 pixel=RGB(terrain,terrain,terrain);
 							}
 						}
@@ -4829,12 +4712,12 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 						else  /* terrain / sea-level */
 						{
-							if (pdem->data[x0][y0]==0)
+							if (dem->data[x0][y0]==0)
                                 pixel=COLOR_MEDIUMBLUE;
 							else
 							{
 								/* Elevation: Greyscale */
-								terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+								terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
                                 pixel=RGB(terrain,terrain,terrain);
 							}
 						}
@@ -5028,7 +4911,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	unsigned char mask;
 	int indx, x, y, z=1, x0, y0, signal, level, hundreds,
 		tens, units, match, colorwidth;
-	Dem *pdem;
+	DEM *dem;
 	double conversion, one_over_gamma, lat, lon,
 	north, south, east, west, minwest;
 	FILE *fd;
@@ -5219,11 +5102,11 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 			if (lon<0.0)
 				lon+=360.0;
 
-			pdem = FindDEM(lat, lon, x0, y0);
-			if (pdem)
+			dem = FindDEM(lat, lon, x0, y0);
+			if (dem)
 			{
-				mask=pdem->mask[x0][y0];
-				signal=(pdem->signal[x0][y0])-100;
+				mask=dem->mask[x0][y0];
+				signal=(dem->signal[x0][y0])-100;
 
 				match=255;
 
@@ -5283,11 +5166,11 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 						{
 							/* Display land or sea elevation */
 
-							if (pdem->data[x0][y0]==0)
+							if (dem->data[x0][y0]==0)
                                 pixel=COLOR_MEDIUMBLUE;
 							else
 							{
-								terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+								terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
                                 pixel=RGB(terrain,terrain,terrain);
 							}
 						}
@@ -5306,12 +5189,12 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
                                 pixel=COLOR_WHITE;
 							else
 							{
-								if (pdem->data[x0][y0]==0)
+								if (dem->data[x0][y0]==0)
                                     pixel=COLOR_MEDIUMBLUE;
 								else
 								{
 									/* Elevation: Greyscale */
-									terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+									terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
                                     pixel=RGB(terrain,terrain,terrain);
 								}
 							}
@@ -5539,7 +5422,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	unsigned width, height, terrain, red, green, blue;
     unsigned int imgheight, imgwidth;
 	unsigned char mask;
-	Dem *pdem;
+	DEM *dem;
 	int indx, x, y, z=1, x0, y0, dBm, level, hundreds,
 		tens, units, match, colorwidth;
 	double conversion, one_over_gamma, lat, lon,
@@ -5732,11 +5615,11 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 			if (lon<0.0)
 				lon+=360.0;
 
-			pdem = FindDEM(lat, lon, x0, y0);
-			if (pdem)
+			dem = FindDEM(lat, lon, x0, y0);
+			if (dem)
 			{
-				mask=pdem->mask[x0][y0];
-				dBm=(pdem->signal[x0][y0])-200;
+				mask=dem->mask[x0][y0];
+				dBm=(dem->signal[x0][y0])-200;
 
 				match=255;
 
@@ -5796,11 +5679,11 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 						{
 							/* Display land or sea elevation */
 
-							if (pdem->data[x0][y0]==0)
+							if (dem->data[x0][y0]==0)
                                 pixel=COLOR_MEDIUMBLUE;
 							else
 							{
-								terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+								terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
                                 pixel=RGB(terrain,terrain,terrain);
 							}
 						}
@@ -5819,12 +5702,12 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
                                 pixel=COLOR_WHITE;
 							else
 							{
-								if (pdem->data[x0][y0]==0)
+								if (dem->data[x0][y0]==0)
                                     pixel=COLOR_MEDIUMBLUE;
 								else
 								{
 									/* Elevation: Greyscale */
-									terrain=(unsigned)(0.5+pow((double)(pdem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
+									terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
                                     pixel=RGB(terrain,terrain,terrain);
 								}
 							}
@@ -8342,6 +8225,7 @@ int main(int argc, char *argv[])
 	elevation_file[0]=0;
 	terrain_file[0]=0;
 	sdf_path[0]=0;
+	home_sdf_path[0]=0;
 	udt_file[0]=0;
 	max_txsites=30;
 	fzone_clearance=0.6;
@@ -8365,16 +8249,6 @@ int main(int argc, char *argv[])
 	{
 		tx_site[x].lat=91.0;
 		tx_site[x].lon=361.0;
-	}
-
-	for (x=0; x<MAXPAGES; x++)
-	{
-		dem[x].min_el=32768;
-		dem[x].max_el=-32768;
-		dem[x].min_north=90;
-		dem[x].max_north=-90;
-		dem[x].min_west=360;
-		dem[x].max_west=-1;
 	}
 
 	/* Scan for command line arguments */
@@ -8598,6 +8472,11 @@ int main(int argc, char *argv[])
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
 				strncpy(sdf_path,argv[z],MAXPATHLEN-2);
+
+			/* Ensure it has a trailing slash */
+			if (sdf_path[strlen(sdf_path)]!='/') {
+				strcat(sdf_path, "/");
+			}
 		}
 
 		if (strcmp(argv[x],"-t")==0)
@@ -8783,6 +8662,12 @@ int main(int argc, char *argv[])
 
 	/* No major errors were detected.  Whew!  :-) */
 
+
+	if (InitDEMs(MAXPAGES) < 0) {
+		fprintf(stderr, "Couldn't allocate Digital Elevation Model array!\n");
+		return -1;
+	}
+
 	/* Adjust input parameters if -metric option is used */
 
 	if (metric)
@@ -8793,45 +8678,27 @@ int main(int argc, char *argv[])
 		clutter/=METERS_PER_FOOT;	/* meters --> feet */
 	}
 
-	/* If no SDF path was specified on the command line (-d), check
-	   for a path specified in the $HOME/.splat_path file.  If the
-	   file is not found, then sdf_path[] remains NULL, and the
-	   current working directory is assumed to contain the SDF
-	   files. */
-
-	if (sdf_path[0]==0)
+	/* read the home_sdf_path */
+	env=getenv("HOME");
+	snprintf(buf,MAXPATHLEN-2,"%s/.splat_path",env);
+	fd=fopen(buf,"r");
+	if (fd!=NULL)
 	{
-		env=getenv("HOME");
-		snprintf(buf,MAXPATHLEN-2,"%s/.splat_path",env);
-		fd=fopen(buf,"r");
+		fgets(buf,253,fd);
 
-		if (fd!=NULL)
-		{
-			fgets(buf,253,fd);
+		/* Remove <CR> and/or <LF> from buf */
+		for (x=0; buf[x]!=13 && buf[x]!=10 && buf[x]!=0 && x<253; x++);
+		buf[x]=0;
 
-			/* Remove <CR> and/or <LF> from buf */
+		strncpy(home_sdf_path,buf,MAXPATHLEN-2);
+		fclose(fd);
 
-			for (x=0; buf[x]!=13 && buf[x]!=10 && buf[x]!=0 && x<253; x++);
-			buf[x]=0;
-
-			strncpy(sdf_path,buf,MAXPATHLEN-2);
-
-			fclose(fd);
+		/* Ensure it has a trailing slash */
+		if (home_sdf_path[strlen(home_sdf_path)]!='/') {
+			strcat(home_sdf_path, "/");
 		}
 	}
 
-	/* Ensure a trailing '/' is present in sdf_path */
-
-	if (sdf_path[0])
-	{
-		x=strlen(sdf_path);
-
-		if (sdf_path[x-1]!='/' && x!=0)
-		{
-			sdf_path[x]='/';
-			sdf_path[x+1]=0;
-		}
-	}
 
 	fprintf(stdout,"%s",header);
 	fflush(stdout);
@@ -8875,7 +8742,8 @@ int main(int argc, char *argv[])
 				WriteImageSS(mapfile,imagetype,geo,kml,ngs,tx_site,txsites);
 		}
 
-		exit(0);
+		FreeDEMs();
+		return 0;
 	}
 
 	x=0;
@@ -9317,6 +9185,8 @@ int main(int argc, char *argv[])
 	}
 
 	printf("\n");
+
+	FreeDEMs();
 
 	/* That's all, folks! */
 
