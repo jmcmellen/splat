@@ -150,10 +150,11 @@ typedef struct Site {
 // one of these on the stack will cause it to blow up with an permissions (access)
 // error. Allocating it on the heap via malloc() or new() is, of course, OK.
 typedef struct Path {
-	double lat[ARRAYSIZE];
-	double lon[ARRAYSIZE];
-	double elevation[ARRAYSIZE];
-	double distance[ARRAYSIZE];
+	unsigned long arysize;
+	double *lat;
+	double *lon;
+	double *elevation;
+	double *distance;
 	int length;
 } Path;
 
@@ -165,6 +166,7 @@ typedef struct DEM {
 	int max_west;
 	int max_el;
 	int min_el;
+	unsigned long arysize;
 	short **data;
 	unsigned char **mask;
 	unsigned char **signal;
@@ -447,7 +449,47 @@ void ImageWriterFinish(ImageWriter *iw)
 	free(iw->imgline);
 }
 
+/*****************************
+ * Functions for allocating Paths
+ ****************************/
 
+Path *AllocatePath()
+{
+	Path *path = (Path*)malloc(sizeof(Path));
+	if (!path) {
+		return NULL;
+	}
+	memset(path, 0, sizeof(Path));
+	path->arysize = ARRAYSIZE;
+	
+	path->lat=(double*)malloc(path->arysize*sizeof(double));
+	path->lon=(double*)malloc(path->arysize*sizeof(double));
+	path->elevation=(double*)malloc(path->arysize*sizeof(double));
+	path->distance=(double*)malloc(path->arysize*sizeof(double));
+
+	if (path->lat && path->lon && path->elevation && path->distance) {
+		return path;
+	}
+
+	/* if we got here, there was an error */
+	if (path->lat) free(path->lat);
+	if (path->lon) free(path->lon);
+	if (path->elevation) free(path->elevation);
+	if (path->distance) free(path->distance);
+
+	free(path);
+
+	return NULL;
+}
+
+void DestroyPath(Path *path)
+{
+	if (path->lat) free(path->lat);
+	if (path->lon) free(path->lon);
+	if (path->elevation) free(path->elevation);
+	if (path->distance) free(path->distance);
+	free(path);
+}
 
 /*****************************
  * Utility functions
@@ -577,15 +619,12 @@ char *dec2dms(double decimal)
 }
 
 /*****************************
- * Functions for manipulating the data in the DEM array.
+ * Functions for allocating and manipulating DEMs
  *****************************/
-
-/* #define USE_BLOCK_MEM 1 */
 
 DEM *AllocateDEM()
 {
-	/* Allocate a DEM struct on the heap. The arrays will be sizeXsize. */
-	int size = ippd;
+	/* Allocate a DEM struct on the heap. */
 
 	/* not allowed to allocate any more */
 	if (demCount >= demMax) {
@@ -597,52 +636,22 @@ DEM *AllocateDEM()
 		return NULL;
 	}
 	memset(dem, 0, sizeof(DEM));
+	dem->arysize = ippd;
 	
 	do {
-#ifndef USE_BLOCK_MEM
-		dem->data=(short**)malloc(size*sizeof(short*));
-		dem->mask=(unsigned char**)malloc(size*sizeof(unsigned char*));
-		dem->signal=(unsigned char**)malloc(size*sizeof(unsigned char*));
-		for (int i = 0; i<size; ++i) {
-			dem->data[i]=(short*)malloc(size*sizeof(short));
-			dem->mask[i]=(unsigned char*)malloc(size*sizeof(unsigned char));
-			dem->signal[i]=(unsigned char*)malloc(size*sizeof(unsigned char));
-		}
-#else
-		/* DO NOT USE.
-		 *
-		 * There's a bug in here somewhere.
-		 */
-		int len;
-
-		/* Allocate the 2x2 data array as a single block of memory. */
-		len = (sizeof(short*)*size) + (sizeof(short)*size*size);
-		dem->data = (short**)malloc(len);
-		if (!dem->data) {
+		dem->data=(short**)malloc(dem->arysize*sizeof(short*));
+		dem->mask=(unsigned char**)malloc(dem->arysize*sizeof(unsigned char*));
+		dem->signal=(unsigned char**)malloc(dem->arysize*sizeof(unsigned char*));
+		if (!dem->data || !dem->mask || !dem->signal) {
 			break;
 		}
 
-		/* Same for mask and signal Allocate the 2x2 data array as a single block of memory. */
-		len = (sizeof(unsigned char*)*size) + (sizeof(unsigned char)*size*size);
-		dem->mask = (unsigned char**)malloc(len);
-		if (!dem->mask) {
-			break;
+		for (unsigned long i = 0; i<dem->arysize; ++i) {
+			dem->data[i]=(short*)malloc(dem->arysize*sizeof(short));
+			dem->mask[i]=(unsigned char*)malloc(dem->arysize*sizeof(unsigned char));
+			dem->signal[i]=(unsigned char*)malloc(dem->arysize*sizeof(unsigned char));
+			// XXX TODO: error check these allocations
 		}
-		dem->signal = (unsigned char**)malloc(len);
-		if (!dem->signal) {
-			break;
-		}
-
-		/* the first part of each array is itself an array of pointer into the 2x2 data area */
-		short *dptr = (short*)(dem->data + sizeof(short*)*size);
-		unsigned char *mptr = (unsigned char*)(dem->mask + sizeof(unsigned char*)*size);
-		unsigned char *sptr = (unsigned char*)(dem->signal + sizeof(unsigned char*)*size);
-		for (int i = 0; i<size; ++i) {
-			dem->data[i] = dptr + (size * i);
-			dem->mask[i] = mptr + (size * i);
-			dem->signal[i] = sptr + (size * i);
-		}
-#endif
 
 		dem->min_el=32768;
 		dem->max_el=-32768;
@@ -666,13 +675,11 @@ DEM *AllocateDEM()
 
 void DestroyDEM(DEM *dem)
 {
-#ifndef USE_BLOCK_MEM
-	for (int i = 0; i<ippd; ++i) {
+	for (unsigned long i = 0; i<dem->arysize; ++i) {
 		free(dem->data[i]);
 		free(dem->mask[i]);
 		free(dem->signal[i]);
 	}
-#endif
 	if (dem->signal) free(dem->signal);
 	if (dem->mask) free(dem->mask);
 	if (dem->data) free(dem->data);
@@ -737,6 +744,7 @@ DEM *FindDEM(double lat, double lon, int &x, int &y)
 	}
 	return NULL;
 }
+
 
 int PutMask(double lat, double lon, int value)
 {
@@ -983,8 +991,6 @@ void ReadPath(Site &source, Site &destination, Path *path)
 		miles_per_sample, samples_per_radian=68755.0;
 	Site tempsite;
 
-	memset(path, 0, sizeof(Path));
-
 	lat1=source.lat*DEG2RAD;
 	lon1=source.lon*DEG2RAD;
 
@@ -1102,7 +1108,12 @@ double ElevationAngle2(Site source, Site destination, double er)
 		cos_test_angle, test_alt, elevation, distance,
 		source_alt2, first_obstruction_angle=0.0;
 
-	Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = AllocatePath();
+	if (!path) {
+		fprintf(stderr,"\n*** ERROR: Couldn't allocate memory for Path");
+		/* XXX What to return? */
+		return 0.0;
+	}
 	ReadPath(source,destination,path);
 
 	distance=5280.0*Distance(source,destination);
@@ -1150,7 +1161,8 @@ double ElevationAngle2(Site source, Site destination, double er)
 	else
 		elevation=((acos(cos_xmtr_angle))/DEG2RAD)-90.0;
 
-	free(path);
+	DestroyPath(path);
+
 	return elevation;
 }
 
@@ -1219,7 +1231,11 @@ double AverageTerrain(Site source, double azimuthx, double start_distance, doubl
 		return (-9999.0);
 	else
 	{
-		Path *path = (Path*)malloc(sizeof(Path));
+		Path *path = AllocatePath();
+		if (!path) {
+			fprintf(stderr,"\n*** ERROR: Couldn't allocate memory for Path");
+			return (-9999.0);
+		}
 		ReadPath(source,destination,path);
 
 		endpoint=path->length;
@@ -1245,7 +1261,7 @@ double AverageTerrain(Site source, double azimuthx, double start_distance, doubl
 		else
 			terrain=(terrain/(double)samples);
 
-		free(path);
+		DestroyPath(path);
 		return terrain;
 	}
 }
@@ -2168,7 +2184,6 @@ int LoadSDF(char *name)
 	if (sdf_path[0]!=0) {
 		for (int i=0; i<known_formats && !fp; ++i) {
 			snprintf(path_plus_name, MAXPATHLEN*2, "%s%s%s", sdf_path, sdf_file, formats[i].suffix);
-			fprintf(stderr, "Trying to load %s\n", path_plus_name);
 			if ((fp=fopen(path_plus_name,"rb"))!= NULL) {
 				compressType=formats[i].type;
 			}
@@ -2179,7 +2194,6 @@ int LoadSDF(char *name)
 	if (!fp) {
 		for (int i=0; i<known_formats && !fp; ++i) {
 			snprintf(path_plus_name, MAXPATHLEN, "%s%s", sdf_file, formats[i].suffix);
-			fprintf(stderr, "Trying to load %s\n", path_plus_name);
 			if ((fp=fopen(path_plus_name,"rb"))!=NULL) {
 				compressType=formats[i].type;
 			}
@@ -2190,14 +2204,11 @@ int LoadSDF(char *name)
 	if (!fp && home_sdf_path[0]!=0) {
 		for (int i=0; i<known_formats && !fp; ++i) {
 			snprintf(path_plus_name, MAXPATHLEN*2, "%s%s%s", home_sdf_path, sdf_file, formats[i].suffix);
-			fprintf(stderr, "Trying to load %s\n", path_plus_name);
 			if ((fp=fopen(path_plus_name,"rb"))!=NULL) {
 				compressType=formats[i].type;
 			}
 		}
 	}
-
-
 
 	if (fp) {
 		fprintf(stdout,"Loading \"%s\"...", path_plus_name);
@@ -2579,13 +2590,17 @@ void LoadBoundaries(char *filename)
 				destination.lat=lat1;
 				destination.lon=(lon1>0.0 ? 360.0-lon1 : -lon1);
 
-				Path *path = (Path*)malloc(sizeof(Path));
+				Path *path = AllocatePath();
+				if (!path) {
+					fprintf(stderr,"\n*** ERROR: Couldn't allocate memory for Path");
+					return;
+				}
 				ReadPath(source,destination,path);
 
 				for (x=0; x<path->length; x++)
 					OrMask(path->lat[x],path->lon[x],4);
 
-				free(path);
+				DestroyPath(path);
 
 				lat0=lat1;
 				lon0=lon1;
@@ -2889,7 +2904,11 @@ int PlotPath(Site source, Site destination, char mask_value)
 	double cos_xmtr_angle, cos_test_angle, test_alt;
 	double distance, rx_alt, tx_alt;
 
-	Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = AllocatePath();
+	if (!path) {
+		fprintf(stderr,"\n*** ERROR: Couldn't allocate memory for Path");
+		return -1;
+	}
 	ReadPath(source,destination,path);
 
 	for (y=0; y<path->length; y++)
@@ -2941,7 +2960,7 @@ int PlotPath(Site source, Site destination, char mask_value)
 		}
 	}
 
-	free(path);
+	DestroyPath(path);
 	return 0;
 }
 
@@ -2964,7 +2983,11 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 	char textout[MAX_TEXT_LEN];
 	size_t textlen = 0;
 
-	Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = AllocatePath();
+	if (!path) {
+		fprintf(stderr,"\n*** ERROR: Couldn't allocate memory for Path");
+		return -1;
+	}
 	ReadPath(source,destination,path);
 
 	double *elev = (double*)calloc(ARRAYSIZE + 10, sizeof(double));
@@ -3218,7 +3241,8 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 	}
 
 	free(elev);
-	free(path);
+	DestroyPath(path);
+
 	return 0;
 }
 
@@ -6017,7 +6041,11 @@ void GraphTerrain(Site source, Site destination, char *name)
 	double	minheight=100000.0, maxheight=-100000.0;
 	FILE	*fd=NULL, *fd1=NULL;
 
-	Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = AllocatePath();
+	if (!path) {
+		fprintf(stderr,"\n*** ERROR: Couldn't allocate memory for Path");
+		return;
+	}
 	ReadPath(destination,source,path); 
 
 	fd=fopen("profile.gp","wb");
@@ -6163,7 +6191,7 @@ void GraphTerrain(Site source, Site destination, char *name)
 	else
 		fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
 
-	free(path);
+	DestroyPath(path);
 }
 
 void GraphElevation(Site source, Site destination, char *name)
@@ -6183,7 +6211,11 @@ void GraphElevation(Site source, Site destination, char *name)
 	Site	remote, remote2;
 	FILE	*fd=NULL, *fd1=NULL, *fd2=NULL;
 
-	Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = AllocatePath();
+	if (!path) {
+		fprintf(stderr,"\n*** ERROR: Couldn't allocate memory for Path");
+		return;
+	}
 	ReadPath(destination,source,path);  /* destination=RX, source=TX */
 	refangle=ElevationAngle(destination,source);
 	distance=Distance(source,destination);
@@ -6368,7 +6400,7 @@ void GraphElevation(Site source, Site destination, char *name)
 	else
 		fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
 
-	free(path);
+	DestroyPath(path);
 }
 
 void GraphHeight(Site source, Site destination, char *name, unsigned char fresnel_plot, unsigned char normalized)
@@ -6393,7 +6425,11 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 	Site	remote;
 	FILE	*fd=NULL, *fd1=NULL, *fd2=NULL, *fd3=NULL, *fd4=NULL, *fd5=NULL;
 
-	Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = AllocatePath();
+	if (!path) {
+		fprintf(stderr,"\n*** ERROR: Couldn't allocate memory for Path");
+		return;
+	}
 	ReadPath(destination,source,path);  /* destination=RX, source=TX */
 	azimuth=Azimuth(destination,source);
 	distance=Distance(destination,source);
@@ -6756,7 +6792,7 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 	else
 		fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
 
-	free(path);
+	DestroyPath(path);
 }
 
 void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
@@ -6771,7 +6807,11 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 		h_r_f1, h_r_fpt6, h_f, h_los, lambda=0.0;
 	char	buf[255], buf_fpt6[255], buf_f1[255];
 
-	Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = AllocatePath();
+	if (!path) {
+		fprintf(stderr,"\n*** ERROR: Couldn't allocate memory for Path");
+		return;
+	}
 	ReadPath(xmtr,rcvr,path);
 
 	if (rcvr.amsl_flag)
@@ -6944,7 +6984,7 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 		fprintf(outfile,"%s",buf_fpt6);
 	}
 
-	free(path);
+	DestroyPath(path);
 }
 
 void PathReport(Site source, Site destination, char *name, char graph_it)
@@ -6971,6 +7011,12 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 	FILE	*fd=NULL, *fd2=NULL;
 
 	sprintf(report_name,"%s-to-%s.txt",source.name,destination.name);
+
+	Path *path = AllocatePath();
+	if (!path) {
+		fprintf(stderr,"\n*** ERROR: Couldn't allocate memory for Path!\n");
+		return;
+	}
 
 	four_thirds_earth=FOUR_THIRDS*EARTHRADIUS;
 
@@ -7257,7 +7303,6 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		if (patterndB!=0.0)
 			fprintf(fd2,"%s antenna pattern towards %s: %.3f (%.2f dB)\n", source.name, destination.name, pattern, patterndB);
 
-		Path *path = (Path*)malloc(sizeof(Path));
 		ReadPath(source,destination,path);  /* source=TX, destination=RX */
 
 		double elev[ARRAYSIZE+10];
@@ -7396,9 +7441,6 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		}
 
 		fclose(fd);
-
-		free(path);
-		path = nullptr;
 
 		distance=Distance(source,destination);
 
@@ -7620,6 +7662,9 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 
 	if (x!=-1 && gpsav==0)
 		unlink("profile.gp");
+
+	DestroyPath(path);
+
 }
 
 void SiteReport(Site xmtr)
@@ -7904,7 +7949,11 @@ void WriteKML(Site source, Site destination)
 		azimuth, cos_test_angle, test_alt;
 	FILE	*fd=NULL;
 
-	Path *path = (Path*)malloc(sizeof(Path));
+	Path *path = AllocatePath();
+	if (!path) {
+		fprintf(stderr,"\n*** ERROR: Couldn't allocate memory for Path");
+		return;
+	}
 	ReadPath(source,destination,path);
 
 	sprintf(report_name,"%s-to-%s.kml",source.name,destination.name);
@@ -8115,7 +8164,7 @@ void WriteKML(Site source, Site destination)
 
 	fflush(stdout);
 
-	free(path);
+	DestroyPath(path);
 }
 
 int main(int argc, char *argv[])
