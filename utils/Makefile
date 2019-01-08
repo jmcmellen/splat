@@ -26,7 +26,7 @@ CPPFLAGS= -g -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS)
 
 LDFLAGS = -lm -lbz2 -lz
 
-all: citydecoder usgs2sdf srtm2sdf fontdata bearing
+all: citydecoder usgs2sdf srtm2sdf srtm2sdf-hd fontdata bearing
 
 citydecoder: citydecoder.o
 	$(CXX) $(CPPFLAGS) -o $@ $< $(LDFLAGS)
@@ -36,6 +36,9 @@ usgs2sdf: usgs2sdf.o
 
 srtm2sdf: srtm2sdf.o
 	$(CXX) $(CPPFLAGS) -o $@ $< $(LDFLAGS)
+
+srtm2sdf-hd: srtm2sdf
+	ln -s srtm2sdf srtm2sdf-hd
 
 fontdata: fontdata.o
 	$(CXX) $(CPPFLAGS) -o $@ $< $(LDFLAGS)
