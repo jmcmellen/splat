@@ -294,31 +294,6 @@ double ITWOMVersion();
 #endif
 
 /*****************************
- * Silly little class to show something on the screen while we're working.
- *****************************/
-class SpinnerThread
-{
-public:
-	SpinnerThread() : run(true) {};
-	void operator()()
-	{
-		int pos = 0;
-		char cursor[4]={'/','-','\\','|'};
-		while (run) {
-			fprintf(stdout, "%c\b", cursor[pos++]);
-			fflush(stdout);
-			pos%=4;
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		}
-	}
-	void stop() {
-		run = false;
-	}
-private:
-	bool run;
-};
-
-/*****************************
  * Image writing functions. This should just be a class.
  *****************************/
 
@@ -1035,7 +1010,7 @@ void ReadPath(Site &source, Site &destination, Path *path)
 		path->distance[c]=0.0;
 	}
 
-	for (distance=0.0, c=0; (total_distance!=0.0 && distance<=total_distance && c<ARRAYSIZE); c++, distance=miles_per_sample*(double)c)
+	for (distance=0.0, c=0; (total_distance!=0.0 && distance<=total_distance && c<(int)path->arysize); c++, distance=miles_per_sample*(double)c)
 	{
 		beta=distance/3959.0;
 		lat2=asin(sin(lat1)*cos(beta)+cos(azimuth)*sin(beta)*cos(lat1));
@@ -1079,7 +1054,7 @@ void ReadPath(Site &source, Site &destination, Path *path)
 
 	/* Make sure exact destination point is recorded at path.length-1 */
 
-	if (c<ARRAYSIZE)
+	if (c<(int)path->arysize)
 	{
 		path->lat[c]=destination.lat;
 		path->lon[c]=destination.lon;
@@ -1088,10 +1063,10 @@ void ReadPath(Site &source, Site &destination, Path *path)
 		c++;
 	}
 
-	if (c<ARRAYSIZE)
+	if (c<(int)path->arysize)
 		path->length=c;
 	else
-		path->length=ARRAYSIZE-1;
+		path->length=path->arysize-1;
 }
 
 double ElevationAngle2(Site source, Site destination, double er)
@@ -2990,7 +2965,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 	}
 	ReadPath(source,destination,path);
 
-	double *elev = (double*)calloc(ARRAYSIZE + 10, sizeof(double));
+	double *elev = (double*)calloc(path->arysize + 10, sizeof(double));
 
 	four_thirds_earth=FOUR_THIRDS*EARTHRADIUS;
 
@@ -3289,12 +3264,10 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 
 	fprintf(stdout, "\n\n");
 
-	std::vector<std::function<void()>> plotList;
+    WorkQueue wq;
 
-	if (!multithread) {
-		fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
-		fflush(stdout);
-	}
+	fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
+	fflush(stdout);
 
 	for (lon=minwest, x=0, y=0; (LonDiff(lon,(double)max_west)<=0.0); y++, lon=minwest+(dpp*(double)y))
 	{
@@ -3306,29 +3279,27 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 		edge.alt=altitude;
 
 		if (multithread) {
-			plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
+			wq.submit(std::bind(PlotPath, source, edge, mask_value));
 		} else {
 			PlotPath(source,edge,mask_value);
+		}
 
-			if (++count==z) 
-			{
-				fprintf(stdout,"%c",symbol[x]);
-				fflush(stdout);
-				count=0;
+		if (++count==z) 
+		{
+			fprintf(stdout,"%c",symbol[x]);
+			fflush(stdout);
+			count=0;
 
-				if (x==3)
-					x=0;
-				else
-					x++;
-			}
+			if (x==3)
+				x=0;
+			else
+				x++;
 		}
 	}
 
-	if (!multithread) {
-		count=0;
-		fprintf(stdout,"\n25%c to  50%c ",37,37);
-		fflush(stdout);
-	}
+	count=0;
+	fprintf(stdout,"\n25%c to  50%c ",37,37);
+	fflush(stdout);
 	
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3339,29 +3310,27 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 		edge.alt=altitude;
 
 		if (multithread) {
-			plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
+			wq.submit(std::bind(PlotPath, source, edge, mask_value));
 		} else {
 			PlotPath(source,edge,mask_value);
+		}
 
-			if (++count==z) 
-			{
-				fprintf(stdout,"%c",symbol[x]);
-				fflush(stdout);
-				count=0;
+		if (++count==z) 
+		{
+			fprintf(stdout,"%c",symbol[x]);
+			fflush(stdout);
+			count=0;
 
-				if (x==3)
-					x=0;
-				else
-					x++;
-			}
+			if (x==3)
+				x=0;
+			else
+				x++;
 		}
 	}
 
-	if (!multithread) {
-		count=0;
-		fprintf(stdout,"\n50%c to  75%c ",37,37);
-		fflush(stdout);
-	}
+	count=0;
+	fprintf(stdout,"\n50%c to  75%c ",37,37);
+	fflush(stdout);
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
@@ -3375,29 +3344,27 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 		edge.alt=altitude;
 
 		if (multithread) {
-			plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
+			wq.submit(std::bind(PlotPath, source, edge, mask_value));
 		} else {
 			PlotPath(source,edge,mask_value);
+		}
 
-			if (++count==z)
-			{
-				fprintf(stdout,"%c",symbol[x]);
-				fflush(stdout);
-				count=0;
+		if (++count==z)
+		{
+			fprintf(stdout,"%c",symbol[x]);
+			fflush(stdout);
+			count=0;
 
-				if (x==3)
-					x=0;
-				else
-					x++;
-			}
+			if (x==3)
+				x=0;
+			else
+				x++;
 		}
 	}
 
-	if (!multithread) {
-		count=0;
-		fprintf(stdout,"\n75%c to 100%c ",37,37);
-		fflush(stdout);
-	}
+	count=0;
+	fprintf(stdout,"\n75%c to 100%c ",37,37);
+	fflush(stdout);
 	
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3408,35 +3375,25 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 		edge.alt=altitude;
 
 		if (multithread) {
-			plotList.emplace_back(std::bind(PlotPath, source, edge, mask_value));
+			wq.submit(std::bind(PlotPath, source, edge, mask_value));
 		} else {
 			PlotPath(source,edge,mask_value);
+		}
 
-			if (++count==z)
-			{
-				fprintf(stdout,"%c",symbol[x]);
-				fflush(stdout);
-				count=0;
+		if (++count==z)
+		{
+			fprintf(stdout,"%c",symbol[x]);
+			fflush(stdout);
+			count=0;
 
-				if (x==3)
-					x=0;
-				else
-					x++;
-			}
+			if (x==3)
+				x=0;
+			else
+				x++;
 		}
 	}
 
-	if (multithread) {
-		SpinnerThread spinnerThread;
-		std::thread threadObj( (SpinnerThread()) );
-		threadObj.detach();
-	
-		// run 'em
-		WorkQueue wq(plotList);
-		wq.waitForCompletion();
-
-		spinnerThread.stop();
-	}
+	wq.waitForCompletion();
 
 	fprintf(stdout,"\nDone!\n");
 	fflush(stdout);
@@ -3525,12 +3482,10 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 
 	fprintf(stdout, "\n\n");
 
-	std::vector<std::function<void()>> plotList;
+    WorkQueue wq;
 
-	if (!multithread) {
-		fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
-		fflush(stdout);
-	}
+    fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
+    fflush(stdout);
 
 	for (lon=minwest, x=0, y=0; (LonDiff(lon,(double)max_west)<=0.0); y++, lon=minwest+(dpp*(double)y))
 	{
@@ -3542,29 +3497,27 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		edge.alt=altitude;
 
 		if (multithread) {
-			plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
+			wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
 		} else {
 			PlotLRPath(source,edge,mask_value,fd);
+        }
 
-			if (++count==z) 
-			{
-				fprintf(stdout,"%c",symbol[x]);
-				fflush(stdout);
-				count=0;
+        if (++count==z) 
+        {
+            fprintf(stdout,"%c",symbol[x]);
+            fflush(stdout);
+            count=0;
 
-				if (x==3)
-					x=0;
-				else
-					x++;
-			}
-		}
+            if (x==3)
+                x=0;
+            else
+                x++;
+        }
 	}
 
-	if (!multithread) {
-		count=0;
-		fprintf(stdout,"\n25%c to  50%c ",37,37);
-		fflush(stdout);
-	}
+    count=0;
+    fprintf(stdout,"\n25%c to  50%c ",37,37);
+    fflush(stdout);
 	
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3575,29 +3528,27 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		edge.alt=altitude;
 
 		if (multithread) {
-			plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
+			wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
 		} else {
 			PlotLRPath(source,edge,mask_value,fd);
+        }
 
-			if (++count==z) 
-			{
-				fprintf(stdout,"%c",symbol[x]);
-				fflush(stdout);
-				count=0;
+        if (++count==z) 
+        {
+            fprintf(stdout,"%c",symbol[x]);
+            fflush(stdout);
+            count=0;
 
-				if (x==3)
-					x=0;
-				else
-					x++;
-			}
-		}
+            if (x==3)
+                x=0;
+            else
+                x++;
+        }
 	}
 
-	if (!multithread) {
-		count=0;
-		fprintf(stdout,"\n50%c to  75%c ",37,37);
-		fflush(stdout);
-	}
+    count=0;
+    fprintf(stdout,"\n50%c to  75%c ",37,37);
+    fflush(stdout);
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
@@ -3611,29 +3562,27 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		edge.alt=altitude;
 
 		if (multithread) {
-			plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
+			wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
 		} else {
 			PlotLRPath(source,edge,mask_value,fd);
+        }
 
-			if (++count==z)
-			{
-				fprintf(stdout,"%c",symbol[x]);
-				fflush(stdout);
-				count=0;
+        if (++count==z)
+        {
+            fprintf(stdout,"%c",symbol[x]);
+            fflush(stdout);
+            count=0;
 
-				if (x==3)
-					x=0;
-				else
-					x++;
-			}
-		}
+            if (x==3)
+                x=0;
+            else
+                x++;
+        }
 	}
 
-	if (!multithread) {
-		count=0;
-		fprintf(stdout,"\n75%c to 100%c ",37,37);
-		fflush(stdout);
-	}
+    count=0;
+    fprintf(stdout,"\n75%c to 100%c ",37,37);
+    fflush(stdout);
 		
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3644,35 +3593,25 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		edge.alt=altitude;
 
 		if (multithread) {
-			plotList.emplace_back(std::bind(PlotLRPath, source, edge, mask_value, fd));
+			wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
 		} else {
 			PlotLRPath(source,edge,mask_value,fd);
+        }
 
-			if (++count==z)
-			{
-				fprintf(stdout,"%c",symbol[x]);
-				fflush(stdout);
-				count=0;
+        if (++count==z)
+        {
+            fprintf(stdout,"%c",symbol[x]);
+            fflush(stdout);
+            count=0;
 
-				if (x==3)
-					x=0;
-				else
-					x++;
-			}
-		}
+            if (x==3)
+                x=0;
+            else
+                x++;
+        }
 	}
 
-	if (multithread) {
-		SpinnerThread spinnerThread;
-		std::thread threadObj( (SpinnerThread()) );
-		threadObj.detach();
-
-		// run 'em
-		WorkQueue wq(plotList);
-		wq.waitForCompletion();
-
-		spinnerThread.stop();
-	}
+    wq.waitForCompletion();
 
 	if (fd!=NULL)
 		fclose(fd);
@@ -7305,7 +7244,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 
 		ReadPath(source,destination,path);  /* source=TX, destination=RX */
 
-		double elev[ARRAYSIZE+10];
+		double *elev = (double*)calloc(path->arysize + 10, sizeof(double));
 
 		/* Copy elevations plus clutter along
 		   path into the elev[] array. */
@@ -7441,6 +7380,8 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		}
 
 		fclose(fd);
+
+		free(elev);
 
 		distance=Distance(source,destination);
 
