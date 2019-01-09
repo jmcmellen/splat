@@ -11,12 +11,12 @@ The new version was compiled with clang/clang++, except where noted.
 
 2.0 Calculation times for PlotLRMap()
 
-point_to_point() (ITWOM)
+point_to_point() (ITWOM algorithm)
 -------
-Compute times (in seconds), not including generating ppm image:
+Compute times (in seconds), including generating the ppm image:
                                            Splat                Splat MT
                         Cores Threads     v1.4.2      Single thread     Multithread
-Raspberry Pi, Rev 1       1      1         1015             1185            1199
+Raspberry Pi, Model A     1      1          893              929             946 
 Atom D510                 2      4          248              255              87 
 Avoton C2550              4      4           94              108              30
 Core i7-2700K             4      8           32               32               7
@@ -35,12 +35,12 @@ of the 1.4.2 version's implementation.
 
 
 
-point_to_point_ITM()
+point_to_point_ITM() (L-R algorithm)
 -------
-Compute times (in seconds), not including generating ppm image:
+Compute times (in seconds), including generating the ppm image:
                                            Splat                Splat MT
                         Cores Threads     v1.4.2      Single thread     Multithread
-Raspberry Pi, Rev 1        1     1         804              936             959
+Raspberry Pi, Model A      1     1         676              634             645
 Atom D510                  2     4         180              209              66
 Avoton C2550               4     4          70               84              23
 Core i7-2700K              4     8          23               23               6 
@@ -54,9 +54,11 @@ Core i3-8100              4      4          n/a             189              55
 
 dB loss:
 With the modifications, this mostly stays under 0.1 dB loss difference in its calculations,
-with a few exceptions. Those mostly stay under 0.5 dB, and all stay under 2 dB. The
-compiler and fast-math options make a big difference. For instance, using the new code
-in single threaded mode:
+with a few exceptions. Those mostly stay under 0.5 dB, and all stay under 2 dB.
+
+The compiler and fast-math options make a big difference. For instance, PlotLRMap() generates
+over 1.5M points. Using the new code with the L-R algorithm in single threaded mode on
+the 2011 iMac, we have:
 
 gcc/g++, regular: 21 sec, 123 different results from 1.4.2
 gcc/g++, fastmath: 18 sec, 12 different results from 1.4.2
@@ -148,12 +150,24 @@ both d1thx() and d1thx2().
 
 In addition, hzns2() should be analyzed.
 
-qlrpfl1()
- |-> hzns2()
- |-> d1thx2()
- |     |-> qtile()
- |     \-> qtile()  ...twice on the same array
- \-> z1sq2()
+qlrpfl()
+ |-> hzns()        generate horizon
+ |-> d1thx()       
+ |     |-> z1sq1()  least-squares fit
+ |     |-> qtile()  90% quantile
+ |     \-> qtile()  10% quantile (on same array)
+ |
+ \-> z1sq()        least-squares fit (2x longer distances)
+
+
+qlrpfl2()
+ |-> hzns2()        generate horizon
+ |-> d1thx2()       
+ |     |-> z1sq2()  least-squares fit
+ |     |-> qtile()  90% quantile
+ |     \-> qtile()  10% quantile (on same array)
+ |
+ \-> z1sq2()        least-squares fit (2x for transhorizon)
 
 
 hoche, 11/28/18
