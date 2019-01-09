@@ -214,6 +214,7 @@ struct SDFCompressFormat {
 char sdf_path[MAXPATHLEN], home_sdf_path[MAXPATHLEN];
 
 char opened=0, gpsav=0, dashes[80], itwom;
+int verbose=1;
 
 double	earthradius, max_range=0.0, forced_erp=-1.0, dpp, ppd,
 	fzone_clearance=0.6, forced_freq, clutter;
@@ -3266,8 +3267,10 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 
     WorkQueue wq;
 
-	fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
-	fflush(stdout);
+	if (verbose) {
+		fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
+		fflush(stdout);
+	}
 
 	for (lon=minwest, x=0, y=0; (LonDiff(lon,(double)max_west)<=0.0); y++, lon=minwest+(dpp*(double)y))
 	{
@@ -3284,22 +3287,26 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 			PlotPath(source,edge,mask_value);
 		}
 
-		if (++count==z) 
-		{
-			fprintf(stdout,"%c",symbol[x]);
-			fflush(stdout);
-			count=0;
+		if (verbose) {
+			if (++count==z) 
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-			if (x==3)
-				x=0;
-			else
-				x++;
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
 		}
 	}
 
-	count=0;
-	fprintf(stdout,"\n25%c to  50%c ",37,37);
-	fflush(stdout);
+	if (verbose) {
+		count=0;
+		fprintf(stdout,"\n25%c to  50%c ",37,37);
+		fflush(stdout);
+	}
 	
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3315,22 +3322,26 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 			PlotPath(source,edge,mask_value);
 		}
 
-		if (++count==z) 
-		{
-			fprintf(stdout,"%c",symbol[x]);
-			fflush(stdout);
-			count=0;
+		if (verbose) {
+			if (++count==z) 
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-			if (x==3)
-				x=0;
-			else
-				x++;
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
 		}
 	}
 
-	count=0;
-	fprintf(stdout,"\n50%c to  75%c ",37,37);
-	fflush(stdout);
+	if (verbose) {
+		count=0;
+		fprintf(stdout,"\n50%c to  75%c ",37,37);
+		fflush(stdout);
+	}
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
@@ -3349,22 +3360,26 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 			PlotPath(source,edge,mask_value);
 		}
 
-		if (++count==z)
-		{
-			fprintf(stdout,"%c",symbol[x]);
-			fflush(stdout);
-			count=0;
+		if (verbose) {
+			if (++count==z)
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-			if (x==3)
-				x=0;
-			else
-				x++;
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
 		}
 	}
 
-	count=0;
-	fprintf(stdout,"\n75%c to 100%c ",37,37);
-	fflush(stdout);
+	if (verbose) {
+		count=0;
+		fprintf(stdout,"\n75%c to 100%c ",37,37);
+		fflush(stdout);
+	}
 	
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3380,23 +3395,27 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 			PlotPath(source,edge,mask_value);
 		}
 
-		if (++count==z)
-		{
-			fprintf(stdout,"%c",symbol[x]);
-			fflush(stdout);
-			count=0;
+		if (verbose) {
+			if (++count==z)
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-			if (x==3)
-				x=0;
-			else
-				x++;
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
 		}
 	}
 
 	wq.waitForCompletion();
 
-	fprintf(stdout,"\nDone!\n");
-	fflush(stdout);
+	if (verbose) {
+		fprintf(stdout,"\nDone!\n");
+		fflush(stdout);
+	}
 
 	/* Assign next mask value */
 
@@ -3484,8 +3503,10 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 
     WorkQueue wq;
 
-    fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
-    fflush(stdout);
+	if (verbose) {
+		fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
+		fflush(stdout);
+	}
 
 	for (lon=minwest, x=0, y=0; (LonDiff(lon,(double)max_west)<=0.0); y++, lon=minwest+(dpp*(double)y))
 	{
@@ -3502,22 +3523,26 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 			PlotLRPath(source,edge,mask_value,fd);
         }
 
-        if (++count==z) 
-        {
-            fprintf(stdout,"%c",symbol[x]);
-            fflush(stdout);
-            count=0;
+		if (verbose) {
+			if (++count==z) 
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-            if (x==3)
-                x=0;
-            else
-                x++;
-        }
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
+		}
 	}
 
-    count=0;
-    fprintf(stdout,"\n25%c to  50%c ",37,37);
-    fflush(stdout);
+	if (verbose) {
+		count=0;
+		fprintf(stdout,"\n25%c to  50%c ",37,37);
+		fflush(stdout);
+	}
 	
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3533,22 +3558,26 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 			PlotLRPath(source,edge,mask_value,fd);
         }
 
-        if (++count==z) 
-        {
-            fprintf(stdout,"%c",symbol[x]);
-            fflush(stdout);
-            count=0;
+		if (verbose) {
+			if (++count==z) 
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-            if (x==3)
-                x=0;
-            else
-                x++;
-        }
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
+		}
 	}
 
-    count=0;
-    fprintf(stdout,"\n50%c to  75%c ",37,37);
-    fflush(stdout);
+	if (verbose) {
+		count=0;
+		fprintf(stdout,"\n50%c to  75%c ",37,37);
+		fflush(stdout);
+	}
 
 	z=(int)(th*ReduceAngle(max_west-min_west));
 
@@ -3567,22 +3596,26 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 			PlotLRPath(source,edge,mask_value,fd);
         }
 
-        if (++count==z)
-        {
-            fprintf(stdout,"%c",symbol[x]);
-            fflush(stdout);
-            count=0;
+		if (verbose) {
+			if (++count==z)
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-            if (x==3)
-                x=0;
-            else
-                x++;
-        }
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
+		}
 	}
 
-    count=0;
-    fprintf(stdout,"\n75%c to 100%c ",37,37);
-    fflush(stdout);
+	if (verbose) {
+		count=0;
+		fprintf(stdout,"\n75%c to 100%c ",37,37);
+		fflush(stdout);
+	}
 		
 	z=(int)(th*(double)(max_north-min_north));
 
@@ -3598,17 +3631,19 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 			PlotLRPath(source,edge,mask_value,fd);
         }
 
-        if (++count==z)
-        {
-            fprintf(stdout,"%c",symbol[x]);
-            fflush(stdout);
-            count=0;
+		if (verbose) {
+			if (++count==z)
+			{
+				fprintf(stdout,"%c",symbol[x]);
+				fflush(stdout);
+				count=0;
 
-            if (x==3)
-                x=0;
-            else
-                x++;
-        }
+				if (x==3)
+					x=0;
+				else
+					x++;
+			}
+		}
 	}
 
     wq.waitForCompletion();
@@ -3616,8 +3651,10 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 	if (fd!=NULL)
 		fclose(fd);
 
-	fprintf(stdout,"\nDone!\n");
-	fflush(stdout);
+	if (verbose) {
+		fprintf(stdout,"\nDone!\n");
+		fflush(stdout);
+	}
 
 	if (mask_value<30)
 		mask_value++;
@@ -8167,6 +8204,7 @@ int main(int argc, char *argv[])
 		fprintf(stdout,"       -N do not produce unnecessary site or obstruction reports\n");
 		fprintf(stdout,"       -f frequency for Fresnel zone calculation (MHz)\n");
 		fprintf(stdout,"       -R modify default range for -c or -L (miles/kilometers)\n");
+		fprintf(stdout,"       -v N verbosity level. Default is 1. Set to 0 to quiet everything.\n");
 		fprintf(stdout,"      -mt use multiple CPU threads for faster speed\n");
 		fprintf(stdout,"      -sc display smooth rather than quantized contour levels\n");
 		fprintf(stdout,"      -db threshold beyond which contours will not be displayed\n");
@@ -8285,6 +8323,16 @@ int main(int argc, char *argv[])
 					er_mult=1.0e6;
 
 				earthradius*=er_mult;
+			}			 
+		}
+
+		if (strcmp(argv[x],"-v")==0)
+		{
+			z=x+1;
+
+			if (z<=y && argv[z][0] && argv[z][0]!='-')
+			{
+				sscanf(argv[z],"%d",&verbose);
 			}			 
 		}
 
