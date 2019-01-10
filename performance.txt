@@ -65,8 +65,18 @@ gcc/g++, fastmath: 18 sec, 12 different results from 1.4.2
 clang/clang++ regular:  20 sec, 134 different results from 1.4.2
 clang/clang++ fastmath: 17 sec, 354 different results from 1.4.2
 
+3.0 Memory Usage
 
-3.0 PlotLRMap() functon in call times from gprof
+All statistics are multithread mode with an 8x8 grid, as profiled by 'valgrind --tool=massif':
+
+Splat normal: point-to-point: 10.31MB 
+Splat normal: PlotLRMap: 45.09MB
+
+Splat-HD: point-to-point: 63.74MB 
+Splat-HD: PlotLRMap: 332.9MB 
+
+
+4.0 PlotLRMap() function in call times from gprof
 
 Each sample counts as 0.01 seconds.
   %   cumulative   self              self     total           
@@ -170,4 +180,4 @@ qlrpfl2()
  \-> z1sq2()        least-squares fit (2x for transhorizon)
 
 
-hoche, 11/28/18
+hoche, 1/8/19
