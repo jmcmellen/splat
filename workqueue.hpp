@@ -57,6 +57,10 @@ public:
         abort();
     }
 
+    static int maxWorkers() {
+        return std::thread::hardware_concurrency();
+    }
+
     // Stop processing work right away and dispose of threads
     void abort() {
         m_exit = true;
