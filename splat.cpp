@@ -8174,9 +8174,15 @@ int main(int argc, char *argv[])
 
 	strncpy(dashes,"---------------------------------------------------------------------------\0",76);
 
+	/* backwards compatibility - set to HD mode if invoked as splat-hd */
+    if (strstr(argv[0], "-hd")!=NULL) {
+		appmode = APPMODE_HD;
+    }
+
 	if (argc==1)
 	{
-		fprintf(stdout,"\n\t\t --==[ %s v%s Available Options... ]==--\n\n",SPLAT_NAME, SPLAT_VERSION);
+		fprintf(stdout,"\n\t\t --==[ %s%s v%s Available Options... ]==--\n\n",
+		SPLAT_NAME, (appmode==APPMODE_HD?" HD":""), SPLAT_VERSION);
 
 		fprintf(stdout,"       -t txsite(s).qth (max of 4 with -c, max of 30 with -L)\n");
 		fprintf(stdout,"       -r rxsite.qth\n");
