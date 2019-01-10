@@ -395,6 +395,13 @@ void ImageWriterFinish(ImageWriter *iw)
 /*****************************
  * Functions for allocating Paths
  ****************************/
+int AppArraySize(AppMode mode)
+{
+	if (mode == APPMODE_HD) {
+	    return 3600;
+	}
+	return 1200;
+}
 
 Path *AllocatePath()
 {
@@ -432,6 +439,12 @@ void DestroyPath(Path *path)
 	if (path->elevation) free(path->elevation);
 	if (path->distance) free(path->distance);
 	free(path);
+}
+
+unsigned long SizeofPath(AppMode mode, int pagesides)
+{
+	unsigned long arysize = appArraySize[mode][pagesides-1];
+	return sizeof(Path) + (sizeof(double)*arysize*4);
 }
 
 /*****************************
@@ -628,6 +641,16 @@ void DestroyDEM(DEM *dem)
 	if (dem->mask) free(dem->mask);
 	if (dem->data) free(dem->data);
 	free(dem);
+}
+
+unsigned long SizeofDEM(AppMode mode)
+{
+	unsigned long arysize = AppArraySize(mode);
+	return sizeof(DEM) + 
+			(sizeof(short*)*arysize) +
+			(sizeof(short)*arysize*arysize) + 
+			(sizeof(unsigned char*)*arysize*2) +
+			(sizeof(unsigned char)*arysize*arysize*2);
 }
 
 int InitDEMs()
@@ -8147,7 +8170,7 @@ int main(int argc, char *argv[])
 
 	FILE		*fd;
 
-	/* unsigned long long systemMemory = getTotalSystemMemory(); */
+	unsigned long long systemMemory = getTotalSystemMemory();
 
 	strncpy(dashes,"---------------------------------------------------------------------------\0",76);
 
@@ -8199,17 +8222,29 @@ int main(int argc, char *argv[])
 
 		fprintf(stdout,"See the documentation for more details.\n\n");
 
-	    /*
-	     * XXX TODO: Insert memory checking code here to see what the max is we can support on this system.
-		y=(int)sqrt((int)MAXPAGES);
-		fprintf(stdout,"This compilation of %s supports analysis over a region of %d square\n",SPLAT_NAME,y);
-		if (y==1)
-			fprintf(stdout,"degree");
-		else
-			fprintf(stdout,"degrees");
-	    */
-
 		fprintf(stdout, "Using ITWOM Version %.1f.\n\n",ITWOMVersion());
+
+		fprintf(stdout,"This compilation of %s supports analysis over a region of %dx%d square degree%s.\n",
+			SPLAT_NAME, maxpagesides, maxpagesides, (maxpagesides>1)?"s":"");
+
+		unsigned long pathmem;
+		unsigned long demmem;
+		pathmem = (WorkQueue::maxWorkers()*SizeofPath(APPMODE_NORMAL, maxpagesides))/1024;
+		demmem = (maxpagesides*maxpagesides*SizeofDEM(APPMODE_NORMAL))/1024;
+		/* fprintf(stdout,"Path: %lu KB\n", pathmem); */
+		/* fprintf(stdout,"DEM: %lu KB\n", demmem);   */
+		fprintf(stdout,"At the %dx%d maximum in normal mode it will require %lu MB of RAM\n",
+            maxpagesides, maxpagesides, (pathmem+demmem)/1024);
+
+		pathmem = (WorkQueue::maxWorkers()*SizeofPath(APPMODE_HD, maxpagesides))/1024;
+		demmem = (maxpagesides*maxpagesides*SizeofDEM(APPMODE_HD))/1024;
+		/* fprintf(stdout,"Path(HD): %lu KB\n", pathmem);  */
+		/* fprintf(stdout,"DEM(HD): %lu KB\n", demmem);    */
+		fprintf(stdout,"At the %dx%d maximum in HD mode it will require %lu MB of RAM\n",
+            maxpagesides, maxpagesides, (pathmem+demmem)/1024);
+
+		fprintf(stdout,"You have %lu MB of RAM available\n", (unsigned long)(systemMemory/(1024*1024)) );
+
 		fflush(stdout);
 
 		return 1;
@@ -8666,11 +8701,7 @@ int main(int argc, char *argv[])
 	 * If not, either issue warning or ratchet down.
 	 * For now, just set this to the maximum. */
 
-	if (appmode == APPMODE_NORMAL) {
-	    ippd=1200;
-	} else {
-	    ippd=3600;
-	}
+	ippd = AppArraySize(appmode);
 	ppd=(double)ippd;	/* pixels per degree (double)  */
 	dpp=1.0/ppd;		/* degrees per pixel */
 	mpi=ippd-1;		/* maximum pixel index per degree */
