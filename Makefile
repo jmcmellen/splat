@@ -43,14 +43,14 @@ splat-hd: $(SRCS) $(C_OBJS)
 	$(CXX) $(CPPFLAGS) -o $@ $(OBJS) $(C_OBJS) $(LDFLAGS)
 
 utils:
-	cd utils && make
+	cd utils && $(MAKE)
 
 install:
 	./install all
 
 .PHONY: clean utils install
 clean:
-	cd utils && make clean
+	cd utils && $(MAKE) clean
 	@rm -f *.o splat splat-hd
 
 .SUFFIXES: .c .cpp .o
