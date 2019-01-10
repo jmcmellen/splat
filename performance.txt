@@ -21,7 +21,7 @@ Atom D510                 2      4          248              255              87
 Avoton C2550              4      4           94              108              30
 Core i7-2700K             4      8           32               32               7
 2011 iMac Core i5-2400    4      4           28               30              11
-Core i3-8100              4      4           24               24               6
+Core i3-8100 w/SSD        4      4           24               24               6
 
 
                                          Splat-HD             Splat-HD MT
@@ -45,19 +45,22 @@ Atom D510                  2     4         180              209              66
 Avoton C2550               4     4          70               84              23
 Core i7-2700K              4     8          23               23               6 
 2011 iMac Core i5-2400     4     4          22               21               9
-Core i3-8100               4     4          18               17               4
+Core i3-8100 w/SSD         4     4          18               17               4
 
                                          Splat-HD             Splat-HD MT
                         Cores Threads     v1.4.2      Single thread     Multithread
-Core i3-8100              4      4          n/a             189              55
+Core i3-8100 w/SSD         4      4         n/a             189              56
 
 
 dB loss:
 With the modifications, this mostly stays under 0.1 dB loss difference in its calculations,
 with a few exceptions. Those mostly stay under 0.5 dB, and all stay under 2 dB.
 
+
+Compiler flags
+-------
 The compiler and fast-math options make a big difference. For instance, PlotLRMap() generates
-over 1.5M points. Using the new code with the L-R algorithm in single threaded mode on
+over 1.5M points. Using the new code with the ITM (L-R) algorithm in single threaded mode on
 the 2011 iMac, we have:
 
 gcc/g++, regular: 21 sec, 123 different results from 1.4.2
@@ -65,18 +68,26 @@ gcc/g++, fastmath: 18 sec, 12 different results from 1.4.2
 clang/clang++ regular:  20 sec, 134 different results from 1.4.2
 clang/clang++ fastmath: 17 sec, 354 different results from 1.4.2
 
-3.0 Memory Usage
 
-All statistics are multithread mode with an 8x8 grid, as profiled by 'valgrind --tool=massif':
+Choice of output image
+--------
+In all cases, the pixmap (ppm) images are the fastest to generate and write out, but consume
+an order of magnitude more disk space.
 
-Splat normal: point-to-point: 10.31MB 
-Splat normal: PlotLRMap: 45.09MB
+jpg images are the second fastest to generate and write out, and the smallest file size - about
+1/20th of the ppm. On spinning disks in particular, the much smaller file size more than offsets
+the extra compression time, resulting in a total time that more or less matches the ppm version.
+On SSD's they're very slightly slower to generate than the ppms. Unfortunately, even on the highest
+quality setting, the jpg images have a reduction in image quality that results in artifacts around
+any text printed in the image. This is probably a good choice for including into kml files
+though, where the text can be handled outside the image.
 
-Splat-HD: point-to-point: 63.74MB 
-Splat-HD: PlotLRMap: 332.9MB 
+png images are a good compromise. The generation time is somewhat longer than the other two
+but still relatively small, and since it's lossless the text comes out crisp. The file
+sizes are about twice the jpg size, or 1/10th the ppm size.
 
 
-4.0 PlotLRMap() function in call times from gprof
+3.0 PlotLRMap() function in call times from gprof
 
 Each sample counts as 0.01 seconds.
   %   cumulative   self              self     total           
