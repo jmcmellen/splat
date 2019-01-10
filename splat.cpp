@@ -29,7 +29,6 @@
 #include <unistd.h>
 
 #include "fontdata.h"
-#include "splat.h"
 #include "workqueue.hpp"
 
 #include "jpeglib.h"
@@ -40,77 +39,7 @@
 #define BZBUFFER 65536
 
 #define SPLAT_VERSION "1.5.0b1"
-
-#ifndef HD_MODE
-	#if MAXPAGES==4
-	#define ARRAYSIZE 4950
-	#endif
-
-	#if MAXPAGES==9
-	#define ARRAYSIZE 10870
-	#endif
-
-	#if MAXPAGES==16
-	#define ARRAYSIZE 19240
-	#endif
-
-	#if MAXPAGES==25
-	#define ARRAYSIZE 30025
-	#endif
-
-	#if MAXPAGES==36
-	#define ARRAYSIZE 43217
-	#endif
-
-	#if MAXPAGES==49
-	#define ARRAYSIZE 58813
-	#endif
-
-	#if MAXPAGES==64
-	#define ARRAYSIZE 76810
-	#endif
-
-	#define IPPD 1200
-
-	#define SPLAT_NAME "SPLAT!"
-#else
-	#if MAXPAGES==1
-	#define ARRAYSIZE 5092 
-	#endif
-
-	#if MAXPAGES==4
-	#define ARRAYSIZE 14844 
-	#endif
-
-	#if MAXPAGES==9
-	#define ARRAYSIZE 32600
-	#endif
-
-	#if MAXPAGES==16
-	#define ARRAYSIZE 57713
-	#endif
-
-	#if MAXPAGES==25
-	#define ARRAYSIZE 90072
-	#endif
-
-	#if MAXPAGES==36
-	#define ARRAYSIZE 129650
-	#endif
-
-	#if MAXPAGES==49 
-	#define ARRAYSIZE 176437
-	#endif
-
-	#if MAXPAGES==64
-	#define ARRAYSIZE 230430
-	#endif
-
-	#define IPPD 3600
-
-	#define SPLAT_NAME "SPLAT! HD"
-#endif
-
+#define SPLAT_NAME "SPLAT! MT"
 
 #ifndef PI
 #define PI 3.141592653589793
@@ -136,13 +65,14 @@
 /*****************************
  * Typedefs
  *****************************/
+
 typedef struct Site {
-    double lat;
-    double lon;
-    float alt;
-    unsigned char amsl_flag;
-    char name[50];
-    char filename[MAXPATHLEN];
+	double lat;
+	double lon;
+	float alt;
+	unsigned char amsl_flag;
+	char name[50];
+	char filename[MAXPATHLEN];
 } Site;
 
 // data about a path between two points
@@ -192,25 +122,36 @@ typedef struct Region {
 } Region;
 
 typedef enum ImageType {
-    IMAGETYPE_PNG = 0,
-    IMAGETYPE_JPG,
-    IMAGETYPE_PPM
+	IMAGETYPE_PNG = 0,
+	IMAGETYPE_JPG,
+	IMAGETYPE_PPM
 } ImageType;
 
 typedef enum SDFCompressType {
-    SDF_COMPRESSTYPE_NONE = 0,
-    SDF_COMPRESSTYPE_BZIP2
+	SDF_COMPRESSTYPE_NONE = 0,
+	SDF_COMPRESSTYPE_BZIP2
 } SDFCompressType;
 
 struct SDFCompressFormat {
-    SDFCompressType type;
-    const char* suffix;
+	SDFCompressType type;
+	const char* suffix;
 };
 
 
 /*****************************
  * Globals
  *****************************/
+enum AppMode {
+	APPMODE_NORMAL = 0,
+	APPMODE_HD = 1
+} appmode = APPMODE_NORMAL;
+
+#define MAXPAGESIDES 8
+const int appArraySize[2][MAXPAGESIDES] = {
+	{ 4950, 4950, 10870, 19240, 30025, 43217, 58813, 76810 },  /* Normal mode */
+	{ 5092, 14844, 32600, 57713, 90072, 129650, 176437, 230430 } /* HD mode */
+};
+
 char sdf_path[MAXPATHLEN], home_sdf_path[MAXPATHLEN];
 
 char opened=0, gpsav=0, dashes[80], itwom;
@@ -219,8 +160,10 @@ int verbose=1;
 double	earthradius, max_range=0.0, forced_erp=-1.0, dpp, ppd,
 	fzone_clearance=0.6, forced_freq, clutter;
 
-int	min_north=90, max_north=-90, min_west=360, max_west=-1, ippd, mpi,
-	max_elevation=-32768, min_elevation=32768, bzerror, contour_threshold;
+int	min_north=90, max_north=-90, min_west=360, max_west=-1;
+int max_elevation=-32768, min_elevation=32768;
+int ippd, mpi, maxpagesides = MAXPAGESIDES;
+int bzerror, contour_threshold;
 
 unsigned char got_elevation_pattern, got_azimuth_pattern, metric=0, dbm=0, smooth_contours=0;
 
@@ -228,7 +171,6 @@ LongleyRiceData LR;
 Region region;
 
 DEM **aDEM = NULL;
-int demMax = 0;
 int demCount = 0;
 
 /****************************
@@ -295,6 +237,31 @@ double ITWOMVersion();
 #endif
 
 /*****************************
+ * System-level utilities
+ *****************************/
+
+#ifndef __WINDOWS
+#include <unistd.h>
+
+unsigned long long getTotalSystemMemory()
+{
+	long pages = sysconf(_SC_PHYS_PAGES);
+	long page_size = sysconf(_SC_PAGE_SIZE);
+	return pages * page_size;
+}
+#else
+#include <windows.h>
+
+unsigned long long getTotalSystemMemory()
+{
+	MEMORYSTATUSEX status;
+	status.dwLength = sizeof(status);
+	GlobalMemoryStatusEx(&status);
+	return status.ullTotalPhys;
+}
+#endif
+
+/*****************************
  * Image writing functions. This should just be a class.
  *****************************/
 
@@ -325,7 +292,7 @@ int ImageWriterInit(ImageWriter *iw, const char* filename, ImageType imagetype, 
 	if ( (iw->fp=fopen(filename,"wb")) == NULL) {
 		return -1;
 	}
-    
+	
 	iw->imagetype = imagetype;
 	iw->width = width;
 	iw->height = height;
@@ -436,7 +403,7 @@ Path *AllocatePath()
 		return NULL;
 	}
 	memset(path, 0, sizeof(Path));
-	path->arysize = ARRAYSIZE;
+	path->arysize = appArraySize[appmode][maxpagesides-1];
 	
 	path->lat=(double*)malloc(path->arysize*sizeof(double));
 	path->lon=(double*)malloc(path->arysize*sizeof(double));
@@ -556,14 +523,14 @@ char *dec2dms(double decimal)
 	/* Converts decimal degrees to degrees, minutes, seconds,
 	   (DMS) and returns the result as a character string.
 
-       Uses an internal static buffer; NOT THREADSAFE.
-     */
+	   Uses an internal static buffer; NOT THREADSAFE.
+	 */
 
 	char	sign;
 	int	degrees, minutes, seconds;
 	double	a, b, c, d;
 
-    static char buf[255];
+	static char buf[255];
 
 	if (decimal<0.0)
 	{
@@ -602,8 +569,9 @@ DEM *AllocateDEM()
 {
 	/* Allocate a DEM struct on the heap. */
 
+
 	/* not allowed to allocate any more */
-	if (demCount >= demMax) {
+	if (demCount >= (maxpagesides*maxpagesides)) {
 		return NULL;
 	}
 
@@ -662,10 +630,9 @@ void DestroyDEM(DEM *dem)
 	free(dem);
 }
 
-int InitDEMs(int count)
+int InitDEMs()
 {
-	demMax = count;
-	aDEM = (DEM**)calloc(demMax, sizeof(DEM*));
+	aDEM = (DEM**)calloc(maxpagesides*maxpagesides, sizeof(DEM*));
 	if (aDEM) { return 0; };
 	return -1;  // Insufficient memory?
 }
@@ -682,7 +649,7 @@ void FreeDEMs()
 int AppendDEM(DEM *dem)
 {
 	/* Appends a DEM to the global adem[] array. */
-	if (aDEM == NULL || (demCount > demMax)) {
+	if (aDEM == NULL || (demCount > (maxpagesides*maxpagesides)) ) {
 		return -1;
 	}
 	aDEM[demCount++] = dem;
@@ -1668,21 +1635,21 @@ void LoadPAT(char *filename)
 		delta, azimuth[361], azimuth_pattern[361], el_pattern[10001],
 		elevation_pattern[361][1001], slant_angle[361], tilt,
 		mechanical_tilt=0.0, tilt_azimuth, tilt_increment, sum;
-    char *p;
+	char *p;
 	FILE	*fd=NULL;
 	unsigned char read_count[10001];
 
-    /* copy the whole thing and then find the last .
-     * This lets us start our paths with ./blah
-     */
+	/* copy the whole thing and then find the last .
+	 * This lets us start our paths with ./blah
+	 */
 	for (x=0; filename[x]!=0 && x<(MAXPATHLEN-5); x++)
 	{
 		azfile[x]=filename[x];
 		elfile[x]=filename[x];
 	}
-    if ( (p = strrchr(filename, '.')) ) {
-        x = p - filename;
-    }
+	if ( (p = strrchr(filename, '.')) ) {
+	    x = p - filename;
+	}
 
 	azfile[x]='.';
 	azfile[x+1]='a';
@@ -1704,7 +1671,7 @@ void LoadPAT(char *filename)
 
 	if (fd!=NULL)
 	{
-        printf("Loading %s\n", azfile);
+	    printf("Loading %s\n", azfile);
 
 		/* Clear azimuth pattern array */
 
@@ -1843,7 +1810,7 @@ void LoadPAT(char *filename)
 
 	if (fd!=NULL)
 	{
-        printf("Loading %s\n", elfile);
+	    printf("Loading %s\n", elfile);
 
 		for (x=0; x<=10000; x++)
 		{
@@ -2096,19 +2063,19 @@ int LoadSDF(char *name)
 	/* This function reads SPLAT Data Files (.sdf) containing digital
 	   elevation model data into memory. It loads them into dem structs,
 	   which then get appended to the global dem array.
-     */
+	 */
 
 	int	x, y, data;
 	int minlat, minlon, maxlat, maxlon;
 	char line[64];
 	char sdf_file[MAXPATHLEN], path_plus_name[MAXPATHLEN*2];
-    char *p;
+	char *p;
 	SDFCompressType compressType = SDF_COMPRESSTYPE_NONE;
 	DEM *dem;
 	FILE *fp = NULL;
 	BZFILE *bzfp = NULL;
 
-    /* this sets both the kinds of formats we understand and the priority */
+	/* this sets both the kinds of formats we understand and the priority */
 	SDFCompressFormat formats[] = {
 		{ SDF_COMPRESSTYPE_NONE, ".sdf" },
 		{ SDF_COMPRESSTYPE_BZIP2, ".sdf.bz2" },
@@ -2120,9 +2087,10 @@ int LoadSDF(char *name)
 	sdf_file[0] = '\0';
 	for (x=0; name[x]!=0 && x<(MAXPATHLEN-9); x++)
 		sdf_file[x]=name[x];
-    if ( (p = strrchr(sdf_file, '.'))!= NULL) {
-        x = p - sdf_file;
-    }
+	p = strrchr(sdf_file, '.');
+	if (p) {
+	    x = p - sdf_file;
+	}
 
 	sdf_file[x]=0;
 
@@ -2611,7 +2579,7 @@ char ReadLRParm(Site txsite, char forced_read)
 
 	double	din;
 	char	filename[MAXPATHLEN], buf[80], *pointer=NULL, return_value=0;
-    char *p;
+	char *p;
 	int	iin, ok=0, x;
 	FILE	*fd=NULL, *outfile=NULL;
 
@@ -2629,14 +2597,14 @@ char ReadLRParm(Site txsite, char forced_read)
 
 	/* Generate .lrp filename from txsite filename. */
 
-    /* copy the whole thing and then find the last .
-     * This lets us start our paths with ./blah
-     */
+	/* copy the whole thing and then find the last .
+	 * This lets us start our paths with ./blah
+	 */
 	for (x=0; txsite.filename[x]!=0 && x<(MAXPATHLEN-5); x++)
 		filename[x]=txsite.filename[x];
-    if ( (p = strrchr(filename, '.')) ) {
-        x = p - filename;
-    }
+	if ( (p = strrchr(filename, '.')) ) {
+	    x = p - filename;
+	}
 
 	filename[x]='.';
 	filename[x+1]='l';
@@ -2644,7 +2612,7 @@ char ReadLRParm(Site txsite, char forced_read)
 	filename[x+3]='p';
 	filename[x+4]=0;
 
-    printf("Loading %s\n", filename);
+	printf("Loading %s\n", filename);
 
 	fd=fopen(filename,"r");
 
@@ -3265,7 +3233,7 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 
 	fprintf(stdout, "\n\n");
 
-    WorkQueue wq;
+	WorkQueue wq;
 
 	if (verbose) {
 		fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
@@ -3501,7 +3469,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 
 	fprintf(stdout, "\n\n");
 
-    WorkQueue wq;
+	WorkQueue wq;
 
 	if (verbose) {
 		fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
@@ -3521,7 +3489,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 			wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
 		} else {
 			PlotLRPath(source,edge,mask_value,fd);
-        }
+	    }
 
 		if (verbose) {
 			if (++count==z) 
@@ -3556,7 +3524,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 			wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
 		} else {
 			PlotLRPath(source,edge,mask_value,fd);
-        }
+	    }
 
 		if (verbose) {
 			if (++count==z) 
@@ -3594,7 +3562,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 			wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
 		} else {
 			PlotLRPath(source,edge,mask_value,fd);
-        }
+	    }
 
 		if (verbose) {
 			if (++count==z)
@@ -3629,7 +3597,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 			wq.submit(std::bind(PlotLRPath, source, edge, mask_value, fd));
 		} else {
 			PlotLRPath(source,edge,mask_value,fd);
-        }
+	    }
 
 		if (verbose) {
 			if (++count==z)
@@ -3646,7 +3614,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 		}
 	}
 
-    wq.waitForCompletion();
+	wq.waitForCompletion();
 
 	if (fd!=NULL)
 		fclose(fd);
@@ -4162,7 +4130,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	FILE *fd;
 
 	Pixel pixel = 0;
-    ImageWriter iw;
+	ImageWriter iw;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -4293,11 +4261,11 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	fprintf(stdout,"Writing \"%s\" (%ux%u image)...\n",mapfile,width,height);
 	fflush(stdout);
 
-    if (ImageWriterInit(&iw,mapfile,imagetype,width,height)<0) {
-        fprintf(stdout,"\nError writing \"%s\"!\n",mapfile);
-        fflush(stdout);
-        return;
-    }
+	if (ImageWriterInit(&iw,mapfile,imagetype,width,height)<0) {
+	    fprintf(stdout,"\nError writing \"%s\"!\n",mapfile);
+	    fflush(stdout);
+	    return;
+	}
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
 	{
@@ -4421,13 +4389,13 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 				pixel=COLOR_BLACK;
 			}
 
-            ImageWriterAppendPixel(&iw, pixel);
+	        ImageWriterAppendPixel(&iw, pixel);
 		}
 
-        ImageWriterEmitLine(&iw);
+	    ImageWriterEmitLine(&iw);
 	}
 
-    ImageWriterFinish(&iw);
+	ImageWriterFinish(&iw);
 
 	fprintf(stdout,"Done!\n");
 	fflush(stdout);
@@ -4443,7 +4411,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 	char mapfile[255], geofile[255], kmlfile[255],  ckfile[255];
 	unsigned int width, height, red, green, blue, terrain=0;
-    unsigned int imgheight, imgwidth;
+	unsigned int imgheight, imgwidth;
 	unsigned char mask;
 	int indx, x, y, z, colorwidth, x0, y0, loss, level,
 		hundreds, tens, units, match;
@@ -4453,7 +4421,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	FILE *fd;
 
 	Pixel pixel = 0;
-    ImageWriter iw;
+	ImageWriter iw;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -4504,13 +4472,13 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	}
 
 	geofile[x]=0;
-    strcat(geofile, ".geo");
+	strcat(geofile, ".geo");
 
 	kmlfile[x]=0;
-    strcat(kmlfile, ".kml");
+	strcat(kmlfile, ".kml");
 
-    ckfile[x]=0;
-    strcat(ckfile, "-ck.ppm");
+	ckfile[x]=0;
+	strcat(ckfile, "-ck.ppm");
 
 	minwest=((double)min_west)+dpp;
 
@@ -4613,24 +4581,24 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	if (kml || geo)
 	{
 		/* No bottom legend */
-        imgwidth = width;
-        imgheight = height;
-    }
-    else
-    {
+	    imgwidth = width;
+	    imgheight = height;
+	}
+	else
+	{
 		/* Allow space for bottom legend */
-        imgwidth = width;
-        imgheight = height + 30;
-    }
+	    imgwidth = width;
+	    imgheight = height + 30;
+	}
 
-    fprintf(stdout,"\nWriting LR map \"%s\" (%ux%u image)... ",mapfile,imgwidth,imgheight);
+	fprintf(stdout,"\nWriting LR map \"%s\" (%ux%u image)... ",mapfile,imgwidth,imgheight);
 	fflush(stdout);
 
-    if (ImageWriterInit(&iw,mapfile,imagetype,imgwidth,imgheight)<0) {
-        fprintf(stdout,"\nError writing \"%s\"!\n",mapfile);
-        fflush(stdout);
-        return;
-    }
+	if (ImageWriterInit(&iw,mapfile,imagetype,imgwidth,imgheight)<0) {
+	    fprintf(stdout,"\nError writing \"%s\"!\n",mapfile);
+	    fflush(stdout);
+	    return;
+	}
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
 	{
@@ -4684,31 +4652,31 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 					/* Text Labels: Red or otherwise */
 
 					if (red>=180 && green<=75 && blue<=75 && loss!=0)
-                        pixel=RGB(255^red,255^green,255^blue);
-                    else
-                        pixel=COLOR_RED;
+	                    pixel=RGB(255^red,255^green,255^blue);
+	                else
+	                    pixel=COLOR_RED;
 				}
 				else if (mask&4)
 				{
 					/* County Boundaries: Black */
-                    pixel=COLOR_BLACK;
+	                pixel=COLOR_BLACK;
 				}
-                else
+	            else
 				{
 					if (loss==0 || (contour_threshold!=0 && loss>abs(contour_threshold)))
 					{
 						if (ngs)  /* No terrain */
-                            pixel=COLOR_WHITE;
+	                        pixel=COLOR_WHITE;
 						else
 						{
 							/* Display land or sea elevation */
 
 							if (dem->data[x0][y0]==0)
-                                pixel=COLOR_MEDIUMBLUE;
+	                            pixel=COLOR_MEDIUMBLUE;
 							else
 							{
 								terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-                                pixel=RGB(terrain,terrain,terrain);
+	                            pixel=RGB(terrain,terrain,terrain);
 							}
 						}
 					}
@@ -4717,17 +4685,17 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 						/* Plot path loss in color */
 
 						if (red!=0 || green!=0 || blue!=0)
-                            pixel=RGB(red,green,blue);
+	                        pixel=RGB(red,green,blue);
 
 						else  /* terrain / sea-level */
 						{
 							if (dem->data[x0][y0]==0)
-                                pixel=COLOR_MEDIUMBLUE;
+	                            pixel=COLOR_MEDIUMBLUE;
 							else
 							{
 								/* Elevation: Greyscale */
 								terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-                                pixel=RGB(terrain,terrain,terrain);
+	                            pixel=RGB(terrain,terrain,terrain);
 							}
 						}
 					}
@@ -4737,13 +4705,13 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 			{
 				/* We should never get here, but if */
 				/* we do, display the region as black */
-                pixel=COLOR_BLACK;
+	            pixel=COLOR_BLACK;
 			}
 
-            ImageWriterAppendPixel(&iw, pixel);
+	        ImageWriterAppendPixel(&iw, pixel);
 		}
 
-        ImageWriterEmitLine(&iw);
+	    ImageWriterEmitLine(&iw);
 	}
 
 	if (kml==0 && geo==0)
@@ -4774,12 +4742,12 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 				units=level;
 
-                if (y0>=8 && y0<=23)
+	            if (y0>=8 && y0<=23)
 				{  
 					if (hundreds>0)
 					{
 				  		if (x>=11 && x<=18)	 
-                            if (fontdata[16*(hundreds+'0')+(y0-8)]&(128>>(x-11)))
+	                        if (fontdata[16*(hundreds+'0')+(y0-8)]&(128>>(x-11)))
 								indx=255; 
 						}
 
@@ -4801,27 +4769,27 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 					if (x>=50 && x<=57)
 						if (fontdata[16*('B')+(y0-8)]&(128>>(x-50)))
 							indx=255;
-                }
+	            }
 
 				if (indx>region.levels)
-                    pixel=COLOR_BLACK;
+	                pixel=COLOR_BLACK;
 				else
 				{
 					red=region.color[indx][0];
 					green=region.color[indx][1];
 					blue=region.color[indx][2];
 
-                    pixel=RGB(red,green,blue);
+	                pixel=RGB(red,green,blue);
 				}
 
-                ImageWriterAppendPixel(&iw, pixel);
+	            ImageWriterAppendPixel(&iw, pixel);
 			}
 
-            ImageWriterEmitLine(&iw);
+	        ImageWriterEmitLine(&iw);
 		}
 	}
 
-    ImageWriterFinish(&iw);
+	ImageWriterFinish(&iw);
 
 	if (kml)
 	{
@@ -4861,7 +4829,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 				  		if (x>=11 && x<=18)	 
 					  			if (fontdata[16*(hundreds+'0')+((y0%30)-8)]&(128>>(x-11)))
 								indx=255; 
-                    }
+	                }
 
 					if (tens>0 || hundreds>0)
 					{
@@ -4881,7 +4849,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 					if (x>=50 && x<=57)
 						if (fontdata[16*('B')+((y0%30)-8)]&(128>>(x-50)))
 							indx=255;
-                }
+	            }
 
 				if (indx>region.levels)
 					fprintf(fd,"%c%c%c",0,0,0);
@@ -4911,12 +4879,12 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	   90 degrees from its representation in dem[][] so that north
 	   points up and east points right in the image generated.
 
-       In this version of the WriteImage function the Signal Strength is
-       plotted (vs the Power Level, plotted by WriteImageDBM). */
+	   In this version of the WriteImage function the Signal Strength is
+	   plotted (vs the Power Level, plotted by WriteImageDBM). */
 
 	char mapfile[255], geofile[255], kmlfile[255], ckfile[255];
 	unsigned width, height, terrain, red, green, blue;
-    unsigned int imgheight, imgwidth;
+	unsigned int imgheight, imgwidth;
 	unsigned char mask;
 	int indx, x, y, z=1, x0, y0, signal, level, hundreds,
 		tens, units, match, colorwidth;
@@ -4926,7 +4894,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	FILE *fd;
 
 	Pixel pixel = 0;
-    ImageWriter iw;
+	ImageWriter iw;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -4976,13 +4944,13 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	}
 
 	geofile[x]=0;
-    strcat(geofile, ".geo");
+	strcat(geofile, ".geo");
 
 	kmlfile[x]=0;
-    strcat(kmlfile, ".kml");
+	strcat(kmlfile, ".kml");
 
-    ckfile[x]=0;
-    strcat(ckfile, "-ck.ppm");
+	ckfile[x]=0;
+	strcat(ckfile, "-ck.ppm");
 
 	minwest=((double)min_west)+dpp;
 
@@ -5085,24 +5053,24 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	if (kml || geo)
 	{
 		/* No bottom legend */
-        imgwidth = width;
-        imgheight = height;
-    }
-    else
-    {
+	    imgwidth = width;
+	    imgheight = height;
+	}
+	else
+	{
 		/* Allow space for bottom legend */
-        imgwidth = width;
-        imgheight = height + 30;
-    }
+	    imgwidth = width;
+	    imgheight = height + 30;
+	}
 
-    fprintf(stdout,"\nWriting Signal Strength map \"%s\" (%ux%u image)... ",mapfile,imgwidth,imgheight);
+	fprintf(stdout,"\nWriting Signal Strength map \"%s\" (%ux%u image)... ",mapfile,imgwidth,imgheight);
 	fflush(stdout);
 
-    if (ImageWriterInit(&iw,mapfile,imagetype,imgwidth,imgheight)<0) {
-        fprintf(stdout,"\nError writing \"%s\"!\n",mapfile);
-        fflush(stdout);
-        return;
-    }
+	if (ImageWriterInit(&iw,mapfile,imagetype,imgwidth,imgheight)<0) {
+	    fprintf(stdout,"\nError writing \"%s\"!\n",mapfile);
+	    fflush(stdout);
+	    return;
+	}
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
 	{
@@ -5156,31 +5124,31 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 					/* Text Labels: Red or otherwise */
 
 					if (red>=180 && green<=75 && blue<=75)
-                        pixel=RGB(255^red,255^green,255^blue);
+	                    pixel=RGB(255^red,255^green,255^blue);
 					else
-                        pixel=COLOR_RED;
+	                    pixel=COLOR_RED;
 				}
 				else if (mask&4)
 				{
 					/* County Boundaries: Black */
-                    pixel=COLOR_BLACK;
+	                pixel=COLOR_BLACK;
 				} 
-                else
+	            else
 				{
 					if (contour_threshold!=0 && signal<contour_threshold)
 					{
 						if (ngs)  /* No terrain */
-                            pixel=COLOR_WHITE;
+	                        pixel=COLOR_WHITE;
 						else
 						{
 							/* Display land or sea elevation */
 
 							if (dem->data[x0][y0]==0)
-                                pixel=COLOR_MEDIUMBLUE;
+	                            pixel=COLOR_MEDIUMBLUE;
 							else
 							{
 								terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-                                pixel=RGB(terrain,terrain,terrain);
+	                            pixel=RGB(terrain,terrain,terrain);
 							}
 						}
 					}
@@ -5190,21 +5158,21 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 						/* Plot field strength regions in color */
 
 						if (red!=0 || green!=0 || blue!=0)
-                            pixel=RGB(red,green,blue);
+	                        pixel=RGB(red,green,blue);
 
 						else  /* terrain / sea-level */
 						{
 							if (ngs)
-                                pixel=COLOR_WHITE;
+	                            pixel=COLOR_WHITE;
 							else
 							{
 								if (dem->data[x0][y0]==0)
-                                    pixel=COLOR_MEDIUMBLUE;
+	                                pixel=COLOR_MEDIUMBLUE;
 								else
 								{
 									/* Elevation: Greyscale */
 									terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-                                    pixel=RGB(terrain,terrain,terrain);
+	                                pixel=RGB(terrain,terrain,terrain);
 								}
 							}
 						}
@@ -5217,13 +5185,13 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 				/* We should never get here, but if */
 				/* we do, display the region as black */
 
-                pixel=COLOR_BLACK;
+	            pixel=COLOR_BLACK;
 			}
 
-            ImageWriterAppendPixel(&iw, pixel);
+	        ImageWriterAppendPixel(&iw, pixel);
 		}
 
-        ImageWriterEmitLine(&iw);
+	    ImageWriterEmitLine(&iw);
 	}
 
 	if (kml==0 && geo==0)
@@ -5261,7 +5229,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 				  		if (x>=5 && x<=12)	 
 					  			if (fontdata[16*(hundreds+'0')+(y0-8)]&(128>>(x-5)))
 								indx=255; 
-                    }
+	                }
 
 					if (tens>0 || hundreds>0)
 					{
@@ -5297,27 +5265,27 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 					if (x>=76 && x<=83)
 						if (fontdata[16*('m')+(y0-8)]&(128>>(x-76)))
 							indx=255;
-                }
+	            }
 
 				if (indx>region.levels)
-                    pixel=COLOR_BLACK;
+	                pixel=COLOR_BLACK;
 				else
 				{
 					red=region.color[indx][0];
 					green=region.color[indx][1];
 					blue=region.color[indx][2];
 
-                    pixel=RGB(red,green,blue);
+	                pixel=RGB(red,green,blue);
 				}
 
-                ImageWriterAppendPixel(&iw, pixel);
+	            ImageWriterAppendPixel(&iw, pixel);
 			}
 
-            ImageWriterEmitLine(&iw);
+	        ImageWriterEmitLine(&iw);
 		}
 	}
 
-    ImageWriterFinish(&iw);
+	ImageWriterFinish(&iw);
 
 	if (kml)
 	{
@@ -5358,7 +5326,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 				  		if (x>=5 && x<=12)	 
 					  			if (fontdata[16*(hundreds+'0')+((y0%30)-8)]&(128>>(x-5)))
 								indx=255; 
-                    }
+	                }
 
 					if (tens>0 || hundreds>0)
 					{
@@ -5394,7 +5362,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 					if (x>=76 && x<=83)
 						if (fontdata[16*('m')+((y0%30)-8)]&(128>>(x-76)))
 							indx=255;
-                }
+	            }
 
 				if (indx>region.levels)
 					fprintf(fd,"%c%c%c",0,0,0);
@@ -5424,12 +5392,12 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	   90 degrees from its representation in dem[][] so that north
 	   points up and east points right in the image generated. 
 
-       In this version of the WriteImage function the PowerLevel is
-       plotted (vs the Signal Strength, plotted by WriteImageSS). */
+	   In this version of the WriteImage function the PowerLevel is
+	   plotted (vs the Signal Strength, plotted by WriteImageSS). */
 
 	char mapfile[255], geofile[255], kmlfile[255], ckfile[255];
 	unsigned width, height, terrain, red, green, blue;
-    unsigned int imgheight, imgwidth;
+	unsigned int imgheight, imgwidth;
 	unsigned char mask;
 	DEM *dem;
 	int indx, x, y, z=1, x0, y0, dBm, level, hundreds,
@@ -5439,7 +5407,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	FILE *fd;
 
 	Pixel pixel = 0;
-    ImageWriter iw;
+	ImageWriter iw;
 
 	one_over_gamma=1.0/GAMMA;
 	conversion=255.0/pow((double)(max_elevation-min_elevation),one_over_gamma);
@@ -5489,13 +5457,13 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	}
 
 	geofile[x]=0;
-    strcat(geofile, ".geo");
+	strcat(geofile, ".geo");
 
 	kmlfile[x]=0;
-    strcat(kmlfile, ".kml");
+	strcat(kmlfile, ".kml");
 
-    ckfile[x]=0;
-    strcat(ckfile, "-ck.ppm");
+	ckfile[x]=0;
+	strcat(ckfile, "-ck.ppm");
 
 	minwest=((double)min_west)+dpp;
 
@@ -5598,24 +5566,24 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	if (kml || geo)
 	{
 		/* No bottom legend */
-        imgwidth = width;
-        imgheight = height;
-    }
-    else
-    {
+	    imgwidth = width;
+	    imgheight = height;
+	}
+	else
+	{
 		/* Allow space for bottom legend */
-        imgwidth = width;
-        imgheight = height + 30;
-    }
+	    imgwidth = width;
+	    imgheight = height + 30;
+	}
 
-    fprintf(stdout,"\nWriting Power Level (dBm) map \"%s\" (%ux%u image)... ",mapfile,imgwidth,imgheight);
+	fprintf(stdout,"\nWriting Power Level (dBm) map \"%s\" (%ux%u image)... ",mapfile,imgwidth,imgheight);
 	fflush(stdout);
 
-    if (ImageWriterInit(&iw,mapfile,imagetype,imgwidth,imgheight)<0) {
-        fprintf(stdout,"\nError writing \"%s\"!\n",mapfile);
-        fflush(stdout);
-        return;
-    }
+	if (ImageWriterInit(&iw,mapfile,imagetype,imgwidth,imgheight)<0) {
+	    fprintf(stdout,"\nError writing \"%s\"!\n",mapfile);
+	    fflush(stdout);
+	    return;
+	}
 
 	for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
 	{
@@ -5669,31 +5637,31 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 					/* Text Labels: Red or otherwise */
 
 					if (red>=180 && green<=75 && blue<=75 && dBm!=0)
-                        pixel=RGB(255^red,255^green,255^blue);
+	                    pixel=RGB(255^red,255^green,255^blue);
 					else
-                        pixel=COLOR_RED;
+	                    pixel=COLOR_RED;
 				}
 				else if (mask&4)
 				{
 					/* County Boundaries: Black */
-                    pixel=COLOR_BLACK;
+	                pixel=COLOR_BLACK;
 				}
-                else
+	            else
 				{
 					if (contour_threshold!=0 && dBm<contour_threshold)
 					{
 						if (ngs) /* No terrain */
-                            pixel=COLOR_WHITE;
+	                        pixel=COLOR_WHITE;
 						else
 						{
 							/* Display land or sea elevation */
 
 							if (dem->data[x0][y0]==0)
-                                pixel=COLOR_MEDIUMBLUE;
+	                            pixel=COLOR_MEDIUMBLUE;
 							else
 							{
 								terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-                                pixel=RGB(terrain,terrain,terrain);
+	                            pixel=RGB(terrain,terrain,terrain);
 							}
 						}
 					}
@@ -5703,21 +5671,21 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 						/* Plot signal power level regions in color */
 
 						if (red!=0 || green!=0 || blue!=0)
-                            pixel=RGB(red,green,blue);
+	                        pixel=RGB(red,green,blue);
 
 						else  /* terrain / sea-level */
 						{
 							if (ngs)
-                                pixel=COLOR_WHITE;
+	                            pixel=COLOR_WHITE;
 							else
 							{
 								if (dem->data[x0][y0]==0)
-                                    pixel=COLOR_MEDIUMBLUE;
+	                                pixel=COLOR_MEDIUMBLUE;
 								else
 								{
 									/* Elevation: Greyscale */
 									terrain=(unsigned)(0.5+pow((double)(dem->data[x0][y0]-min_elevation),one_over_gamma)*conversion);
-                                    pixel=RGB(terrain,terrain,terrain);
+	                                pixel=RGB(terrain,terrain,terrain);
 								}
 							}
 						}
@@ -5729,13 +5697,13 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 			{
 				/* We should never get here, but if */
 				/* we do, display the region as black */
-                pixel=COLOR_BLACK;
+	            pixel=COLOR_BLACK;
 			}
 
-            ImageWriterAppendPixel(&iw, pixel);
+	        ImageWriterAppendPixel(&iw, pixel);
 		}
 
-        ImageWriterEmitLine(&iw);
+	    ImageWriterEmitLine(&iw);
 	}
 
 	if (kml==0 && geo==0)
@@ -5858,14 +5826,14 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 					pixel=RGB(red,green,blue);
 				}
 
-                ImageWriterAppendPixel(&iw, pixel);
+	            ImageWriterAppendPixel(&iw, pixel);
 			} 
 
-            ImageWriterEmitLine(&iw);
+	        ImageWriterEmitLine(&iw);
 		}
 	}
 
-    ImageWriterFinish(&iw);
+	ImageWriterFinish(&iw);
 
 	if (kml)
 	{
@@ -6949,7 +6917,7 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 		}
 
 		else
-    		    snprintf(buf_f1,150,"\nThe first Fresnel zone is clear.\n");
+			    snprintf(buf_f1,150,"\nThe first Fresnel zone is clear.\n");
 	}
 
 	fprintf(outfile,"%s",buf);
@@ -7742,7 +7710,7 @@ void LoadTopoData(int max_lon, int min_lon, int max_lat, int min_lat)
 	   to cover the limits of the region specified. */ 
 
 	int x, y, width, ymin, ymax;
-    char sdffilename[MAXPATHLEN];
+	char sdffilename[MAXPATHLEN];
 
 	width=ReduceAngle(max_lon-min_lon);
 
@@ -8158,8 +8126,8 @@ int main(int argc, char *argv[])
 			area_mode=0, max_txsites, ngs=0, nolospath=0,
 			nositereports=0, fresnel_plot=1, command_line_log=0;
 
-    ImageType imagetype=IMAGETYPE_PPM;
-    unsigned char imagetype_set = 0;
+	ImageType imagetype=IMAGETYPE_PPM;
+	unsigned char imagetype_set = 0;
  
 	char		mapfile[255], header[80], city_file[5][255], 
 			elevation_file[255], height_file[255], 
@@ -8178,6 +8146,8 @@ int main(int argc, char *argv[])
 	Site	tx_site[32], rx_site;
 
 	FILE		*fd;
+
+	/* unsigned long long systemMemory = getTotalSystemMemory(); */
 
 	strncpy(dashes,"---------------------------------------------------------------------------\0",76);
 
@@ -8206,6 +8176,7 @@ int main(int argc, char *argv[])
 		fprintf(stdout,"       -R modify default range for -c or -L (miles/kilometers)\n");
 		fprintf(stdout,"       -v N verbosity level. Default is 1. Set to 0 to quiet everything.\n");
 		fprintf(stdout,"      -mt use multiple CPU threads for faster speed\n");
+		fprintf(stdout,"      -hd Use High Definition mode. Requires 1-deg SDF files.\n");
 		fprintf(stdout,"      -sc display smooth rather than quantized contour levels\n");
 		fprintf(stdout,"      -db threshold beyond which contours will not be displayed\n");
 		fprintf(stdout,"      -nf do not plot Fresnel zones in height plots\n");
@@ -8228,17 +8199,17 @@ int main(int argc, char *argv[])
 
 		fprintf(stdout,"See the documentation for more details.\n\n");
 
+	    /*
+	     * XXX TODO: Insert memory checking code here to see what the max is we can support on this system.
 		y=(int)sqrt((int)MAXPAGES);
-
 		fprintf(stdout,"This compilation of %s supports analysis over a region of %d square\n",SPLAT_NAME,y);
-
 		if (y==1)
-
 			fprintf(stdout,"degree");
 		else
 			fprintf(stdout,"degrees");
+	    */
 
-		fprintf(stdout," of terrain, and computes signal levels using ITWOM Version %.1f.\n\n",ITWOMVersion());
+		fprintf(stdout, "Using ITWOM Version %.1f.\n\n",ITWOMVersion());
 		fflush(stdout);
 
 		return 1;
@@ -8274,13 +8245,6 @@ int main(int argc, char *argv[])
 	ani_filename[0]=0;
 	smooth_contours=0;
 	earthradius=EARTHRADIUS;
-
-	ippd=IPPD;		/* pixels per degree (integer) */
-	ppd=(double)ippd;	/* pixels per degree (double)  */
-	dpp=1.0/ppd;		/* degrees per pixel */
-	mpi=ippd-1;		/* maximum pixel index per degree */
-
-	sprintf(header,"\n\t\t--==[ Welcome To %s v%s ]==--\n\n", SPLAT_NAME, SPLAT_VERSION);
 
 	for (x=0; x<4; x++)
 	{
@@ -8457,22 +8421,22 @@ int main(int argc, char *argv[])
 		}
 
 		if (strcmp(argv[x],"-jpg")==0) {
-            if (imagetype_set && imagetype != IMAGETYPE_JPG) {
+	        if (imagetype_set && imagetype != IMAGETYPE_JPG) {
 					fprintf(stdout,"-jpg and -png are exclusive options, ignoring -jpg.\n");
-            } else {
-                imagetype=IMAGETYPE_JPG;
-                imagetype_set = 1;
-            }
-        }
+	        } else {
+	            imagetype=IMAGETYPE_JPG;
+	            imagetype_set = 1;
+	        }
+	    }
 
 		if (strcmp(argv[x],"-png")==0) {
-            if (imagetype_set && imagetype != IMAGETYPE_PNG) {
+	        if (imagetype_set && imagetype != IMAGETYPE_PNG) {
 					fprintf(stdout,"-jpg and -png are exclusive options, ignoring -png.\n");
-            } else {
-                imagetype=IMAGETYPE_PNG;
-                imagetype_set = 1;
-            }
-        }
+	        } else {
+	            imagetype=IMAGETYPE_PNG;
+	            imagetype_set = 1;
+	        }
+	    }
 
 		if (strcmp(argv[x],"-metric")==0)
 			metric=1;
@@ -8503,6 +8467,10 @@ int main(int argc, char *argv[])
 
 		if (strcmp(argv[x],"-mt")==0)
 			multithread=true;
+
+		if (strcmp(argv[x],"-hd")==0) {
+				appmode = APPMODE_HD;
+		}
 
 		if (strcmp(argv[x],"-itwom")==0)
 			itwom=1;
@@ -8664,6 +8632,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	sprintf(header,"\n\t\t--==[ Welcome To %s%s v%s ]==--\n\n",
+		SPLAT_NAME, (appmode==APPMODE_HD?" HD":""), SPLAT_VERSION);
+
 	/* Perform some error checking on the arguments
 	   and switches parsed from the command-line.
 	   If an error is encountered, print a message
@@ -8690,6 +8661,21 @@ int main(int argc, char *argv[])
 		exit (-1);
 	}
 
+	/* XXX TODO: Read maxpagesides from commandline.
+	 * Check to see if we can support the requested gridsize.
+	 * If not, either issue warning or ratchet down.
+	 * For now, just set this to the maximum. */
+
+	if (appmode == APPMODE_NORMAL) {
+	    ippd=1200;
+	} else {
+	    ippd=3600;
+	}
+	ppd=(double)ippd;	/* pixels per degree (double)  */
+	dpp=1.0/ppd;		/* degrees per pixel */
+	mpi=ippd-1;		/* maximum pixel index per degree */
+
+
 	if ((coverage+LRmap+ani_filename[0])==0 && rx_site.lat==91.0 && rx_site.lon==361.0)
 	{
 		if (max_range!=0.0 && txsites!=0)
@@ -8710,7 +8696,7 @@ int main(int argc, char *argv[])
 	/* No major errors were detected.  Whew!  :-) */
 
 
-	if (InitDEMs(MAXPAGES) < 0) {
+	if (InitDEMs() < 0) {
 		fprintf(stderr, "Couldn't allocate Digital Elevation Model array!\n");
 		return -1;
 	}
@@ -8877,36 +8863,10 @@ int main(int argc, char *argv[])
 			/* Prevent the demand for a really wide coverage
 			   from allocating more "pages" than are available
 			   in memory. */
-
-			switch (MAXPAGES)
-			{
-				case 1: deg_limit=0.125;
-					break;
-
-				case 2: deg_limit=0.25;
-					break;
-
-				case 4: deg_limit=0.5;
-					break;
-
-				case 9: deg_limit=1.0;
-					break;
-
-				case 16: deg_limit=1.5;  /* WAS 2.0 */
-					break;
-
-				case 25: deg_limit=2.0;  /* WAS 3.0 */
-					break;
-
-				case 36: deg_limit=2.5;	 /* New! */
-					break;
-
-				case 49: deg_limit=3.0;  /* New! */
-					break;
-
-				case 64: deg_limit=3.5;  /* New! */
-					break;
-			}
+	        deg_limit = .25;
+	        if (maxpagesides > 1) {
+	            deg_limit = 0.5 * (maxpagesides - 1.0);
+	        }
 
 			if (fabs(tx_site[z].lat)<70.0)
 				deg_range_lon=deg_range/cos(DEG2RAD*tx_site[z].lat);
