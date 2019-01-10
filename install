@@ -9,12 +9,8 @@ install_splat()
 {
 	if [ -x splat ]; then
 		cp splat /usr/local/bin
+        `cd /usr/local/bin && ln -s splat splat-hd`
 		echo "SPLAT! installed!"
-	fi
-
-	if [ -x splat-hd ]; then
-		cp splat-hd /usr/local/bin
-		echo "SPLAT!-HD installed!"
 	fi
 }
 
