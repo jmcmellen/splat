@@ -22,8 +22,8 @@ else
 endif
 
 
-CPPFLAGS= -g -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS)
-#CPPFLAGS= -O3 -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS)
+#CPPFLAGS= -g -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS)
+CPPFLAGS= -O3 -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS)
 
 SRCS = splat.cpp
 OBJS = $(SRCS:.cpp=.o)
@@ -32,11 +32,14 @@ C_OBJS = $(C_SRCS:.c=.o)
 
 LDFLAGS = -lm -lpthread -lz -lbz2 -ljpeg -lpng
 
-all: splat utils
+all: splat utils splat-hd
 
 splat: $(SRCS) $(C_OBJS)
 	$(CXX) $(CPPFLAGS) -std=c++11 $(INCLUDES) -c $(SRCS)
 	$(CXX) $(CPPFLAGS) -o $@ $(OBJS) $(C_OBJS) $(LDFLAGS)
+
+splat-hd: splat
+	ln -s splat splat-hd
 
 utils:
 	cd utils && $(MAKE)
@@ -47,7 +50,7 @@ install:
 .PHONY: clean utils install
 clean:
 	cd utils && $(MAKE) clean
-	@rm -f *.o splat
+	@rm -f *.o splat splat-hd
 
 .SUFFIXES: .c .cpp .o
 .c.o:
