@@ -43,8 +43,7 @@ OSX (High Sierra):
 
 * Build system
 
-  * The build system has partially been converted to Gnu Make. More work needs to be done here to support
-    building the subdirectories.
+  * The build system has been converted to Gnu Make (gmake). There is no need to run "configure" any more.
 
 * ITWOM 3.0
 
@@ -56,16 +55,22 @@ OSX (High Sierra):
     a small complex-number library is introduced. This was done as part of the effort to make it fully
     C99 compliant.
 
-  * All the static variables were removed from itwom3.0.c in an effort to make the code fully reentrant. In
-    some cases this means that we recalculate variables multiple times. In other cases, new "state" structs
-    have been introduced that act as local contexts for repeated calls to the same function. While this does
-    slow things down a bit over using statics, the difference is most noticeable on older systems (on an Atom
-    D510 it increases run time from 4 1/2 minutes to 5 minutes). On newer systems it seems to make little to
-    no difference. At any rate, making that code reentrant means that the code can be multithreaded, and the
-    gains from that far offset any loss.
+  * All the static variables were removed from function scopes within itwom3.0.c in an effort to make the code
+    fully reentrant. This had resulted in a number of changes:
+        - There are a few cases where these were actually consts; those have been defined as such
+        and moved to the global scope.
+        - In a few cases this means that we recalculate variables multiple times.
+        - In other cases, new "state" structs have been introduced that act as local contexts for repeated
+        calls to the same function.
+    All these changes are geared towards making the code multithread-safe.
+    
+  * A few variables that are not modified by the various functions have been declared as const. This includes
+    pfl[] arrays.
 
   * A number of minor fixes were made to itwom3.0 that were disguised by using the C++ compiler. For instance,
     in a number of places abs() was called when fabs() was meant.
+    
+  * Much much code documenting was done. There remains a lot to do though.
 
 * splat.cpp
 
@@ -81,10 +86,12 @@ OSX (High Sierra):
     line as you like. The generated jpg's are smaller but the text can be hard to read in some instances. The
     png's are, of course, lossless, and nice and crisp, but they are larger and take slightly longer to generate.
     Both are an order of magnitude smaller than the pixmaps though.
+    
+  * All the DEMs and Paths are allocated on the heap rather than using pre-sized arrays and stack allocations.
+    This means the same code can be used for 1x1 through 8x8 grids, and/or 3-deg (Normal) or 1-deg (High Definition)
+    modes without recompiling. It also means that the code can adjust itself (or error out nicely) depending on the
+    available memory of the host machine.
 
 ## To Do
 
-* Make the memory allocation for the arrays in splat.cpp be dynamic so there's no need for two different
-  versions of splat.
-
-* Much much code cleanup.
+* More code cleanup.
