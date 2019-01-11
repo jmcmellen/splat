@@ -94,4 +94,9 @@ OSX (High Sierra):
 
 ## To Do
 
+* Finish converting the ppms to jpgs or pngs. There are still some places where it generates the wrong type, mostly
+  when creating kml files.
+* Since we have to link to zlib for the pngs, we might as well create kmz files if asked.
 * More code cleanup.
+* Split this into multiple files.
+* Reformat tabs to four spaces.
