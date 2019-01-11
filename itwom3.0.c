@@ -260,7 +260,6 @@ double fht(const double x, const double pk)
 		else
 			fhtv=2.5e-5*x*x/pk-8.686*w-15.0;
 	}
-
 	else
 	{
 		fhtv=0.05751*x-10.0*log10(x);
@@ -1959,7 +1958,7 @@ double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *pro
  *
  * See ITWOM-SUB-ROUTINES.pdf, page 150
  */
-void hzns(double pfl[], prop_type *prop)
+void hzns(const double pfl[], prop_type *prop)
 {
 	bool wq;
 	int np;
@@ -2029,7 +2028,7 @@ void hzns(double pfl[], prop_type *prop)
  *
  * See ITWOM-SUB-ROUTINES.pdf, page 150
  */
-void hzns2(double pfl[], prop_type *prop)
+void hzns2(const double pfl[], prop_type *prop)
 {
 	bool wq;
 	int np, rp, i, j;
@@ -2151,7 +2150,7 @@ void hzns2(double pfl[], prop_type *prop)
  *
  * Used only with ITM 1.2.2
  */
-void z1sq1 (double z[], const double x1, const double x2, double *z0, double *zn)
+void z1sq1 (const double z[], const double x1, const double x2, double *z0, double *zn)
 {
 	double xn, xa, xb, x, a, b;
 	int n, ja, jb;
@@ -2203,7 +2202,7 @@ void z1sq1 (double z[], const double x1, const double x2, double *z0, double *zn
  *
  *  See ITWOM-SUB-ROUTINES.pdf p298
  */
-void z1sq2(double z[], const double x1, const double x2, double *z0, double *zn)
+void z1sq2(const double z[], const double x1, const double x2, double *z0, double *zn)
 {
 	/* corrected for use with ITWOM */
 	double xn, xa, xb, x, a, b, bn;
@@ -2390,7 +2389,7 @@ double qerf(const double z)
  * with ITM 1.2.2 and is limited to using a maximum of 245 pfl array elements.
  * It is thus faster but slightly less accurate.
  */
-double d1thx(double pfl[], const double x1, const double x2)
+double d1thx(const double pfl[], const double x1, const double x2)
 {
 	int np, ka, kb, n, k, j;
 	double d1thxv, sn, xa, xb;
@@ -2477,7 +2476,7 @@ double d1thx(double pfl[], const double x1, const double x2)
  * See ITWOM-SUB-ROUTINES.pdf p125. This version has been modified by Sid
  * Shumate to use the entire range of the pfl array if needed.
  */
-double d1thx2(double pfl[], const double x1, const double x2)
+double d1thx2(const double pfl[], const double x1, const double x2)
 {
 	int np, ka, kb, n, k, kmx, j;
 	double d1thx2v, sn, xa, xb, xc;
@@ -2560,27 +2559,36 @@ double d1thx2(double pfl[], const double x1, const double x2)
  *
  * See ITWOM-SUB-ROUTINES.pdf p233
  */
-void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
+void qlrpfl(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
 {
 	int np, j;
 	double xl[2], q, za, zb, temp;
 
 	prop->dist=pfl[0]*pfl[1];
 	np=(int)pfl[0];
-	hzns(pfl,prop);
 
-	for (j=0; j<2; j++)
-		xl[j]=min(15.0*prop->hg[j],0.1*prop->dl[j]);
+	hzns(pfl,prop); /* analyse pfl and store horizon/obstruction info in prop */
 
-	xl[1]=prop->dist-xl[1];
-	prop->dh=d1thx(pfl,xl[0],xl[1]);
+	for (j=0; j<2; j++)                               /* for both tx and rx... */
+		xl[j]=min(15.0*prop->hg[j], 0.1*prop->dl[j]); /* ...set xl to min of 15x ant height or 1/10 horizon dist */
 
-	if (prop->dl[0]+prop->dl[1]>1.5*prop->dist)
+	xl[1]=prop->dist-xl[1]; /* adjust the rx distance to be from the far end */
+
+	prop->dh=d1thx(pfl,xl[0],xl[1]);  /* calculate the terrain irregularity factor */
+
+	if (prop->dl[0]+prop->dl[1] > 1.5*prop->dist)
 	{
-		z1sq1(pfl,xl[0],xl[1],&za,&zb);
+	    /* the horizon (or obstruction) is far away... */
+
+		z1sq1(pfl,xl[0],xl[1],&za,&zb);                 /* do a linear least-squares fit */
+														/* za has elevation of avg height at tx */
+														/* zb has elevation of avg height at rx */
+
+		/* set effective heights to endpoint heights plus an offset. See ITWOM p236 for discussion */
 		prop->he[0]=prop->hg[0]+FORTRAN_DIM(pfl[2],za);
 		prop->he[1]=prop->hg[1]+FORTRAN_DIM(pfl[np+2],zb);
 
+		/* arcana to (re)determine dl values that we initially got from hzns. See ITWOM. */
 		for (j=0; j<2; j++)
 			prop->dl[j]=sqrt(2.0*prop->he[j]/prop->gme)*exp(-0.07*sqrt(prop->dh/max(prop->he[j],5.0)));
 
@@ -2605,11 +2613,13 @@ void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *pr
 			prop->the[j]=(0.65*prop->dh*(q/prop->dl[j]-1.0)-2.0*prop->he[j])/q;
 		}
 	}
-
 	else
 	{
+	    /* the horizon (or obstruction) is nearish... */
+
 		z1sq1(pfl,xl[0],0.9*prop->dl[0],&za,&q);
 		z1sq1(pfl,prop->dist-0.9*prop->dl[1],xl[1],&q,&zb);
+
 		prop->he[0]=prop->hg[0]+FORTRAN_DIM(pfl[2],za);
 		prop->he[1]=prop->hg[1]+FORTRAN_DIM(pfl[np+2],zb);
 	}
@@ -2637,7 +2647,7 @@ void qlrpfl(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *pr
  *
  * See ITWOM-SUB-ROUTINES.pdf p247
  */
-void qlrpfl2(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
+void qlrpfl2(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
 {
 	int np, j;
 	double xl[2], dlb, q, za, zb, temp, rad, rae1, rae2;
@@ -2778,7 +2788,7 @@ void qlrpfl2(double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *p
 			Results are probably invalid.
 
 *****************************************************************************/
-void point_to_point_ITM(double elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
+void point_to_point_ITM(const double elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
 
 {
 	prop_type   prop = {0};
@@ -2900,7 +2910,7 @@ void point_to_point_ITM(double elev[], double tht_m, double rht_m, double eps_di
 			Results are probably invalid.
 
 *****************************************************************************/
-void point_to_point(double elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
+void point_to_point(const double elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
 {
 	prop_type   prop = {0};
 	propv_type  propv = {0};
@@ -3011,7 +3021,7 @@ void point_to_point(double elev[], double tht_m, double rht_m, double eps_dielec
 	         Other-  Warning: Some parameters are out of range.
 	                          Results are probably invalid.
 *************************************************************************************************/
-void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
+void point_to_pointMDH_two (const double elev[], double tht_m, double rht_m,
           double eps_dielect, double sgm_conductivity, double eno_ns_surfref, 
 	  double enc_ncc_clcref, double clutter_height, double clutter_density, 
 	  double delta_h_diff, double frq_mhz, int radio_climate, int pol, int mode_var, 
@@ -3111,7 +3121,7 @@ void point_to_pointMDH_two (double elev[], double tht_m, double rht_m,
 	         Other-  Warning: Some parameters are out of range.
 	                          Results are probably invalid.
 *************************************************************************************************/
-void point_to_pointDH (double elev[], double tht_m, double rht_m, 
+void point_to_pointDH (const double elev[], double tht_m, double rht_m, 
 		  double eps_dielect, double sgm_conductivity, double eno_ns_surfref,
 		  double enc_ncc_clcref, double clutter_height, double clutter_density, 
 		  double delta_h_diff, double frq_mhz, int radio_climate, int pol, 
