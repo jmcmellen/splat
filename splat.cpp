@@ -32,8 +32,16 @@
 #endif
 
 #include "bzlib.h"
+
 #ifndef _WIN32
+#define HAVE_LIBPNG
+#define HAVE_LIBJPEG
+#endif
+
+#ifdef HAVE_LIBPNG
 #include "png.h"
+#endif
+#ifdef HAVE_LIBJPEG
 #include "jpeglib.h"
 #endif
 
@@ -289,10 +297,11 @@ typedef struct ImageWriter_st
 
 	unsigned char *imgline;
 
-#ifndef _WIN32
+#ifdef HAVE_LIBPNG
 	png_structp png_ptr;
 	png_infop info_ptr;
-
+#endif
+#ifdef HAVE_LIBJPEG
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
 #endif
@@ -316,7 +325,7 @@ int ImageWriterInit(ImageWriter *iw, const char* filename, ImageType imagetype, 
 	// XXX TODO: error handling
 	switch (iw->imagetype) {
 		default:
-#ifndef _WIN32
+#ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
 			iw->png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 			iw->info_ptr = png_create_info_struct(iw->png_ptr);
@@ -331,6 +340,8 @@ int ImageWriterInit(ImageWriter *iw, const char* filename, ImageType imagetype, 
 			png_set_compression_level(iw->png_ptr, 6);  /* default is Z_DEFAULT_COMPRESSION; see zlib.h */
 			png_write_info(iw->png_ptr, iw->info_ptr);
 			break;
+#endif
+#ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
 			iw->cinfo.err = jpeg_std_error(&iw->jerr);
 			jpeg_create_compress(&iw->cinfo);
@@ -373,10 +384,12 @@ void ImageWriterEmitLine(ImageWriter *iw)
 
 	switch (iw->imagetype) {
 		default:
-#ifndef _WIN32
+#ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
 			png_write_row(iw->png_ptr, (png_bytep)(iw->imgline));
 			break;
+#endif
+#ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
 			jpeg_write_scanlines(&iw->cinfo, &iw->imgline, 1);
 			break;
@@ -395,11 +408,13 @@ void ImageWriterFinish(ImageWriter *iw)
 
 	switch (iw->imagetype) {
 		default:
-#ifndef _WIN32
+#ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
 			png_write_end(iw->png_ptr, iw->info_ptr);
 			png_destroy_write_struct(&iw->png_ptr, &iw->info_ptr);
 			break;
+#endif
+#ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
 			jpeg_finish_compress(&iw->cinfo);
 			jpeg_destroy_compress(&iw->cinfo);
@@ -4209,10 +4224,12 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	mapfile[x]=0;
 	switch (imagetype) {
 		default:
-#ifndef _WIN32
+#ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
 			strcat(mapfile, ".png");
 			break;
+#endif
+#ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
 			strcat(mapfile, ".jpg");
 			break;
@@ -4509,10 +4526,12 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	mapfile[x]=0;
 	switch (imagetype) {
 		default:
-#ifndef _WIN32
+#ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
 			strcat(mapfile, ".png");
 			break;
+#endif
+#ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
 			strcat(mapfile, ".jpg");
 			break;
@@ -4983,10 +5002,12 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	mapfile[x]=0;
 	switch (imagetype) {
 		default:
-#ifndef _WIN32
+#ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
 			strcat(mapfile, ".png");
 			break;
+#endif
+#ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
 			strcat(mapfile, ".jpg");
 			break;
@@ -5498,10 +5519,12 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	mapfile[x]=0;
 	switch (imagetype) {
 		default:
-#ifndef _WIN32
+#ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
 			strcat(mapfile, ".png");
 			break;
+#endif
+#ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
 			strcat(mapfile, ".jpg");
 			break;
@@ -8497,7 +8520,18 @@ int main(int argc, char *argv[])
 				norm=0;
 		}
 
-#ifndef _WIN32
+#ifdef HAVE_LIBPNG
+		if (strcmp(argv[x], "-png") == 0) {
+			if (imagetype_set && imagetype != IMAGETYPE_PNG) {
+				fprintf(stdout, "-jpg and -png are exclusive options, ignoring -png.\n");
+			}
+			else {
+				imagetype = IMAGETYPE_PNG;
+				imagetype_set = 1;
+			}
+		}
+#endif
+#ifdef HAVE_LIBJPEG
 		if (strcmp(argv[x],"-jpg")==0) {
 	        if (imagetype_set && imagetype != IMAGETYPE_JPG) {
 					fprintf(stdout,"-jpg and -png are exclusive options, ignoring -jpg.\n");
@@ -8507,14 +8541,6 @@ int main(int argc, char *argv[])
 	        }
 	    }
 
-		if (strcmp(argv[x],"-png")==0) {
-	        if (imagetype_set && imagetype != IMAGETYPE_PNG) {
-					fprintf(stdout,"-jpg and -png are exclusive options, ignoring -png.\n");
-	        } else {
-	            imagetype=IMAGETYPE_PNG;
-	            imagetype_set = 1;
-	        }
-	    }
 #endif
 
 		if (strcmp(argv[x],"-metric")==0)
