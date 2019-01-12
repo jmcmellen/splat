@@ -148,9 +148,12 @@ typedef struct propa_type
 	double tha;    /* total bending angle in radians                          */
 } propa_type;
 
+#ifndef min
 #define min(i, j) ( i < j ? i : j)
-
+#endif
+#ifndef max
 #define max(i, j) ( i > j ? i : j)
+#endif
 
 #define FORTRAN_DIM(x, y) ( (x) > (y) ? ((x)-(y)) : (0.0) )
 
@@ -2505,7 +2508,7 @@ double d1thx2(const double pfl[], const double x1, const double x2)
 
 	xb=(xb-xa)/sn;                  /* rescale xb to the new distance */
 
-	k=(trunc(xa+1.0));              /* was a cast to int. trunc() works too.               */
+	k=(int)(trunc(xa+1.0));
 	xc=xa-((double)k);              /* xa now ranges from -1.0 to near 0                   */
 									/* This new variable, xc, was added by Sid because     */
 									/* xa's value is later passed to z1sq2 and he wanted   */

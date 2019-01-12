@@ -25,14 +25,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <bzlib.h>
+#ifndef _WIN32
 #include <unistd.h>
+#else
+#define unlink _unlink
+#endif
+
+#include "bzlib.h"
+#ifndef _WIN32
+#include "png.h"
+#include "jpeglib.h"
+#endif
 
 #include "fontdata.h"
 #include "workqueue.hpp"
-
-#include "jpeglib.h"
-#include "png.h"
 
 
 #define GAMMA 2.5
@@ -122,9 +128,11 @@ typedef struct Region {
 } Region;
 
 typedef enum ImageType {
-	IMAGETYPE_PNG = 0,
+	IMAGETYPE_PPM = 0,
+#ifndef _WIN32
+	IMAGETYPE_PNG,
 	IMAGETYPE_JPG,
-	IMAGETYPE_PPM
+#endif
 } ImageType;
 
 typedef enum SDFCompressType {
@@ -186,10 +194,13 @@ int demCount = 0;
 
 typedef uint32_t Pixel;
 
+#ifndef _WIN32
 #define RGB(r,g,b) ( ((uint32_t)(uint8_t)r)|((uint32_t)((uint8_t)g)<<8)|((uint32_t)((uint8_t)b)<<16) )
-#define GetRValue(RGBColor) (uint8_t) (RGBColor)
-#define GetGValue(RGBColor) (uint8_t) (((uint32_t)RGBColor) >> 8)
-#define GetBValue(RGBColor) (uint8_t) (((uint32_t)RGBColor) >> 16)
+
+#define GetRValue(RGBColor) (uint8_t) (RGBColor & 0xff)
+#define GetGValue(RGBColor) (uint8_t) ((((uint32_t)(RGBColor)) >> 8) & 0xff)
+#define GetBValue(RGBColor) (uint8_t) ((((uint32_t)(RGBColor)) >> 16) & 0xff)
+#endif
 
 #define COLOR_RED				RGB(255, 0, 0)
 #define COLOR_LIGHTCYAN			RGB(128,128,255)
@@ -240,7 +251,7 @@ double ITWOMVersion();
  * System-level utilities
  *****************************/
 
-#ifndef __WINDOWS
+#ifndef _WIN32
 #include <unistd.h>
 
 unsigned long long getTotalSystemMemory()
@@ -278,11 +289,13 @@ typedef struct ImageWriter_st
 
 	unsigned char *imgline;
 
+#ifndef _WIN32
 	png_structp png_ptr;
 	png_infop info_ptr;
 
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
+#endif
 } ImageWriter;
 
 int ImageWriterInit(ImageWriter *iw, const char* filename, ImageType imagetype, int width, int height)
@@ -302,6 +315,8 @@ int ImageWriterInit(ImageWriter *iw, const char* filename, ImageType imagetype, 
 
 	// XXX TODO: error handling
 	switch (iw->imagetype) {
+		default:
+#ifndef _WIN32
 		case IMAGETYPE_PNG:
 			iw->png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 			iw->info_ptr = png_create_info_struct(iw->png_ptr);
@@ -328,7 +343,8 @@ int ImageWriterInit(ImageWriter *iw, const char* filename, ImageType imagetype, 
 			jpeg_set_quality(&iw->cinfo, DEFAULT_JPEG_QUALITY, TRUE); /* possible range is 0-100 */
 			jpeg_start_compress(&iw->cinfo, TRUE); /* start compressor. */
 			break;
-		default: /* PPM */
+#endif
+		case IMAGETYPE_PPM:
 			fprintf(iw->fp,"P6\n%u %u\n255\n",iw->width,iw->height);
 	}
 
@@ -356,13 +372,16 @@ void ImageWriterEmitLine(ImageWriter *iw)
 		return;
 
 	switch (iw->imagetype) {
+		default:
+#ifndef _WIN32
 		case IMAGETYPE_PNG:
 			png_write_row(iw->png_ptr, (png_bytep)(iw->imgline));
 			break;
 		case IMAGETYPE_JPG:
 			jpeg_write_scanlines(&iw->cinfo, &iw->imgline, 1);
 			break;
-		default:
+#endif
+		case IMAGETYPE_PPM:
 			fwrite(iw->imgline, 3, iw->width, iw->fp);
 			break;
 	}
@@ -375,6 +394,8 @@ void ImageWriterFinish(ImageWriter *iw)
 		return;
 
 	switch (iw->imagetype) {
+		default:
+#ifndef _WIN32
 		case IMAGETYPE_PNG:
 			png_write_end(iw->png_ptr, iw->info_ptr);
 			png_destroy_write_struct(&iw->png_ptr, &iw->info_ptr);
@@ -383,7 +404,8 @@ void ImageWriterFinish(ImageWriter *iw)
 			jpeg_finish_compress(&iw->cinfo);
 			jpeg_destroy_compress(&iw->cinfo);
 			break;
-		default:
+#endif
+		case IMAGETYPE_PPM:
 			/* do nothing */
 			;
 	}
@@ -2361,6 +2383,7 @@ void LoadCities(char *filename)
 		fprintf(stderr,"\n*** ERROR: \"%s\": not found!",filename);
 }
 
+#ifndef _WIN32
 void LoadUDT(char *filename)
 {
 	/* This function reads a file containing User-Defined Terrain
@@ -2518,6 +2541,7 @@ void LoadUDT(char *filename)
 
 	fprintf(stdout,"\n");
 }
+#endif
 
 void LoadBoundaries(char *filename)
 {
@@ -4184,15 +4208,17 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 
 	mapfile[x]=0;
 	switch (imagetype) {
+		default:
+#ifndef _WIN32
+		case IMAGETYPE_PNG:
+			strcat(mapfile, ".png");
+			break;
 		case IMAGETYPE_JPG:
 			strcat(mapfile, ".jpg");
 			break;
+#endif
 		case IMAGETYPE_PPM:
 			strcat(mapfile, ".ppm");
-			break;
-		case IMAGETYPE_PNG:
-		default:
-			strcat(mapfile, ".png");
 			break;
 	}
 
@@ -4482,15 +4508,17 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 	mapfile[x]=0;
 	switch (imagetype) {
+		default:
+#ifndef _WIN32
+		case IMAGETYPE_PNG:
+			strcat(mapfile, ".png");
+			break;
 		case IMAGETYPE_JPG:
 			strcat(mapfile, ".jpg");
 			break;
+#endif
 		case IMAGETYPE_PPM:
 			strcat(mapfile, ".ppm");
-			break;
-		case IMAGETYPE_PNG:
-		default:
-			strcat(mapfile, ".png");
 			break;
 	}
 
@@ -4954,15 +4982,17 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 	mapfile[x]=0;
 	switch (imagetype) {
+		default:
+#ifndef _WIN32
+		case IMAGETYPE_PNG:
+			strcat(mapfile, ".png");
+			break;
 		case IMAGETYPE_JPG:
 			strcat(mapfile, ".jpg");
 			break;
+#endif
 		case IMAGETYPE_PPM:
 			strcat(mapfile, ".ppm");
-			break;
-		case IMAGETYPE_PNG:
-		default:
-			strcat(mapfile, ".png");
 			break;
 	}
 
@@ -5467,15 +5497,17 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 
 	mapfile[x]=0;
 	switch (imagetype) {
+		default:
+#ifndef _WIN32
+		case IMAGETYPE_PNG:
+			strcat(mapfile, ".png");
+			break;
 		case IMAGETYPE_JPG:
 			strcat(mapfile, ".jpg");
 			break;
+#endif
 		case IMAGETYPE_PPM:
 			strcat(mapfile, ".ppm");
-			break;
-		case IMAGETYPE_PNG:
-		default:
-			strcat(mapfile, ".png");
 			break;
 	}
 
@@ -8217,7 +8249,9 @@ int main(int argc, char *argv[])
 		fprintf(stdout,"     -erp override ERP in .lrp file (Watts)\n");
 		fprintf(stdout,"     -ano name of alphanumeric output file\n");
 		fprintf(stdout,"     -ani name of alphanumeric input file\n");
+#ifndef _WIN32
 		fprintf(stdout,"     -udt name of user defined terrain input file\n");
+#endif
 		fprintf(stdout,"     -kml generate Google Earth (.kml) compatible output\n");
 		fprintf(stdout,"     -geo generate an Xastir .geo georeference file (with .ppm output)\n");
 		fprintf(stdout,"     -dbm plot signal power level contours rather than field strength\n");
@@ -8390,6 +8424,7 @@ int main(int argc, char *argv[])
 			command_line_log=1;
 		}
 
+#ifndef _WIN32
 		if (strcmp(argv[x],"-udt")==0)
 		{
 			z=x+1;
@@ -8397,6 +8432,7 @@ int main(int argc, char *argv[])
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
 				strncpy(udt_file,argv[z],253);
 		}
+#endif
 
 		if (strcmp(argv[x],"-c")==0)
 		{
@@ -8461,6 +8497,7 @@ int main(int argc, char *argv[])
 				norm=0;
 		}
 
+#ifndef _WIN32
 		if (strcmp(argv[x],"-jpg")==0) {
 	        if (imagetype_set && imagetype != IMAGETYPE_JPG) {
 					fprintf(stdout,"-jpg and -png are exclusive options, ignoring -jpg.\n");
@@ -8478,6 +8515,7 @@ int main(int argc, char *argv[])
 	            imagetype_set = 1;
 	        }
 	    }
+#endif
 
 		if (strcmp(argv[x],"-metric")==0)
 			metric=1;
@@ -8955,8 +8993,10 @@ int main(int argc, char *argv[])
 		LoadTopoData(max_lon, min_lon, max_lat, min_lat);
 	}
 	
+#ifndef _WIN32
 	if (udt_file[0])
 		LoadUDT(udt_file);
+#endif
 
 	/**** Set terrain elevation to zero for sites providing AMSL antenna heights ****
 

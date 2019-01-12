@@ -1,4 +1,8 @@
 *.o
+*.opendb
+*.db
+*.vcxproj.filters
+*.vcxproj.user
 .gdbinit
 cscope.out
 hd-parms.h
@@ -13,3 +17,4 @@ utils/fontdata
 utils/srtm2sdf
 utils/srtm2sdf-hd
 utils/usgs2sdf
+x64*
