@@ -1,5 +1,13 @@
 # SPLAT! for Windows (Command line)
 
+## NOTE: There is a major problem with Windows at this point. SPLAT! compiles and (mostly)
+   works fine under it, but the SDF filenaming scheme uses a ":" and that is not allowed
+   on Windows filesystems, where it is used to indicate a drive letter.
+   
+   This has not been resolved yet, but I may introduce an alternate naming scheme.
+   
+   
+
 ## Visual Studio version
    SPLAT! requires the C++11 standard, which means Visual Studio 2015 or better.
    The Community Edition will work fine.
@@ -78,4 +86,7 @@
 ## Troubleshooting
     * Splat can't find png_write_row(), png_set_compression_level, etc:
         Make sure that when you compiled libpng, the Solution Platform matches Splat's (x64).
+  
+  
+Last updated on 14 Jan 2019. hoche@grok.com
      
