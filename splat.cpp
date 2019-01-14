@@ -33,8 +33,8 @@
 
 #include "bzlib.h"
 
-#ifndef _WIN32
 #define HAVE_LIBPNG
+#ifndef _WIN32
 #define HAVE_LIBJPEG
 #endif
 
@@ -83,7 +83,7 @@
 typedef struct Site {
 	double lat;
 	double lon;
-	float alt;
+	double alt;
 	unsigned char amsl_flag;
 	char name[50];
 	char filename[MAXPATHLEN];
@@ -126,7 +126,7 @@ typedef struct LongleyRiceData {
 	double erp;
 	int radio_climate;
 	int pol;
-	float antenna_pattern[361][1001];
+	double antenna_pattern[361][1001];
 } LongleyRice;
 
 typedef struct Region {
@@ -137,8 +137,10 @@ typedef struct Region {
 
 typedef enum ImageType {
 	IMAGETYPE_PPM = 0,
-#ifndef _WIN32
+#ifdef HAVE_LIBPNG
 	IMAGETYPE_PNG,
+#endif
+#ifdef HAVE_LIBJPG
 	IMAGETYPE_JPG,
 #endif
 } ImageType;
@@ -1546,7 +1548,7 @@ double ReadBearing(char *input)
 	   spaces that might be present in the process. */
 
 	buf[0]=0;
-	length=strlen(input);
+	length= (int)strlen(input);
 
 	for (a=0, b=0; a<length && a<18; a++)
 	{
@@ -1561,7 +1563,7 @@ double ReadBearing(char *input)
 
 	/* Count number of spaces in the clean string. */
 
-	length=strlen(buf);
+	length= (int)strlen(buf);
 
 	for (a=0, b=0; a<length; a++)
 		if (buf[a]==32)
@@ -1610,7 +1612,7 @@ Site LoadQTH(char *filename)
 	Site    tempsite;
 	FILE	*fd=NULL;
 
-	x=strlen(filename);
+	x= (int)strlen(filename);
 	strncpy(qthfile, filename, MAXPATHLEN-1);
 
 	if (qthfile[x-3]!='q' || qthfile[x-2]!='t' || qthfile[x-1]!='h')
@@ -1664,7 +1666,7 @@ Site LoadQTH(char *filename)
 
 		/* Read antenna height from buf */
 
-		sscanf(buf,"%f",&tempsite.alt);
+		sscanf(buf,"%lf",&tempsite.alt);
 
 		if ((buf[x-1]=='M') || strstr(buf,"M ") || strstr(buf,"METERS"))
 			tempsite.alt*=3.28084;
@@ -1691,10 +1693,11 @@ void LoadPAT(char *filename)
 
 	int	a, b, w, x, y, z, last_index, next_index, span;
 	char	buf[255], azfile[MAXPATHLEN], elfile[MAXPATHLEN], *pointer=NULL;
-	float	az, xx, elevation, amplitude, rotation, valid1, valid2,
+	float	az, xx, amplitude, rotation, valid1, valid2,
 		delta, azimuth[361], azimuth_pattern[361], el_pattern[10001],
-		elevation_pattern[361][1001], slant_angle[361], tilt,
-		mechanical_tilt=0.0, tilt_azimuth, tilt_increment, sum;
+		mechanical_tilt = 0.0, tilt_azimuth, sum;
+	double elevation, elevation_pattern[361][1001];
+	double tilt, tilt_increment, slant_angle[361];
 	char *p;
 	FILE	*fd=NULL;
 	unsigned char read_count[10001];
@@ -1708,7 +1711,7 @@ void LoadPAT(char *filename)
 		elfile[x]=filename[x];
 	}
 	if ( (p = strrchr(filename, '.')) ) {
-	    x = p - filename;
+	    x = (int)(p - filename);
 	}
 
 	azfile[x]='.';
@@ -1900,7 +1903,7 @@ void LoadPAT(char *filename)
 		if (pointer!=NULL)
 			*pointer=0;
 
-		sscanf(buf,"%f %f", &elevation, &amplitude);
+		sscanf(buf,"%lf %f", &elevation, &amplitude);
 
 		while (feof(fd)==0)
 		{
@@ -1908,7 +1911,7 @@ void LoadPAT(char *filename)
 			   for every 0.01 degrees of elevation between
 			   -10.0 and +90.0 degrees */
 
-			x=(int)rintf(100.0*(elevation+10.0));
+			x=(int)rint(100.0*(elevation+10.0));
 
 			if (x>=0 && x<=10000)
 			{
@@ -1922,7 +1925,7 @@ void LoadPAT(char *filename)
 			if (pointer!=NULL)
 				*pointer=0;
 
-			sscanf(buf,"%f %f", &elevation, &amplitude);
+			sscanf(buf,"%lf %f", &elevation, &amplitude);
 		}
 
 		fclose(fd);
@@ -2012,7 +2015,7 @@ void LoadPAT(char *filename)
 			/** Convert tilt angle to
 				an array index offset **/
 
-			y=(int)rintf(100.0*tilt);
+			y=(int)rint(100.0*tilt);
 
 			/* Copy shifted el_pattern[10001] field
 			   values into elevation_pattern[361][1001]
@@ -2149,7 +2152,7 @@ int LoadSDF(char *name)
 		sdf_file[x]=name[x];
 	p = strrchr(sdf_file, '.');
 	if (p) {
-	    x = p - sdf_file;
+	    x = (int)(p - sdf_file);
 	}
 
 	sdf_file[x]=0;
@@ -2665,7 +2668,7 @@ char ReadLRParm(Site txsite, char forced_read)
 	for (x=0; txsite.filename[x]!=0 && x<(MAXPATHLEN-5); x++)
 		filename[x]=txsite.filename[x];
 	if ( (p = strrchr(filename, '.')) ) {
-	    x = p - filename;
+	    x = (int)(p - filename);
 	}
 
 	filename[x]='.';
@@ -4206,7 +4209,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 		filename[strlen(filename)-4]=0;  /* Remove .qth */
 	}
 
-	y=strlen(filename);
+	y= (int)strlen(filename);
 
 	if (y>4)
 	{
@@ -4503,7 +4506,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 		filename[strlen(filename)-4]=0;  /* Remove .qth */
 	}
 
-	y=strlen(filename);
+	y= (int)strlen(filename);
 
 	if (y>240)
 		y=240;
@@ -4980,7 +4983,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 		filename[strlen(filename)-4]=0;  /* Remove .qth */
 	}
 
-	y=strlen(filename);
+	y= (int)strlen(filename);
 
 	if (y>240)
 		y=240;
@@ -5497,7 +5500,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 		filename[strlen(filename)-4]=0;  /* Remove .qth */
 	}
 
-	y=strlen(filename);
+	y= (int)strlen(filename);
 
 	if (y>240)
 		y=240;
@@ -6119,7 +6122,7 @@ void GraphTerrain(Site source, Site destination, char *name)
 		/* Extract extension and terminal type from "name" */
 
 		ext[0]=0;
-		y=strlen(name);
+		y= (int)strlen(name);
 		strncpy(basename,name,254);
 
 		for (x=y-1; x>0 && name[x]!='.'; x--);
@@ -6332,7 +6335,7 @@ void GraphElevation(Site source, Site destination, char *name)
 		/* Extract extension and terminal type from "name" */
 
 		ext[0]=0;
-		y=strlen(name);
+		y= (int)strlen(name);
 		strncpy(basename,name,254);
 
 		for (x=y-1; x>0 && name[x]!='.'; x--);
@@ -6662,7 +6665,7 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 		/* Extract extension and terminal type from "name" */
 
 		ext[0]=0;
-		y=strlen(name);
+		y= (int)strlen(name);
 		strncpy(basename,name,254);
 
 		for (x=y-1; x>0 && name[x]!='.'; x--);
@@ -7522,7 +7525,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 			if (strncmp(strmode,"2_Hrzn",6)==0)
 				fprintf(fd2,"Double Horizon ");
 
-			y=strlen(strmode);
+			y= (int)strlen(strmode);
 
 			if (y>19)
 				y=19;
@@ -7603,7 +7606,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 			/* Extract extension and terminal type from "name" */
 
 			ext[0]=0;
-			y=strlen(name);
+			y= (int)strlen(name);
 			strncpy(basename,name,254);
 
 			for (x=y-1; x>0 && name[x]!='.'; x--);
@@ -9048,7 +9051,7 @@ int main(int argc, char *argv[])
 			/* Extract extension (if present)
 			   from "terrain_file" */
 
-			y=strlen(terrain_file);
+			y= (int)strlen(terrain_file);
 
 			for (x=y-1; x>0 && terrain_file[x]!='.'; x--);
 
@@ -9070,7 +9073,7 @@ int main(int argc, char *argv[])
 			/* Extract extension (if present)
 			   from "elevation_file" */
 
-			y=strlen(elevation_file);
+			y= (int)strlen(elevation_file);
 
 			for (x=y-1; x>0 && elevation_file[x]!='.'; x--);
 
@@ -9092,7 +9095,7 @@ int main(int argc, char *argv[])
 			/* Extract extension (if present)
 			   from "height_file" */
 
-			y=strlen(height_file);
+			y= (int)strlen(height_file);
 
 			for (x=y-1; x>0 && height_file[x]!='.'; x--);
 
@@ -9114,7 +9117,7 @@ int main(int argc, char *argv[])
 			/* Extract extension (if present)
 			   from "longley_file" */
 
-			y=strlen(longley_file);
+			y=(int)strlen(longley_file);
 
 			for (x=y-1; x>0 && longley_file[x]!='.'; x--);
 
