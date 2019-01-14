@@ -140,7 +140,7 @@ typedef enum ImageType {
 #ifdef HAVE_LIBPNG
 	IMAGETYPE_PNG,
 #endif
-#ifdef HAVE_LIBJPG
+#ifdef HAVE_LIBJPEG
 	IMAGETYPE_JPG,
 #endif
 } ImageType;
