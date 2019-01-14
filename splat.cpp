@@ -159,10 +159,11 @@ struct SDFCompressFormat {
 /*****************************
  * Globals
  *****************************/
-enum AppMode {
+typedef enum AppMode {
 	APPMODE_NORMAL = 0,
 	APPMODE_HD = 1
-} appmode = APPMODE_NORMAL;
+} AppMode;
+AppMode appmode = APPMODE_NORMAL;
 
 #define MAXPAGESIDES 8
 const int appArraySize[2][MAXPAGESIDES] = {
@@ -1704,13 +1705,21 @@ void LoadPAT(char *filename)
 	int	a, b, w, x, y, z, last_index, next_index, span;
 	char	buf[255], azfile[MAXPATHLEN], elfile[MAXPATHLEN], *pointer=NULL;
 	float	az, xx, amplitude, rotation, valid1, valid2,
-		delta, azimuth[361], azimuth_pattern[361], el_pattern[10001],
+		delta, azimuth[361], azimuth_pattern[361],
 		mechanical_tilt = 0.0, tilt_azimuth, sum;
-	double elevation, elevation_pattern[361][1001];
+	double elevation;
+	/* elevation_pattern[361][1001]; */ /* 2.7MB. This blows the stack right out of the water. Allocate on heap. */
 	double tilt, tilt_increment, slant_angle[361];
 	char *p;
 	FILE	*fd=NULL;
-	unsigned char read_count[10001];
+
+	float *el_pattern = (float*)malloc(sizeof(float) * 10001);
+	unsigned char *read_count = (unsigned char*)malloc(sizeof(unsigned char*) * 10001);
+	double **elevation_pattern = (double**)malloc(sizeof(double*) * 361);
+	for (x = 0; x < 361; ++x) {
+		elevation_pattern[x] = (double*)malloc(sizeof(double) * 1001);
+	}
+
 
 	/* copy the whole thing and then find the last .
 	 * This lets us start our paths with ./blah
@@ -2070,6 +2079,13 @@ void LoadPAT(char *filename)
 			LR.antenna_pattern[x][y]=az*elevation;
 		}
 	}
+
+	for (x = 0; x < 361; ++x) {
+		free(elevation_pattern[x]);
+	}
+	free(elevation_pattern);
+	free(el_pattern);
+	free(read_count);
 }
 
 char *BZfgets(BZFILE *bzfp, unsigned length)
@@ -8856,6 +8872,7 @@ int main(int argc, char *argv[])
 		clutter/=METERS_PER_FOOT;	/* meters --> feet */
 	}
 
+#ifndef _WIN32
 	/* read the home_sdf_path */
 	env=getenv("HOME");
 	snprintf(buf,MAXPATHLEN-2,"%s/.splat_path",env);
@@ -8876,6 +8893,7 @@ int main(int argc, char *argv[])
 			strcat(home_sdf_path, "/");
 		}
 	}
+#endif
 
 
 	fprintf(stdout,"%s",header);
