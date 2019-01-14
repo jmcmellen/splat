@@ -4527,22 +4527,25 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	}
 
 	mapfile[x]=0;
+
+    const char* suffix;
 	switch (imagetype) {
 		default:
 #ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
-			strcat(mapfile, ".png");
+            suffix = ".png";
 			break;
 #endif
 #ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
-			strcat(mapfile, ".jpg");
+            suffix = ".jpg";
 			break;
 #endif
 		case IMAGETYPE_PPM:
-			strcat(mapfile, ".ppm");
+            suffix = ".ppm";
 			break;
 	}
+    strcat(mapfile, suffix);
 
 	geofile[x]=0;
 	strcat(geofile, ".geo");
@@ -4551,7 +4554,8 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	strcat(kmlfile, ".kml");
 
 	ckfile[x]=0;
-	strcat(ckfile, "-ck.ppm");
+	strcat(ckfile, "-ck");
+	strcat(ckfile, suffix);
 
 	minwest=((double)min_west)+dpp;
 
@@ -4586,7 +4590,13 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 	if (kml && geo==0)
 	{
+        char *tmpmapfile = strdup(mapfile);
+        char *tmpckfile = strdup(ckfile);
+        char *mapfilebasename = basename(tmpmapfile);
+        char *ckfilebasename = basename(tmpckfile);
+        
 		fd=fopen(kmlfile,"wb");
+
 
 		fprintf(fd,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 		fprintf(fd,"<kml xmlns=\"http://earth.google.com/kml/2.1\">\n");
@@ -4598,7 +4608,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	  		fprintf(fd,"		 <name>SPLAT! Path Loss Overlay</name>\n");
 	  		fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
 	  		fprintf(fd,"		<Icon>\n");
-			fprintf(fd,"			  <href>%s</href>\n",mapfile);
+			fprintf(fd,"			  <href>%s</href>\n",mapfilebasename);
 		fprintf(fd,"		</Icon>\n");
 		/* fprintf(fd,"			<opacity>128</opacity>\n"); */
 		fprintf(fd,"			<LatLonBox>\n");
@@ -4613,7 +4623,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 		fprintf(fd,"		  <name>Color Key</name>\n");
 		fprintf(fd,"		<description>Contour Color Key</description>\n");
 		fprintf(fd,"		  <Icon>\n");
-		fprintf(fd,"			<href>%s</href>\n",ckfile);
+		fprintf(fd,"			<href>%s</href>\n",ckfilebasename);
 		fprintf(fd,"		  </Icon>\n");
 		fprintf(fd,"		  <overlayXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
 		fprintf(fd,"		  <screenXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
@@ -4649,6 +4659,9 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 		fprintf(fd,"</kml>\n");
 
 		fclose(fd);
+
+        free(tmpmapfile);
+        free(tmpckfile);
 	}
 
 	if (kml || geo)
@@ -4868,12 +4881,14 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	{
 		/* Write colorkey image file */
 
-		fd=fopen(ckfile,"wb");
-
 		height=30*region.levels;
 		width=100;
 
-		fprintf(fd,"P6\n%u %u\n255\n",width,height);
+        if (ImageWriterInit(&iw,ckfile,imagetype,width,height)<0) {
+            fprintf(stdout,"\nError writing \"%s\"!\n",ckfile);
+            fflush(stdout);
+            return;
+        }
 
 		for (y0=0; y0<(int)height; y0++)
 		{
@@ -4924,20 +4939,25 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 							indx=255;
 	            }
 
-				if (indx>region.levels)
-					fprintf(fd,"%c%c%c",0,0,0);
+				if (indx>region.levels) {
+					pixel=COLOR_BLACK;
+				}
 				else
 				{
 					red=region.color[indx][0];
 					green=region.color[indx][1];
 					blue=region.color[indx][2];
 
-					fprintf(fd,"%c%c%c",red,green,blue);
+					pixel=RGB(red,green,blue);
 				}
+
+                ImageWriterAppendPixel(&iw, pixel);
 			} 
+
+			ImageWriterEmitLine(&iw);
 		}
 
-		fclose(fd);
+		ImageWriterFinish(&iw);
 	}
 
 	fprintf(stdout,"Done!\n");
@@ -5003,22 +5023,24 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	}
 
 	mapfile[x]=0;
+    const char* suffix;
 	switch (imagetype) {
 		default:
 #ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
-			strcat(mapfile, ".png");
+            suffix = ".png";
 			break;
 #endif
 #ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
-			strcat(mapfile, ".jpg");
+            suffix = ".jpg";
 			break;
 #endif
 		case IMAGETYPE_PPM:
-			strcat(mapfile, ".ppm");
+            suffix = ".ppm";
 			break;
 	}
+    strcat(mapfile, suffix);
 
 	geofile[x]=0;
 	strcat(geofile, ".geo");
@@ -5027,7 +5049,8 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	strcat(kmlfile, ".kml");
 
 	ckfile[x]=0;
-	strcat(ckfile, "-ck.ppm");
+	strcat(ckfile, "-ck");
+	strcat(ckfile, suffix);
 
 	minwest=((double)min_west)+dpp;
 
@@ -5062,6 +5085,11 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 	if (kml && geo==0)
 	{
+        char *tmpmapfile = strdup(mapfile);
+        char *tmpckfile = strdup(ckfile);
+        char *mapfilebasename = basename(tmpmapfile);
+        char *ckfilebasename = basename(tmpckfile);
+        
 		fd=fopen(kmlfile,"wb");
 
 		fprintf(fd,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -5074,7 +5102,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	  		fprintf(fd,"		 <name>SPLAT! Signal Strength Contours</name>\n");
 	  		fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
 	  		fprintf(fd,"		<Icon>\n");
-			fprintf(fd,"			  <href>%s</href>\n",mapfile);
+			fprintf(fd,"			  <href>%s</href>\n",mapfilebasename);
 		fprintf(fd,"		</Icon>\n");
 		/* fprintf(fd,"			<opacity>128</opacity>\n"); */
 		fprintf(fd,"			<LatLonBox>\n");
@@ -5089,7 +5117,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 		fprintf(fd,"		  <name>Color Key</name>\n");
 		fprintf(fd,"			<description>Contour Color Key</description>\n");
 		fprintf(fd,"		  <Icon>\n");
-		fprintf(fd,"			<href>%s</href>\n",ckfile);
+		fprintf(fd,"			<href>%s</href>\n",ckfilebasename);
 		fprintf(fd,"		  </Icon>\n");
 		fprintf(fd,"		  <overlayXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
 		fprintf(fd,"		  <screenXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
@@ -5125,6 +5153,9 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 		fprintf(fd,"</kml>\n");
 
 		fclose(fd);
+
+        free(tmpmapfile);
+        free(tmpckfile);
 	}
 
 	if (kml || geo)
@@ -5368,12 +5399,14 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	{
 		/* Write colorkey image file */
 
-		fd=fopen(ckfile,"wb");
-
 		height=30*region.levels;
 		width=100;
 
-		fprintf(fd,"P6\n%u %u\n255\n",width,height);
+        if (ImageWriterInit(&iw,ckfile,imagetype,width,height)<0) {
+            fprintf(stdout,"\nError writing \"%s\"!\n",ckfile);
+            fflush(stdout);
+            return;
+        }
 
 		for (y0=0; y0<(int)height; y0++)
 		{
@@ -5441,20 +5474,25 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 							indx=255;
 	            }
 
-				if (indx>region.levels)
-					fprintf(fd,"%c%c%c",0,0,0);
+				if (indx>region.levels) {
+					pixel=COLOR_BLACK;
+				}
 				else
 				{
 					red=region.color[indx][0];
 					green=region.color[indx][1];
 					blue=region.color[indx][2];
 
-					fprintf(fd,"%c%c%c",red,green,blue);
+					pixel=RGB(red,green,blue);
 				}
+
+                ImageWriterAppendPixel(&iw, pixel);
 			} 
+
+			ImageWriterEmitLine(&iw);
 		}
 
-		fclose(fd);
+		ImageWriterFinish(&iw);
 	}
 
 	fprintf(stdout,"Done!\n");
@@ -5520,22 +5558,25 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	}
 
 	mapfile[x]=0;
+
+    const char* suffix;
 	switch (imagetype) {
 		default:
 #ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
-			strcat(mapfile, ".png");
+            suffix = ".png";
 			break;
 #endif
 #ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
-			strcat(mapfile, ".jpg");
+            suffix = ".jpg";
 			break;
 #endif
 		case IMAGETYPE_PPM:
-			strcat(mapfile, ".ppm");
+            suffix = ".ppm";
 			break;
 	}
+    strcat(mapfile, suffix);
 
 	geofile[x]=0;
 	strcat(geofile, ".geo");
@@ -5544,7 +5585,8 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	strcat(kmlfile, ".kml");
 
 	ckfile[x]=0;
-	strcat(ckfile, "-ck.ppm");
+	strcat(ckfile, "-ck");
+	strcat(ckfile, suffix);
 
 	minwest=((double)min_west)+dpp;
 
@@ -5579,6 +5621,11 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 
 	if (kml && geo==0)
 	{
+        char *tmpmapfile = strdup(mapfile);
+        char *tmpckfile = strdup(ckfile);
+        char *mapfilebasename = basename(tmpmapfile);
+        char *ckfilebasename = basename(tmpckfile);
+        
 		fd=fopen(kmlfile,"wb");
 
 		fprintf(fd,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -5591,7 +5638,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	  		fprintf(fd,"		 <name>SPLAT! Signal Power Level Contours</name>\n");
 	  		fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
 	  		fprintf(fd,"		<Icon>\n");
-			fprintf(fd,"			  <href>%s</href>\n",mapfile);
+			fprintf(fd,"			  <href>%s</href>\n",mapfilebasename);
 		fprintf(fd,"		</Icon>\n");
 		/* fprintf(fd,"			<opacity>128</opacity>\n"); */
 		fprintf(fd,"			<LatLonBox>\n");
@@ -5606,7 +5653,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 		fprintf(fd,"		  <name>Color Key</name>\n");
 		fprintf(fd,"			<description>Contour Color Key</description>\n");
 		fprintf(fd,"		  <Icon>\n");
-		fprintf(fd,"			<href>%s</href>\n",ckfile);
+		fprintf(fd,"			<href>%s</href>\n",ckfilebasename);
 		fprintf(fd,"		  </Icon>\n");
 		fprintf(fd,"		  <overlayXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
 		fprintf(fd,"		  <screenXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
@@ -5642,6 +5689,9 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 		fprintf(fd,"</kml>\n");
 
 		fclose(fd);
+
+        free(tmpmapfile);
+        free(tmpckfile);
 	}
 
 	if (kml || geo)
@@ -5919,13 +5969,14 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	if (kml)
 	{
 		/* Write colorkey image file */
-
-		fd=fopen(ckfile,"wb");
-
 		height=30*region.levels;
 		width=100;
 
-		fprintf(fd,"P6\n%u %u\n255\n",width,height);
+        if (ImageWriterInit(&iw,ckfile,imagetype,width,height)<0) {
+            fprintf(stdout,"\nError writing \"%s\"!\n",ckfile);
+            fflush(stdout);
+            return;
+        }
 
 		for (y0=0; y0<(int)height; y0++)
 		{
@@ -6030,21 +6081,25 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 							indx=255;
 				}
 
-				if (indx>region.levels)
-					fprintf(fd,"%c%c%c",0,0,0);
-
+				if (indx>region.levels) {
+					pixel=COLOR_BLACK;
+				}
 				else
 				{
 					red=region.color[indx][0];
 					green=region.color[indx][1];
 					blue=region.color[indx][2];
 
-					fprintf(fd,"%c%c%c",red,green,blue);
+					pixel=RGB(red,green,blue);
 				}
-			} 
+
+                ImageWriterAppendPixel(&iw, pixel);
+			}
+
+			ImageWriterEmitLine(&iw);
 		}
 
-		fclose(fd);
+		ImageWriterFinish(&iw);
 	}
 
 	fprintf(stdout,"Done!\n");
