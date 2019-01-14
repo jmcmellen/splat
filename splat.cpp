@@ -280,6 +280,7 @@ unsigned long long getTotalSystemMemory()
 	GlobalMemoryStatusEx(&status);
 	return status.ullTotalPhys;
 }
+
 #endif
 
 /*****************************
@@ -489,6 +490,15 @@ unsigned long SizeofPath(AppMode mode, int pagesides)
 /*****************************
  * Utility functions
  *****************************/
+char* basename_s(char* path) {
+	if (!path) return ""; /* const string */
+
+	int i = (int)strlen(path);
+	for ( ; i >= 0 && i != '/' && i != '\\'; --i); /* walk backwards until we find a path separator */
+	++i; /* i is either -1 or the index of the slash, so move forward */
+	return &(path[i]);
+}
+
 int interpolate(int y0, int y1, int x0, int x1, int n)
 {
 	/* Perform linear interpolation between quantized contour
@@ -4589,12 +4599,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	}
 
 	if (kml && geo==0)
-	{
-        char *tmpmapfile = strdup(mapfile);
-        char *tmpckfile = strdup(ckfile);
-        char *mapfilebasename = basename(tmpmapfile);
-        char *ckfilebasename = basename(tmpckfile);
-        
+	{   
 		fd=fopen(kmlfile,"wb");
 
 
@@ -4608,7 +4613,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	  		fprintf(fd,"		 <name>SPLAT! Path Loss Overlay</name>\n");
 	  		fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
 	  		fprintf(fd,"		<Icon>\n");
-			fprintf(fd,"			  <href>%s</href>\n",mapfilebasename);
+			fprintf(fd,"			  <href>%s</href>\n",basename_s(mapfile));
 		fprintf(fd,"		</Icon>\n");
 		/* fprintf(fd,"			<opacity>128</opacity>\n"); */
 		fprintf(fd,"			<LatLonBox>\n");
@@ -4623,7 +4628,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 		fprintf(fd,"		  <name>Color Key</name>\n");
 		fprintf(fd,"		<description>Contour Color Key</description>\n");
 		fprintf(fd,"		  <Icon>\n");
-		fprintf(fd,"			<href>%s</href>\n",ckfilebasename);
+		fprintf(fd,"			<href>%s</href>\n",basename_s(ckfile));
 		fprintf(fd,"		  </Icon>\n");
 		fprintf(fd,"		  <overlayXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
 		fprintf(fd,"		  <screenXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
@@ -4659,9 +4664,6 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 		fprintf(fd,"</kml>\n");
 
 		fclose(fd);
-
-        free(tmpmapfile);
-        free(tmpckfile);
 	}
 
 	if (kml || geo)
@@ -5084,12 +5086,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	}
 
 	if (kml && geo==0)
-	{
-        char *tmpmapfile = strdup(mapfile);
-        char *tmpckfile = strdup(ckfile);
-        char *mapfilebasename = basename(tmpmapfile);
-        char *ckfilebasename = basename(tmpckfile);
-        
+	{   
 		fd=fopen(kmlfile,"wb");
 
 		fprintf(fd,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -5102,7 +5099,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	  		fprintf(fd,"		 <name>SPLAT! Signal Strength Contours</name>\n");
 	  		fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
 	  		fprintf(fd,"		<Icon>\n");
-			fprintf(fd,"			  <href>%s</href>\n",mapfilebasename);
+			fprintf(fd,"			  <href>%s</href>\n",basename_s(mapfile));
 		fprintf(fd,"		</Icon>\n");
 		/* fprintf(fd,"			<opacity>128</opacity>\n"); */
 		fprintf(fd,"			<LatLonBox>\n");
@@ -5117,7 +5114,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 		fprintf(fd,"		  <name>Color Key</name>\n");
 		fprintf(fd,"			<description>Contour Color Key</description>\n");
 		fprintf(fd,"		  <Icon>\n");
-		fprintf(fd,"			<href>%s</href>\n",ckfilebasename);
+		fprintf(fd,"			<href>%s</href>\n",basename_s(ckfile));
 		fprintf(fd,"		  </Icon>\n");
 		fprintf(fd,"		  <overlayXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
 		fprintf(fd,"		  <screenXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
@@ -5153,9 +5150,6 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 		fprintf(fd,"</kml>\n");
 
 		fclose(fd);
-
-        free(tmpmapfile);
-        free(tmpckfile);
 	}
 
 	if (kml || geo)
@@ -5620,12 +5614,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	}
 
 	if (kml && geo==0)
-	{
-        char *tmpmapfile = strdup(mapfile);
-        char *tmpckfile = strdup(ckfile);
-        char *mapfilebasename = basename(tmpmapfile);
-        char *ckfilebasename = basename(tmpckfile);
-        
+	{   
 		fd=fopen(kmlfile,"wb");
 
 		fprintf(fd,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -5638,7 +5627,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	  		fprintf(fd,"		 <name>SPLAT! Signal Power Level Contours</name>\n");
 	  		fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
 	  		fprintf(fd,"		<Icon>\n");
-			fprintf(fd,"			  <href>%s</href>\n",mapfilebasename);
+			fprintf(fd,"			  <href>%s</href>\n",basename_s(mapfile));
 		fprintf(fd,"		</Icon>\n");
 		/* fprintf(fd,"			<opacity>128</opacity>\n"); */
 		fprintf(fd,"			<LatLonBox>\n");
@@ -5653,7 +5642,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 		fprintf(fd,"		  <name>Color Key</name>\n");
 		fprintf(fd,"			<description>Contour Color Key</description>\n");
 		fprintf(fd,"		  <Icon>\n");
-		fprintf(fd,"			<href>%s</href>\n",ckfilebasename);
+		fprintf(fd,"			<href>%s</href>\n",basename_s(ckfile));
 		fprintf(fd,"		  </Icon>\n");
 		fprintf(fd,"		  <overlayXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
 		fprintf(fd,"		  <screenXY x=\"0\" y=\"1\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
@@ -5689,9 +5678,6 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 		fprintf(fd,"</kml>\n");
 
 		fclose(fd);
-
-        free(tmpmapfile);
-        free(tmpckfile);
 	}
 
 	if (kml || geo)
