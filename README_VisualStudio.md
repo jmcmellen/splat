@@ -76,7 +76,7 @@
         
         Note: You may get an error "unreferenced formal parameter" when building libpng. If so, try going to
         Configuration properties->C/C++->Advanced and adding 4100 to the "Disable Specific Warnings" line:
-            $(DisableSpecificWarnings);4100
+            `$(DisableSpecificWarnings);4100`
             
         * When done, copy the following:
           - lpng1636\png.h to splat\png.h
