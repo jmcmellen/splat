@@ -73,6 +73,7 @@
           - libpng
           - pnglibconf
           - zlib (which should happen automatically when you build libpng)
+        
         Note: You may get an error "unreferenced formal parameter" when building libpng. If so, try going to
         Configuration properties->C/C++->Advanced and adding 4100 to the "Disable Specific Warnings" line:
             $(DisableSpecificWarnings);4100
