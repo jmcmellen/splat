@@ -119,26 +119,28 @@ int ReadSRTM(char *filename)
 
 			fd=fopen(blw_filename,"rb");
 
-			if (fd!=NULL)
-			{
-				fscanf(fd,"%lf",&cell_size);
+			if (fd==NULL) {
+                printf("\n*** Couldn't open %s!\n", blw_filename);
+                exit(1);
+            }
 
-				if ((cell_size<0.0008) || (cell_size>0.0009))
-				{
-					printf("\n*** .BIL file's cell size is incompatible with SPLAT!!\n");
-					exit(1);
-				}
+            fscanf(fd,"%lf",&cell_size);
 
-				fscanf(fd,"%lf",&deg_west);
-				fscanf(fd,"%lf",&deg_west);
-				fscanf(fd,"%lf",&deg_west);
+            if ((cell_size<0.0008) || (cell_size>0.0009))
+            {
+                printf("\n*** .BIL file's cell size is incompatible with SPLAT!!\n");
+                exit(1);
+            }
 
-				fscanf(fd,"%lf",&deg_west);
+            fscanf(fd,"%lf",&deg_west);
+            fscanf(fd,"%lf",&deg_west);
+            fscanf(fd,"%lf",&deg_west);
 
-				fscanf(fd,"%lf",&deg_north);
+            fscanf(fd,"%lf",&deg_west);
 
-				fclose(fd);
-			}
+            fscanf(fd,"%lf",&deg_north);
+
+            fclose(fd);
 
 			min_north=(int)(deg_north);
 			max_north=max_north+1;
