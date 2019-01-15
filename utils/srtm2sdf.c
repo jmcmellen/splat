@@ -7,7 +7,7 @@
  **************************************************************
  **                    Compile like this:                    **
  **      cc -Wall -O3 -s -lbz2 srtm2sdf.c -o srtm2sdf        **
- **              Last modification: 08-Jan-2014              **
+ **              Last modification: 12-Jan-2019             **
 \**************************************************************/ 
 
 #include <stdio.h>
@@ -21,6 +21,7 @@
 
 char	sdf_filename[30], sdf_path[255], replacement_flag, opened=0,
 	hgt=0, bil=0;
+char colons=0;
 
 int	srtm[3601][3601], usgs[1201][1201], max_north, max_west, n,
 	min_north, min_west, merge=0, min_elevation, bzerror, ippd, mpi;
@@ -176,10 +177,11 @@ int ReadSRTM(char *filename)
 
 	lseek(infile,0L,SEEK_SET);
 
-	if (ippd==3600)
-		sprintf(sdf_filename, "%d:%d:%d:%d-hd.sdf", min_north, max_north, min_west, max_west);
-	else
-		sprintf(sdf_filename, "%d:%d:%d:%d.sdf", min_north, max_north, min_west, max_west);
+    if (colons) {
+		sprintf(sdf_filename, "%d:%d:%d:%d%s.sdf", min_north, max_north, min_west, max_west, (ippd==3600?"-hd":""));
+    } else {
+		sprintf(sdf_filename, "%dx%dx%dx%d%s.sdf", min_north, max_north, min_west, max_west, (ippd==3600?"-hd":""));
+    }
 
 	error=0;
 	replacement_flag=0;
@@ -607,37 +609,27 @@ int main(int argc, char **argv)
 	char *env=NULL, string[255];
 	FILE *fd;
 
-	if (strstr(argv[0], "srtm2sdf-hd")!=NULL)
-	{
-		ippd=3600;	/* High Definition (1 arc-sec) Mode */
-		strncpy(string,"srtm2sdf-hd\0",12);
-	}
-
-	else
-	{
-		ippd=1200;	/* Standard Definition (3 arc-sec) Mode */
-		strncpy(string,"srtm2sdf\0",9);
-	}
-
-	mpi=ippd-1;		/* Maximum pixel index per degree */
-
 	if (argc==1 || (argc==2 && strncmp(argv[1],"-h",2)==0))
 	{
-		if (ippd==1200)
-			fprintf(stderr, "\nsrtm2sdf: Generates SPLAT! elevation data files from unzipped\nSRTM-3 elevation data files, and replaces SRTM data voids with\nelevation data from older usgs2sdf derived SDF files.\n\n");
-
-		if (ippd==3600)
-			fprintf(stderr, "\nsrtm2sdf-hd: Generates SPLAT! elevation data files from unzipped\nSRTM-1 elevation data files, and replaces SRTM data voids with\naverages, or elevation data from older usgs2sdf derived SDF files.\n\n");
+        fprintf(stderr, "\nsrtm2sdf: Generates SPLAT! elevation data files from unzipped\nSRTM-1 or SRTM-3 elevation data files, and replaces SRTM data voids with\nelevation data from older usgs2sdf derived SDF files.\n\n");
 
 		fprintf(stderr, "\tAvailable Options...\n\n");
+		fprintf(stderr, "\t-c Use colons in the filename instead of x's\n\t    This mimics older behavior, but generates files that cannot be used on Windows filesystems.\n\n");
 		fprintf(stderr, "\t-d directory path of usgs2sdf derived SDF files\n\t    (overrides path in ~/.splat_path file)\n\n");
+		fprintf(stderr, "\t-hd Invoke in High Definition mode, working on SRTM-1 files\n\t    Without this, it expects the input files to be SRTM-3 files.\n\t    You can also invoke the binary as %s-hd\n\n", argv[0]);
 		fprintf(stderr, "\t-n elevation limit (in meters) below which SRTM data is\n\t    replaced by USGS-derived .sdf data (default = 0 meters)\n\n");
-		fprintf(stderr, "Examples: %s N40W074.hgt\n",string);
-		fprintf(stderr, "          %s -d /cdrom/sdf N40W074.hgt\n",string);
-		fprintf(stderr, "          %s -d /dev/null N40W074.hgt  (prevents data replacement)\n",string);
-		fprintf(stderr, "          %s -n -5 N40W074.hgt\n\n",string);
+		fprintf(stderr, "Examples: %s N40W074.hgt\n",argv[0]);
+		fprintf(stderr, "          %s -d /cdrom/sdf N40W074.hgt\n",argv[0]);
+		fprintf(stderr, "          %s -d /dev/null N40W074.hgt  (prevents data replacement)\n",argv[0]);
+		fprintf(stderr, "          %s -n -5 N40W074.hgt\n\n",argv[0]);
 
 		return 1;
+	}
+
+	if (strstr(argv[0], "-hd")!=NULL) {
+		ippd=3600;	/* High Definition (1 arc-sec) Mode */
+	} else {
+		ippd=1200;	/* Standard Definition (3 arc-sec) Mode */
 	}
 
 	y=argc-1;
@@ -646,12 +638,24 @@ int main(int argc, char **argv)
 
 	for (x=1, z=0; x<=y; x++)
 	{
+		if (strcmp(argv[x],"-c")==0)
+		{
+			z=x;
+            colons=1;
+		}
+
 		if (strcmp(argv[x],"-d")==0)
 		{
 			z=x+1;
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
 				strncpy(sdf_path,argv[z],253);
+		}
+
+		if (strcmp(argv[x],"-hd")==0)
+		{
+			z=x;
+            ippd=3600;	/* High Definition (1 arc-sec) Mode */
 		}
 
 		if (strcmp(argv[x],"-n")==0)
@@ -668,11 +672,14 @@ int main(int argc, char **argv)
 		}
 	}
 
+	mpi=ippd-1;		/* Maximum pixel index per degree */
+
 	/* If no SDF path was specified on the command line (-d), check
 	   for a path specified in the $HOME/.splat_path file.  If the
 	   file is not found, then sdf_path[] remains NULL, and a data
 	   merge will not be attempted if voids are found in the SRTM file. */
 
+#ifndef _WIN32
 	if (sdf_path[0]==0)
 	{
 		env=getenv("HOME");
@@ -695,6 +702,7 @@ int main(int argc, char **argv)
 			fclose(fd);
 		}
 	}
+#endif
 
 	/* Ensure a trailing '/' is present in sdf_path */
 
