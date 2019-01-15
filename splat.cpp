@@ -492,7 +492,7 @@ unsigned long SizeofPath(AppMode mode, int pagesides)
  * Utility functions
  *****************************/
 char* basename_s(char* path) {
-	if (!path) return ""; /* const string */
+	if (!path) return (char*)""; /* const string */
 
 	int i = (int)strlen(path);
 	for ( ; i >= 0 && i != '/' && i != '\\'; --i); /* walk backwards until we find a path separator */
@@ -2147,7 +2147,7 @@ char *BZfgets(BZFILE *bzfp, unsigned length)
 	return (output);
 }
 
-int LoadSDF(char *name)
+int LoadSDF(int minlat, int maxlat, int minlon, int maxlon, bool hidef)
 {
 	/* This function reads SPLAT Data Files (.sdf) containing digital
 	   elevation model data into memory. It loads them into dem structs,
@@ -2155,10 +2155,8 @@ int LoadSDF(char *name)
 	 */
 
 	int	x, y, data;
-	int minlat, minlon, maxlat, maxlon;
 	char line[64];
-	char sdf_file[MAXPATHLEN], path_plus_name[MAXPATHLEN*2];
-	char *p;
+	char sdf_file[MAXPATHLEN*2];
 	SDFCompressType compressType = SDF_COMPRESSTYPE_NONE;
 	DEM *dem;
 	FILE *fp = NULL;
@@ -2166,26 +2164,10 @@ int LoadSDF(char *name)
 
 	/* this sets both the kinds of formats we understand and the priority */
 	SDFCompressFormat formats[] = {
-		{ SDF_COMPRESSTYPE_NONE, ".sdf" },
-		{ SDF_COMPRESSTYPE_BZIP2, ".sdf.bz2" },
+		{ SDF_COMPRESSTYPE_NONE, "sdf" },
+		{ SDF_COMPRESSTYPE_BZIP2, "sdf.bz2" },
 	};
 	const int known_formats = sizeof(formats)/sizeof(SDFCompressFormat);
-
-	path_plus_name[0] = '\0';
-
-	sdf_file[0] = '\0';
-	for (x=0; name[x]!=0 && x<(MAXPATHLEN-9); x++)
-		sdf_file[x]=name[x];
-	p = strrchr(sdf_file, '.');
-	if (p) {
-	    x = (int)(p - sdf_file);
-	}
-
-	sdf_file[x]=0;
-
-	/* Parse filename for minimum latitude and longitude values */
-
-	sscanf(sdf_file,"%d:%d:%d:%d",&minlat,&maxlat,&minlon,&maxlon);
 
 	/* Is it already in memory? */
 
@@ -2215,36 +2197,66 @@ int LoadSDF(char *name)
 
 	/* check -d directory */
 	if (sdf_path[0]!=0) {
-		for (int i=0; i<known_formats && !fp; ++i) {
-			snprintf(path_plus_name, MAXPATHLEN*2, "%s%s%s", sdf_path, sdf_file, formats[i].suffix);
-			if ((fp=fopen(path_plus_name,"rb"))!= NULL) {
+		for (int i=0; i<known_formats; ++i) {
+			snprintf(sdf_file, MAXPATHLEN*2, "%s%dx%dx%dx%d%s.%s", sdf_path,
+				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
+			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
 				compressType=formats[i].type;
+				break;
 			}
+#ifndef _WIN32
+			snprintf(sdf_file, MAXPATHLEN*2, "%s%d:%d:%d:%d%s.%s", sdf_path,
+				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
+			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
+				compressType=formats[i].type;
+				break;
+			}
+#endif
 		}
 	}
 
 	/* check local directory */
 	if (!fp) {
-		for (int i=0; i<known_formats && !fp; ++i) {
-			snprintf(path_plus_name, MAXPATHLEN, "%s%s", sdf_file, formats[i].suffix);
-			if ((fp=fopen(path_plus_name,"rb"))!=NULL) {
+		for (int i=0; i<known_formats; ++i) {
+			snprintf(sdf_file, MAXPATHLEN*2, "%dx%dx%dx%d%s.%s",
+				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
+			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
 				compressType=formats[i].type;
+				break;
 			}
+#ifndef _WIN32
+			snprintf(sdf_file, MAXPATHLEN*2, "%d:%d:%d:%d%s.%s",
+				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
+			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
+				compressType=formats[i].type;
+				break;
+			}
+#endif
 		}
 	}
 
 	/* check $HOME/.splat_path directory */
 	if (!fp && home_sdf_path[0]!=0) {
-		for (int i=0; i<known_formats && !fp; ++i) {
-			snprintf(path_plus_name, MAXPATHLEN*2, "%s%s%s", home_sdf_path, sdf_file, formats[i].suffix);
-			if ((fp=fopen(path_plus_name,"rb"))!=NULL) {
+		for (int i=0; i<known_formats; ++i) {
+			snprintf(sdf_file, MAXPATHLEN*2, "%s%dx%dx%dx%d%s.%s", home_sdf_path,
+				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
+			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
 				compressType=formats[i].type;
+				break;
 			}
+#ifndef _WIN32
+			snprintf(sdf_file, MAXPATHLEN*2, "%s%d:%d:%d:%d%s.%s", home_sdf_path,
+				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
+			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
+				compressType=formats[i].type;
+				break;
+			}
+#endif
 		}
 	}
 
 	if (fp) {
-		fprintf(stdout,"Loading \"%s\"...", path_plus_name);
+		fprintf(stdout,"Loading \"%s\"...", sdf_file);
 		fflush(stdout);
 
 		if (compressType == SDF_COMPRESSTYPE_BZIP2) {
@@ -7848,7 +7860,6 @@ void LoadTopoData(int max_lon, int min_lon, int max_lat, int min_lat)
 	   to cover the limits of the region specified. */ 
 
 	int x, y, width, ymin, ymax;
-	char sdffilename[MAXPATHLEN];
 
 	width=ReduceAngle(max_lon-min_lon);
 
@@ -7873,11 +7884,7 @@ void LoadTopoData(int max_lon, int min_lon, int max_lat, int min_lat)
 				while (ymax>=360)
 					ymax-=360;
 
-				if (ippd==3600)
-					snprintf(sdffilename,19,"%d:%d:%d:%d-hd",x, x+1, ymin, ymax);
-				else
-					snprintf(sdffilename,16,"%d:%d:%d:%d",x, x+1, ymin, ymax);
-				LoadSDF(sdffilename);
+				LoadSDF(x, x+1, ymin, ymax, (ippd==3600));
 			}
 	}
 
@@ -7902,11 +7909,7 @@ void LoadTopoData(int max_lon, int min_lon, int max_lat, int min_lat)
 				while (ymax>=360)
 					ymax-=360;
 
-				if (ippd==3600)
-					snprintf(sdffilename,19,"%d:%d:%d:%d-hd",x, x+1, ymin, ymax);
-				else
-					snprintf(sdffilename,16,"%d:%d:%d:%d",x, x+1, ymin, ymax);
-				LoadSDF(sdffilename);
+				LoadSDF(x, x+1, ymin, ymax, (ippd==3600));
 			}
 	}
 }
