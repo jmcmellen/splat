@@ -2198,7 +2198,7 @@ int LoadSDF(int minlat, int maxlat, int minlon, int maxlon, bool hidef)
 	/* check -d directory */
 	if (sdf_path[0]!=0) {
 		for (int i=0; i<known_formats; ++i) {
-			snprintf(sdf_file, MAXPATHLEN*2, "%s%dx%dx%dx%d%s.%s", sdf_path,
+			snprintf(sdf_file, MAXPATHLEN*2, "%s%d_%d_%d_%d%s.%s", sdf_path,
 				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
 			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
 				compressType=formats[i].type;
@@ -2218,7 +2218,7 @@ int LoadSDF(int minlat, int maxlat, int minlon, int maxlon, bool hidef)
 	/* check local directory */
 	if (!fp) {
 		for (int i=0; i<known_formats; ++i) {
-			snprintf(sdf_file, MAXPATHLEN*2, "%dx%dx%dx%d%s.%s",
+			snprintf(sdf_file, MAXPATHLEN*2, "%d_%d_%d_%d%s.%s",
 				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
 			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
 				compressType=formats[i].type;
@@ -2238,7 +2238,7 @@ int LoadSDF(int minlat, int maxlat, int minlon, int maxlon, bool hidef)
 	/* check $HOME/.splat_path directory */
 	if (!fp && home_sdf_path[0]!=0) {
 		for (int i=0; i<known_formats; ++i) {
-			snprintf(sdf_file, MAXPATHLEN*2, "%s%dx%dx%dx%d%s.%s", home_sdf_path,
+			snprintf(sdf_file, MAXPATHLEN*2, "%s%d_%d_%d_%d%s.%s", home_sdf_path,
 				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
 			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
 				compressType=formats[i].type;

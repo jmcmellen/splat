@@ -180,7 +180,7 @@ int ReadSRTM(char *filename)
     if (colons) {
 		sprintf(sdf_filename, "%d:%d:%d:%d%s.sdf", min_north, max_north, min_west, max_west, (ippd==3600?"-hd":""));
     } else {
-		sprintf(sdf_filename, "%dx%dx%dx%d%s.sdf", min_north, max_north, min_west, max_west, (ippd==3600?"-hd":""));
+		sprintf(sdf_filename, "%d_%d_%d_%d%s.sdf", min_north, max_north, min_west, max_west, (ippd==3600?"-hd":""));
     }
 
 	error=0;

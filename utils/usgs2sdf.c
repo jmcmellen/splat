@@ -304,7 +304,7 @@ char *argv[];
 
 		/* Write splat data file to disk */
 
-		sprintf(splatfile,"%.0f:%.0f:%.0f:%.0f.sdf",min_north,max_north,min_west,max_west);
+		sprintf(splatfile,"%.0f_%.0f_%.0f_%.0f.sdf",min_north,max_north,min_west,max_west);
 
 		fprintf(stdout," Done!\nWriting \"%s\"... ",splatfile);
 		fflush(stdout);
