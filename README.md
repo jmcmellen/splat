@@ -43,8 +43,37 @@ OSX (High Sierra):
 
 * Build system
 
-  * The build system has been converted to Gnu Make (gmake). There is no need to run "configure" any more.
+  The build system has been converted to Gnu Make (gmake). There is no need to run "configure" any more.
+  The next release may see a CMake build system.
+  
+* SDF file names
 
+  In order to accommodate Windows filesystems, the basic format of the SDF file naming has changed.
+  The colon has been changed to an underline. For instance, instead of having a file named `46:47:122:123.sdf`
+  it should now be `46_47_122_123.sdf`. The various unix versions (including OSX) will handle either version,
+  but by default srtm2sdf will now create names with the underline. If you don't want this, a "-c" flag has
+  been added to srtm2sdf to preserve your colon.
+
+* splat.cpp
+
+  * Incorporate John's antenna height changes from SPLAT 1.4.3 (unreleased).
+  
+  * Revert to using the ITM model by default, in accordance with SPLAT 1.4.3.
+  
+  * The PlotLOSMap() and PlotLRMap() functions have been converted to run multithreaded if a "-mt" flag is
+    passed on the command line.
+
+  * WritePPM(), WritePPMSS(), etc were converted to WriteImage(), WriteImageSS(), etc, and functionality
+    was added to allow them to emit png or jpg images instead of pixmaps. Add "-png" or "-jpg" to the command
+    line as you like. The generated jpg's are smaller but the text can be hard to read in some instances. The
+    png's are, of course, lossless, and nice and crisp, but they are larger and take slightly longer to generate.
+    Both are an order of magnitude smaller than the pixmaps though.
+    
+  * All the DEMs and Paths are allocated on the heap rather than using pre-sized arrays and stack allocations.
+    This means the same code can be used for 1x1 through 8x8 grids, and/or 3-deg (Normal) or 1-deg (High Definition)
+    modes without recompiling. It also means that the code can adjust itself (or error out nicely) depending on the
+    available memory of the host machine.
+    
 * ITWOM 3.0
 
   * itwom3.0.cpp was renamed to itwom3.0.c and is now compiled with the C compiler rather than the C++ one.
@@ -71,26 +100,6 @@ OSX (High Sierra):
     in a number of places abs() was called when fabs() was meant.
     
   * Much much code documenting was done. There remains a lot to do though.
-
-* splat.cpp
-
-  * Incorporate John's antenna height changes from SPLAT 1.4.3 (unreleased).
-  
-  * Revert to using the ITM model by default, in accordance with SPLAT 1.4.3.
-  
-  * The PlotLOSMap() and PlotLRMap() functions have been converted to run multithreaded if a "-mt" flag is
-    passed on the command line.
-
-  * WritePPM(), WritePPMSS(), etc were converted to WriteImage(), WriteImageSS(), etc, and functionality
-    was added to allow them to emit png or jpg images instead of pixmaps. Add "-png" or "-jpg" to the command
-    line as you like. The generated jpg's are smaller but the text can be hard to read in some instances. The
-    png's are, of course, lossless, and nice and crisp, but they are larger and take slightly longer to generate.
-    Both are an order of magnitude smaller than the pixmaps though.
-    
-  * All the DEMs and Paths are allocated on the heap rather than using pre-sized arrays and stack allocations.
-    This means the same code can be used for 1x1 through 8x8 grids, and/or 3-deg (Normal) or 1-deg (High Definition)
-    modes without recompiling. It also means that the code can adjust itself (or error out nicely) depending on the
-    available memory of the host machine.
 
 ## To Do
 
