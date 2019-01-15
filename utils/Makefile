@@ -38,7 +38,7 @@ srtm2sdf: srtm2sdf.o
 	$(CXX) $(CPPFLAGS) -o $@ $< $(LDFLAGS)
 
 srtm2sdf-hd: srtm2sdf
-	ln -s srtm2sdf srtm2sdf-hd
+	ln -sf srtm2sdf srtm2sdf-hd
 
 fontdata: fontdata.o
 	$(CXX) $(CPPFLAGS) -o $@ $< $(LDFLAGS)

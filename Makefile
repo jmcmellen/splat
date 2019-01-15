@@ -39,7 +39,7 @@ splat: $(SRCS) $(C_OBJS)
 	$(CXX) $(CPPFLAGS) -o $@ $(OBJS) $(C_OBJS) $(LDFLAGS)
 
 splat-hd: splat
-	ln -s splat splat-hd
+	ln -sf splat splat-hd
 
 utils:
 	cd utils && $(MAKE)
