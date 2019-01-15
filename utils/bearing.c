@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <unistd.h>
 
 char 	string[255];
 
@@ -181,7 +180,7 @@ double ReadBearing(char *input)
 	   spaces that might be present in the process. */
 
 	string[0]=0;
-	length=strlen(input);
+	length=(int)strlen(input);
 
 	for (a=0, b=0; a<length && a<18; a++)
 	{
@@ -196,7 +195,7 @@ double ReadBearing(char *input)
 
 	/* Count number of spaces in the clean string. */
 
-	length=strlen(string);
+	length=(int)strlen(string);
 
 	for (a=0, b=0; a<length; a++)
 		if (string[a]==32)

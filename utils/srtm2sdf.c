@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <bzlib.h>
 
 #define BZBUFFER 65536
@@ -28,7 +27,7 @@ int	srtm[3601][3601], usgs[1201][1201], max_north, max_west, n,
 
 int ReadSRTM(char *filename)
 {
-	int x, y, infile, byte=0, bytes_read;
+	int x, y, byte=0;
 	unsigned char error, buffer[2];
 	char north[3], west[4], *base=NULL, blw_filename[255];
 	double cell_size, deg_north, deg_west;
@@ -110,7 +109,7 @@ int ReadSRTM(char *filename)
 		   from the corresponding .BLW file */
 
 		strncpy(blw_filename,filename,250);
-		x=strlen(filename);
+		x=(int)strlen(filename);
 
 		if (x>3)
 		{
@@ -158,24 +157,24 @@ int ReadSRTM(char *filename)
 		}
 	}
 
-	infile=open(filename, O_RDONLY);
+	fd=fopen(filename, "rb");
 
-	if (infile==0)
+	if (!fd)
 	{
 		fprintf(stderr, "*** Error: Cannot open \"%s\"\n", filename);
 		return -1;
 	}
 
-	read(infile,&buffer,2);
+	fread(&buffer,1,2,fd);
 
 	if ((buffer[0]=='P') && (buffer[1]=='K'))
 	{
 		fprintf(stderr, "*** Error: \"%s\" still appears to be compressed!\n",filename);
-		close(infile);
+		fclose(fd);
 		return -1;
 	}
 
-	lseek(infile,0L,SEEK_SET);
+	fseek(fd,0L,SEEK_SET);
 
     if (colons) {
 		sprintf(sdf_filename, "%d:%d:%d:%d%s.sdf", min_north, max_north, min_west, max_west, (ippd==3600?"-hd":""));
@@ -192,9 +191,8 @@ int ReadSRTM(char *filename)
 	for (x=0; (x<=ippd && error==0); x++)
 		for (y=0; (y<=ippd && error==0); y++)
 		{
-			bytes_read=read(infile,&buffer,2);
 
-			if (bytes_read==2)
+			if (fread(&buffer, 1, 2, fd)==2)
 			{
 				if (bil)
 				{
@@ -239,7 +237,7 @@ int ReadSRTM(char *filename)
 		fprintf(stderr,"\n*** Error: Premature EOF detected while reading \"%s\"!  :-(\n",filename);
 	}
 
-	close(infile);
+	fclose(fd);
 
 	return 0;
 }
@@ -606,8 +604,7 @@ void WriteSDF(char *filename)
 int main(int argc, char **argv)
 {
 	int x, y, z=0;
-	char *env=NULL, string[255];
-	FILE *fd;
+	char *env=NULL;
 
 	if (argc==1 || (argc==2 && strncmp(argv[1],"-h",2)==0))
 	{
@@ -708,7 +705,7 @@ int main(int argc, char **argv)
 
 	if (sdf_path[0])
 	{
-		x=strlen(sdf_path);
+		x=(int)strlen(sdf_path);
 
 		if (sdf_path[x-1]!='/' && x!=0)
 		{
