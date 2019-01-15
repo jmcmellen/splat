@@ -1,6 +1,6 @@
 # SPLAT! for Windows (Command line)
 
-## NOTE: SDF files under Windows *must* be named so that they have 'x's instead of ':'s in them.
+### NOTE: SDF files under Windows *must* be named so that they have 'x's instead of ':'s in them.
   For instance, a file that was formerly "44:45:120:121.sdf" must now be "44x45x120x121.sdf".
    
 
@@ -43,6 +43,7 @@
         of writing, the release is 1.2.11. Once you've unpacked it, copy the following:
         - zlib-1.2.11\zlib.h to splat\zlib.h
         - zlib-1.2.11\zconf.h to splat\zconf.h
+        
         You don't need to, but if you want to build it independently of libpng, go into the contrib/vstudio directory
         and choose the subdirectory corresponding to your rev of Visual Studio. For instance VS2015 is vc14. Make sure
         the /MT setting is used (not /MD). You only need to build the static library (zlibstat). I had to use the
@@ -53,7 +54,8 @@
     * libpng: Get http://www.libpng.org/pub/png/libpng.html. You'll need a version later than 1.5.x. At the
         time of writing, the release version is 1.6.36. To build, go into projects/vstudio. Edit zlib.props
         so that the <ZLibSrcDir> value points to the zlib you just downloaded - for instance:
-            `<ZLibSrcDir>..\\..\\..\\..\\zlib-1.2.11</ZLibSrcDir>`
+            `<ZLibSrcDir>..\..\..\..\zlib-1.2.11</ZLibSrcDir>`
+  
         Then open the .sln file. It is for VS2010; if you open it with a later version like VS2015 it will ask
         if you want to convert the project. Go ahead and allow it.
         
@@ -68,19 +70,19 @@
         
         * Next, change the configuration to the "Release Library", which builds the library for statically
         linking (not the dll). At minimum, build the following two projects:
-        - libpng
-        - pnglibconf
-        - zlib (which should happen automatically when you build libpng)
+          - libpng
+          - pnglibconf
+          - zlib (which should happen automatically when you build libpng)
         Note: You may get an error "unreferenced formal parameter" when building libpng. If so, try going to
         Configuration properties->C/C++->Advanced and adding 4100 to the "Disable Specific Warnings" line:
             $(DisableSpecificWarnings);4100
             
         * When done, copy the following:
-        - lpng1636\png.h to splat\png.h
-        - lpngl635\pngconf.h to splat\pngconf.h
-        - lpng1636\pnglibconf.h to splat\png.h         (if you don't have this you didn't build pnglibconf properly)
-        - lpng1636\projects\vstudio\Release Library\libpng16.lib to splat\libpng.lib
-        - lpng1636\projects\vstudio\Release Library\zlib.lib to splat\zlib.lib
+          - lpng1636\png.h to splat\png.h
+          - lpngl635\pngconf.h to splat\pngconf.h
+          - lpng1636\pnglibconf.h to splat\png.h         (if you don't have this you didn't build pnglibconf properly)
+          - lpng1636\projects\vstudio\Release Library\libpng16.lib to splat\libpng.lib
+          - lpng1636\projects\vstudio\Release Library\zlib.lib to splat\zlib.lib
         
 ## Troubleshooting
     * Splat can't find png_write_row(), png_set_compression_level, etc:
