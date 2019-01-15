@@ -679,6 +679,9 @@ int main(int argc, char **argv)
 #ifndef _WIN32
 	if (sdf_path[0]==0)
 	{
+        char string[2048];
+        FILE* fd = NULL;
+
 		env=getenv("HOME");
 
 		sprintf(string,"%s/.splat_path",env);
