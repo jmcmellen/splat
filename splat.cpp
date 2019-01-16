@@ -116,6 +116,9 @@ typedef struct DEM {
 	unsigned char **signal;
 } DEM;
 
+#define ANTENNA_RADIALS 361
+#define ANTENNA_ANGLES 1001
+#define NO_ANTENNA_DATA (-1.0)
 typedef struct LongleyRiceData {
 	double eps_dielect;
 	double sgm_conductivity;
@@ -126,7 +129,7 @@ typedef struct LongleyRiceData {
 	double erp;
 	int radio_climate;
 	int pol;
-	double antenna_pattern[361][1001];
+	double antenna_pattern[ANTENNA_RADIALS][ANTENNA_ANGLES];
 } LongleyRice;
 
 typedef struct Region {
@@ -171,10 +174,7 @@ const int appArraySize[2][MAXPAGESIDES] = {
 	{ 5092, 14844, 32600, 57713, 90072, 129650, 176437, 230430 } /* HD mode */
 };
 
-char sdf_path[MAXPATHLEN], home_sdf_path[MAXPATHLEN];
-
-char opened=0, gpsav=0, dashes[80], itwom;
-int verbose=1;
+char sdf_path[MAXPATHLEN], home_sdf_path[MAXPATHLEN], dashes[80];
 
 double	earthradius, max_range=0.0, forced_erp=-1.0, dpp, ppd,
 	fzone_clearance=0.6, forced_freq, clutter;
@@ -184,7 +184,13 @@ int max_elevation=-32768, min_elevation=32768;
 int ippd, mpi, maxpagesides = MAXPAGESIDES;
 int bzerror, contour_threshold;
 
-unsigned char got_elevation_pattern, got_azimuth_pattern, metric=0, dbm=0, smooth_contours=0;
+bool got_elevation_pattern = false, got_azimuth_pattern = false;
+bool metric = false, dbm = false, smooth_contours = false;
+bool gpsav=false, itwom=false;
+
+int verbose=1;
+
+bool opened=false; /* BZip file flag */
 
 LongleyRiceData LR;
 Region region;
@@ -1745,8 +1751,8 @@ void LoadPAT(char *filename)
 
 	rotation=0.0;
 
-	got_azimuth_pattern=0;
-	got_elevation_pattern=0;
+	got_azimuth_pattern=false;
+	got_elevation_pattern=false;
 
 	/* Load .az antenna pattern file */
 	fd=fopen(azfile,"r");
@@ -1779,7 +1785,16 @@ void LoadPAT(char *filename)
 
 		/* Read azimuth (degrees) and corresponding
 		   normalized field radiation pattern amplitude
-		   (0.0 to 1.0) until EOF is reached. */
+		   (0.0 to 1.0) until EOF is reached. 
+
+           NOTES
+           1) If a radial has more than one entry, the azimuth[x]
+              for each will be added. This is averaged out later.
+           2) It will interpolate to fill in any missing radials, but will
+              not do this past the 360'th radial.
+           3) There is no check to make sure there are at least two
+              radials entered (which is necessary for the averaging).
+        */
 
 		fgets(buf,254,fd);
 		pointer=strchr(buf,';');
@@ -1828,12 +1843,23 @@ void LoadPAT(char *filename)
 
 		/* Average pattern values in case more than
 			one was read for each degree of azimuth. */
+		/* Also, check count of read values */
 
-		for (x=0; x<=360; x++)
+		for (sum=0, x=0; x<=360; x++)
 		{
-			if (read_count[x]>1)
+			if (read_count[x]>1) {
 				azimuth[x]/=(float)read_count[x];
+			}
+			if (read_count[x]!=0) {
+				sum++;
+			}
 		}
+
+        if (sum==0) {
+            printf("*** WARNING: There were no radials in the file. This probably isn't correct.\n");
+        } else if (sum==1) {
+			printf("*** WARNING: There was only one radial in the file. No interpolation can be done.\n");
+        }
 
 		/* Interpolate missing azimuths
 		   to completely fill the array */
@@ -1867,6 +1893,7 @@ void LoadPAT(char *filename)
 			}
 		}
 
+
 		/* Perform azimuth pattern rotation
 		   and load azimuth_pattern[361] with
 		   azimuth pattern data in its final form. */
@@ -1883,7 +1910,7 @@ void LoadPAT(char *filename)
 
 		azimuth_pattern[360]=azimuth_pattern[0];
 
-		got_azimuth_pattern=255;
+		got_azimuth_pattern=true;
 	}
 
 	/* Read and process .el file */
@@ -1914,7 +1941,16 @@ void LoadPAT(char *filename)
 
 		/* Read elevation (degrees) and corresponding
 		   normalized field radiation pattern amplitude
-		   (0.0 to 1.0) until EOF is reached. */
+		   (0.0 to 1.0) until EOF is reached.
+
+           NOTES
+           1) If a radial has more than one entry, the azimuth[x]
+              for each will be added. This is averaged out later.
+           2) It will interpolate to fill in any missing radials, but will
+              not do this past the 360'th radial.
+           3) There is no check to make sure there are at least two
+              radials entered (which is necessary for the averaging).
+        */
 
 		fgets(buf,254,fd);
 		pointer=strchr(buf,';');
@@ -1951,12 +1987,24 @@ void LoadPAT(char *filename)
 
 		/* Average the field values in case more than
 		   one was read for each 0.01 degrees of elevation. */
+		/* Also, check count of read values */
 
-		for (x=0; x<=10000; x++)
+		for (sum=0,x=0; x<=10000; x++)
 		{
-			if (read_count[x]>1)
+			if (read_count[x]>1) {
 				el_pattern[x]/=(float)read_count[x];
+			}
+			if (read_count[x]!=0) {
+				sum++;
+			}
 		}
+
+        if (sum==0) {
+            printf("*** WARNING: There were no elevation angles in the file. This probably isn't correct.\n");
+        } else if (sum==1) {
+			printf("*** WARNING: There was only one elevation angle in the file. No interpolation was done.\n");
+        }
+
 
 		/* Interpolate between missing elevations (if
 		   any) to completely fill the array and provide
@@ -2059,7 +2107,7 @@ void LoadPAT(char *filename)
 			}
 		}
 
-		got_elevation_pattern=255;
+		got_elevation_pattern=true;
 	}
 
 	for (x=0; x<=360; x++)
@@ -2102,14 +2150,14 @@ char *BZfgets(BZFILE *bzfp, unsigned length)
 	static char buffer[BZBUFFER+1], output[BZBUFFER+1];
 	char done=0;
 
-	if (opened!=1 && bzerror==BZ_OK)
+	if (!opened && bzerror==BZ_OK)
 	{
 		/* First time through.  Initialize everything! */
 
 		x=0;
 		y=0;
 		nBuf=0;
-		opened=1;
+		opened=true;
 		output[0]=0;
 	}
 
@@ -2142,7 +2190,7 @@ char *BZfgets(BZFILE *bzfp, unsigned length)
 	} while (done==0);
 
 	if (output[0]==0)
-		opened=0;
+		opened=false;
 
 	return (output);
 }
@@ -2698,6 +2746,12 @@ char ReadLRParm(Site txsite, char forced_read)
 	LR.rel=0.0;
 	LR.erp=0.0;
 
+	for (int i = 0; i < ANTENNA_RADIALS; ++i) {
+		for (int j = 0; j < ANTENNA_ANGLES; ++j) {
+			LR.antenna_pattern[i][j] = NO_ANTENNA_DATA;
+		}
+	}
+
 	/* Generate .lrp filename from txsite filename. */
 
 	/* copy the whole thing and then find the last .
@@ -2873,7 +2927,7 @@ char ReadLRParm(Site txsite, char forced_read)
 
 		if (ok)
 			LoadPAT(filename);
-	} 
+	}
 
 	if (fd==NULL && forced_read)
 	{
@@ -3194,10 +3248,11 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 
 				pattern=(double)LR.antenna_pattern[(int)azimuth][x];
 
-				if (pattern!=0.0)
-				{
+				if (pattern > 0.0) {
 					pattern=20.0*log10(pattern);
 					loss-=pattern;
+				} else if (pattern != NO_ANTENNA_DATA) {
+					loss-=9999;
 				}
 			}
 
@@ -3321,10 +3376,12 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 
 	count=0;	
 
-	fprintf(stdout,"\nComputing line-of-sight coverage of \"%s\" with an RX antenna\nat %.2f %s AGL",source.name,metric?altitude*METERS_PER_FOOT:altitude,metric?"meters":"feet");
+	fprintf(stdout,"\nComputing line-of-sight coverage of \"%s\" with an RX antenna\nat %.2f %s AGL",
+            source.name, (metric?altitude*METERS_PER_FOOT:altitude), (metric?"meters":"feet"));
 
 	if (clutter>0.0)
-		fprintf(stdout," and %.2f %s of ground clutter",metric?clutter*METERS_PER_FOOT:clutter,metric?"meters":"feet");
+		fprintf(stdout," and %.2f %s of ground clutter",
+            (metric?clutter*METERS_PER_FOOT:clutter), (metric?"meters":"feet"));
 
 
 	/* th=pixels/degree divided by 64 loops per
@@ -3548,10 +3605,13 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 			fprintf(stdout,"field strength");
 	}
  
-	fprintf(stdout," contours of \"%s\"\nout to a radius of %.2f %s with an RX antenna at %.2f %s AGL",source.name,metric?max_range*KM_PER_MILE:max_range,metric?"kilometers":"miles",metric?altitude*METERS_PER_FOOT:altitude,metric?"meters":"feet");
+	fprintf(stdout," contours of \"%s\"\nout to a radius of %.2f %s with an RX antenna at %.2f %s AGL",
+            source.name, (metric?max_range*KM_PER_MILE:max_range), (metric?"kilometers":"miles"),
+            (metric?altitude*METERS_PER_FOOT:altitude),(metric?"meters":"feet"));
 
 	if (clutter>0.0)
-		fprintf(stdout,"\nand %.2f %s of ground clutter",metric?clutter*METERS_PER_FOOT:clutter,metric?"meters":"feet");
+		fprintf(stdout,"\nand %.2f %s of ground clutter",
+            (metric?clutter*METERS_PER_FOOT:clutter), (metric?"meters":"feet"));
 
 	if (plo_filename[0]!=0)
 		fd=fopen(plo_filename,"wb");
@@ -6272,7 +6332,7 @@ void GraphTerrain(Site source, Site destination, char *name)
 
 	if (x!=-1)
 	{
-		if (gpsav==0)
+		if (!gpsav)
 		{	
 			unlink("splat.gp");
 			unlink("profile.gp");
@@ -6477,7 +6537,7 @@ void GraphElevation(Site source, Site destination, char *name)
 
 	if (x!=-1)
 	{
-		if (gpsav==0)
+		if (!gpsav)
 		{
 			unlink("splat.gp");
 			unlink("profile.gp");
@@ -6862,7 +6922,7 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 
 	if (x!=-1)
 	{
-		if (gpsav==0)
+		if (!gpsav)
 		{
 			unlink("splat.gp");
 			unlink("profile.gp");
@@ -7178,10 +7238,15 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 	{
 		x=(int)rint(10.0*(10.0-angle2));
 
-		if (x>=0 && x<=1000)
+		if (x>=0 && x<=1000) {
 			pattern=(double)LR.antenna_pattern[(int)rint(azimuth)][x];
 
-		patterndB=20.0*log10(pattern);
+			if (pattern > 0.0) {
+				patterndB=20.0*log10(pattern);
+			} else if (pattern != NO_ANTENNA_DATA) {
+				patterndB=-9999;
+			}
+		}
 	}
 
 	if (metric)
@@ -7394,8 +7459,13 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 
 		fprintf(fd2,"Summary For The Link Between %s and %s:\n\n",source.name, destination.name);
 
-		if (patterndB!=0.0)
-			fprintf(fd2,"%s antenna pattern towards %s: %.3f (%.2f dB)\n", source.name, destination.name, pattern, patterndB);
+		if (patterndB!=0.0) {
+			if (patterndB == -9999) {
+				fprintf(fd2,"%s antenna pattern towards %s: -infinity (blocked)\n", source.name, destination.name);
+			} else {
+				fprintf(fd2,"%s antenna pattern towards %s: %.3f (%.2f dB)\n", source.name, destination.name, pattern, patterndB);
+			}
+		}
 
 		ReadPath(source,destination,path);  /* source=TX, destination=RX */
 
@@ -7512,10 +7582,12 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 			{
 				pattern=(double)LR.antenna_pattern[(int)azimuth][x];
 
-				if (pattern!=0.0)
+				if (pattern > 0.0) {
 					patterndB=20.0*log10(pattern);
+				} else if (pattern != NO_ANTENNA_DATA) {
+					loss-=9999;
+				}
 			}
-
 			else
 				patterndB=0.0;
 
@@ -7523,7 +7595,6 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 
 			if (metric)
 				fprintf(fd,"%f\t%f\n",KM_PER_MILE*path->distance[y],total_loss);
-
 			else
 				fprintf(fd,"%f\t%f\n",path->distance[y],total_loss);
 
@@ -7741,7 +7812,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 
 		if (x!=-1)
 		{
-			if (gpsav==0)
+			if (!gpsav)
 			{
 				unlink("splat.gp");
 				unlink("profile.gp");
@@ -7756,7 +7827,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 			fprintf(stderr,"\n*** ERROR: Error occurred invoking gnuplot!\n");
 	}
 
-	if (x!=-1 && gpsav==0)
+	if (x!=-1 && !gpsav)
 		unlink("profile.gp");
 
 	DestroyPath(path);
@@ -7976,7 +8047,7 @@ int LoadANO(char *filename)
 				}
 			}
 
-			if (LR.erp!=0.0 && dbm!=0)
+			if (LR.erp!=0.0 && dbm)
 			{
 				/* signal power level in dBm */
 
@@ -7994,7 +8065,7 @@ int LoadANO(char *filename)
 				}
 			}
 
-			if (LR.erp!=0.0 && dbm==0)
+			if (LR.erp!=0.0 && !dbm)
 			{
 				/* field strength dBuV/m */
 
@@ -8378,11 +8449,8 @@ int main(int argc, char *argv[])
 
 	y=argc-1;
 
-	itwom=0;
 	kml=0;
 	geo=0;
-	dbm=0;
-	gpsav=0;
 	metric=0;
 	rxfile[0]=0;
 	txfile[0]=0;
@@ -8404,7 +8472,6 @@ int main(int argc, char *argv[])
 	longley_file[0]=0;
 	ano_filename[0]=0;
 	ani_filename[0]=0;
-	smooth_contours=0;
 	earthradius=EARTHRADIUS;
 
 	for (x=0; x<4; x++)
@@ -8610,7 +8677,7 @@ int main(int argc, char *argv[])
 			metric=1;
 
 		if (strcmp(argv[x],"-gpsav")==0)
-			gpsav=1;
+			gpsav=true;
 
 		if (strcmp(argv[x],"-geo")==0)
 			geo=1;
@@ -8628,10 +8695,10 @@ int main(int argc, char *argv[])
 			nolospath=1;
 
 		if (strcmp(argv[x],"-dbm")==0)
-			dbm=1;
+			dbm=true;
 
 		if (strcmp(argv[x],"-sc")==0)
-			smooth_contours=1;
+			smooth_contours=true;
 
 		if (strcmp(argv[x],"-mt")==0)
 			multithread=true;
@@ -8641,7 +8708,7 @@ int main(int argc, char *argv[])
 		}
 
 		if (strcmp(argv[x],"-itwom")==0)
-			itwom=1;
+			itwom=true;
 
 		if (strcmp(argv[x],"-N")==0)
 		{
