@@ -60,19 +60,22 @@ OSX (High Sierra):
   
   * Revert to using the ITM model by default, in accordance with SPLAT 1.4.3.
   
-  * The PlotLOSMap() and PlotLRMap() functions have been converted to run multithreaded if a "-mt" flag is
-    passed on the command line.
+  * The PlotLOSMap() and PlotLRMap() functions have been converted to run multithreaded ~~if a "-mt" flag is
+    ~~passed on the command line~~. If you want to run single-threaded, use "-st" on the command line.
 
   * WritePPM(), WritePPMSS(), etc were converted to WriteImage(), WriteImageSS(), etc, and functionality
-    was added to allow them to emit png or jpg images instead of pixmaps. Add "-png" or "-jpg" to the command
-    line as you like. The generated jpg's are smaller but the text can be hard to read in some instances. The
-    png's are, of course, lossless, and nice and crisp, but they are larger and take slightly longer to generate.
-    Both are an order of magnitude smaller than the pixmaps though.
+    was added to allow them to emit png or jpg images instead of pixmaps. png's are now the default. Add "-ppm"
+    or "-jpg" to the command line if you want to generate the others. The generated jpg's are smaller but the text
+    can be hard to read in some instances. The png's are, of course, lossless, and nice and crisp, but they are
+    larger and take slightly longer to generate. Both are an order of magnitude smaller than the pixmaps though.
     
   * All the DEMs and Paths are allocated on the heap rather than using pre-sized arrays and stack allocations.
     This means the same code can be used for 1x1 through 8x8 grids, and/or 3-deg (Normal) or 1-deg (High Definition)
     modes without recompiling. It also means that the code can adjust itself (or error out nicely) depending on the
     available memory of the host machine.
+    
+  * I did some minor fixup to the antenna azimuth (.az) and elevation (.el) reading so that you can now put a value
+    of 0 in those files to indicate your antenna blocks that area perfectly.
     
 * ITWOM 3.0
 
@@ -105,5 +108,5 @@ OSX (High Sierra):
 
 * Since we have to link to zlib for the pngs, we might as well create kmz files if asked.
 * More code cleanup.
-* Split this into multiple files.
+* Split this into multiple files and c++ify things.
 * Reformat tabs to four spaces.
