@@ -61,7 +61,7 @@ OSX (High Sierra):
   * Revert to using the ITM model by default, in accordance with SPLAT 1.4.3.
   
   * The PlotLOSMap() and PlotLRMap() functions have been converted to run multithreaded ~~if a "-mt" flag is
-    ~~passed on the command line~~. If you want to run single-threaded, use "-st" on the command line.
+    passed on the command line~~. If you want to run single-threaded, use "-st" on the command line.
 
   * WritePPM(), WritePPMSS(), etc were converted to WriteImage(), WriteImageSS(), etc, and functionality
     was added to allow them to emit png or jpg images instead of pixmaps. png's are now the default. Add "-ppm"
