@@ -8353,7 +8353,7 @@ int main(int argc, char *argv[])
 			rx_range=0.0, deg_range=0.0, deg_limit=0.0,
 			deg_range_lon, er_mult;
 
-	bool	multithread = false;
+	bool	multithread = true;
 
 	Site	tx_site[32], rx_site;
 
@@ -8393,7 +8393,7 @@ int main(int argc, char *argv[])
 		fprintf(stdout,"       -f frequency for Fresnel zone calculation (MHz)\n");
 		fprintf(stdout,"       -R modify default range for -c or -L (miles/kilometers)\n");
 		fprintf(stdout,"       -v N verbosity level. Default is 1. Set to 0 to quiet everything.\n");
-		fprintf(stdout,"      -mt use multiple CPU threads for faster speed\n");
+		fprintf(stdout,"      -st use a single CPU thread (classic mode)\n");
 		fprintf(stdout,"      -hd Use High Definition mode. Requires 1-deg SDF files.\n");
 		fprintf(stdout,"      -sc display smooth rather than quantized contour levels\n");
 		fprintf(stdout,"      -db threshold beyond which contours will not be displayed\n");
@@ -8700,8 +8700,8 @@ int main(int argc, char *argv[])
 		if (strcmp(argv[x],"-sc")==0)
 			smooth_contours=true;
 
-		if (strcmp(argv[x],"-mt")==0)
-			multithread=true;
+		if (strcmp(argv[x],"-st")==0)
+			multithread=false;
 
 		if (strcmp(argv[x],"-hd")==0) {
 				appmode = APPMODE_HD;
