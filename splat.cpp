@@ -8338,7 +8338,11 @@ int main(int argc, char *argv[])
 			area_mode=0, max_txsites, ngs=0, nolospath=0,
 			nositereports=0, fresnel_plot=1, command_line_log=0;
 
+#ifdef HAVE_LIBPNG
+	ImageType imagetype=IMAGETYPE_PNG;
+#else
 	ImageType imagetype=IMAGETYPE_PPM;
+#endif
 	unsigned char imagetype_set = 0;
  
 	char		mapfile[255], header[80], city_file[5][255], 
@@ -8400,8 +8404,10 @@ int main(int argc, char *argv[])
 		fprintf(stdout,"      -nf do not plot Fresnel zones in height plots\n");
 		fprintf(stdout,"      -fz Fresnel zone clearance percentage (default = 60)\n");
 		fprintf(stdout,"      -gc ground clutter height (feet/meters)\n");
-		fprintf(stdout,"     -png when generating maps, create pngs instead of ppms or jpgs\n");
-		fprintf(stdout,"     -jpg when generating maps, create jpgs instead of ppms or pngs\n");
+		fprintf(stdout,"     -jpg when generating maps, create jpgs instead of pngs or ppms\n");
+#ifdef HAVE_LIBPNG
+		fprintf(stdout,"     -ppm when generating maps, create ppms instead of pngs or jpgs\n");
+#endif
 		fprintf(stdout,"     -ngs display greyscale topography as white in .ppm files\n"); 
 		fprintf(stdout,"     -erp override ERP in .lrp file (Watts)\n");
 		fprintf(stdout,"     -ano name of alphanumeric output file\n");
@@ -8651,12 +8657,12 @@ int main(int argc, char *argv[])
 		}
 
 #ifdef HAVE_LIBPNG
-		if (strcmp(argv[x], "-png") == 0) {
-			if (imagetype_set && imagetype != IMAGETYPE_PNG) {
-				fprintf(stdout, "-jpg and -png are exclusive options, ignoring -png.\n");
+		if (strcmp(argv[x], "-ppm") == 0) {
+			if (imagetype_set && imagetype != IMAGETYPE_PPM) {
+				fprintf(stdout, "-jpg and -ppm are exclusive options, ignoring -ppm.\n");
 			}
 			else {
-				imagetype = IMAGETYPE_PNG;
+				imagetype = IMAGETYPE_PPM;
 				imagetype_set = 1;
 			}
 		}
@@ -8664,7 +8670,11 @@ int main(int argc, char *argv[])
 #ifdef HAVE_LIBJPEG
 		if (strcmp(argv[x],"-jpg")==0) {
 	        if (imagetype_set && imagetype != IMAGETYPE_JPG) {
+#ifdef HAVE_LIBPNG
+					fprintf(stdout,"-jpg and -ppm are exclusive options, ignoring -jpg.\n");
+#else
 					fprintf(stdout,"-jpg and -png are exclusive options, ignoring -jpg.\n");
+#endif
 	        } else {
 	            imagetype=IMAGETYPE_JPG;
 	            imagetype_set = 1;
