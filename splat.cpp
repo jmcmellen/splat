@@ -650,6 +650,7 @@ DEM *AllocateDEM()
 	}
 	memset(dem, 0, sizeof(DEM));
 	dem->arysize = ippd;
+	if (dem->arysize < 1) dem->arysize = 1;
 	
 	do {
 		dem->data=(short**)malloc(dem->arysize*sizeof(short*));
