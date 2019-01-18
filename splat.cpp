@@ -52,7 +52,7 @@
 #define GAMMA 2.5
 #define BZBUFFER 65536
 
-#define SPLAT_VERSION "1.5.0b1"
+#define SPLAT_VERSION "1.5.0b3"
 #define SPLAT_NAME "SPLAT! MT"
 
 #ifndef PI
