@@ -1295,20 +1295,27 @@ void lrprop(double dist, prop_type *prop, propa_type *propa)
 		prop->wlos=false;
 		prop->wscat=false;
 
+		/*checking for parameters-in-range, error codes set if not */
+
+		/* Warning: wave number */
 		if (prop->wn<0.838 || prop->wn>210.0)
 			prop->kwx=max(prop->kwx,1);
 
+		/* Warning: radiation heights, AGL */
 		for (j=0; j<2; j++)
 			if (prop->hg[j]<1.0 || prop->hg[j]>1000.0)
 				prop->kwx=max(prop->kwx,1);
 
+		/* Warning: tx take-off angle, antenna horizon < 1/10 of horizon distance */
 		for (j=0; j<2; j++)
 			if (fabs(prop->the[j]) >200e-3 || prop->dl[j]<0.1*propa->dls[j] || prop->dl[j]>3.0*propa->dls[j] )
 				prop->kwx=max(prop->kwx,3);
 
+		/* Out-of-Range: refractivity, earth curvature, earth impedance/reactance, wave number */
 		if (prop->ens < 250.0 || prop->ens > 400.0 || prop->gme < 75e-9 || prop->gme > 250e-9 || (tcreal(prop_zgnd) <= fabs(tcimag(prop_zgnd))) || prop->wn < 0.419 || prop->wn > 420.0)
 			prop->kwx=4;
 
+		/* Out-of-Range: radiation heights, AGL */
 		for (j=0; j<2; j++)
 			if (prop->hg[j]<0.5 || prop->hg[j]>3000.0)
 				prop->kwx=4;
@@ -1498,16 +1505,20 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 
 		/*checking for parameters-in-range, error codes set if not */
 
+		/* Warning: wave number */
 		if (prop->wn<0.838 || prop->wn>210.0)
 			prop->kwx=max(prop->kwx,1);
 
+		/* Warning: radiation heights, AGL */
 		for (j=0; j<2; j++)
 			if (prop->hg[j]<1.0 || prop->hg[j]>1000.0)
 				prop->kwx=max(prop->kwx,1);
 		
+		/* Warning: tx take-off angle */
 		if(fabs(prop->the[0])>200e-3)
 			prop->kwx=max(prop->kwx,3);
 
+		/* Warning: rx take-off angle */
 		if(fabs(prop->the[1])>1.220)
 			prop->kwx=max(prop->kwx,3);
 
@@ -1515,11 +1526,12 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 		     if (prop->dl[j]<0.1*propa->dls[j] || prop->dl[j]>3.0*propa->dls[j])
 				prop->kwx=max(prop->kwx,3);  */
 
+		/* Out-of-Range: refractivity, earth curvature, earth impedance/reactance, wave number */
 		if (prop->ens<250.0 || prop->ens>400.0 || prop->gme<75e-9 || prop->gme>250e-9 || (tcreal(prop_zgnd)<=fabs(tcimag(prop_zgnd))) || prop->wn<0.419 || prop->wn>420.0)
 			prop->kwx=4;
 
+		/* Out-of-Range: radiation heights, AGL */
 		for (j=0; j<2; j++)
-		
 			if (prop->hg[j]<0.5 || prop->hg[j]>3000.0)
 				prop->kwx=4;
 
