@@ -44,6 +44,7 @@
 #include <math.h>
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -1726,6 +1727,11 @@ void lrprop2(double dist, prop_type *prop, propa_type *propa)
 	prop->aref=max(prop->aref,0.0);
 }
 
+/*
+ * curve()
+ *
+ * Used in avar
+ */
 double curve (double const c1, double const c2, double const x1,
               double const x2, double const x3, double const de)
 {
@@ -1957,7 +1963,7 @@ double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *pro
  * Fills out a bunch of elements in prop - takeoff angles and horizon distances and so on.
  *
  * This version is only used only with ITM 1.2.2. An updated version with improved obstacle
- * handling (hzns2()) is below.
+ * handling and that does caching for later calculations is below (hzns2).
  *
  * See ITWOM-SUB-ROUTINES.pdf, page 150
  */
@@ -2027,7 +2033,7 @@ void hzns(const double pfl[], prop_type *prop)
  *
  * Fills out a bunch of elements in prop - takeoff angles and horizon distances and so on.
  *
- * This version has improved accuracy and obstacle handling.
+ * This version has improved obstacle handling and does some caching for later calculations.
  *
  * See ITWOM-SUB-ROUTINES.pdf, page 150
  */
@@ -2047,7 +2053,7 @@ void hzns2(const double pfl[], prop_type *prop)
 	prop->ght=za;
 	prop->ghr=zb;
 
-	qc=0.5*prop->gme;                   /* half the earth's curvature, or 1/(2r)                */
+	qc=0.5*prop->gme;                   /* gme is 1/r, where r is the earth's radius            */
 	q=qc*prop->dist;                    /* q is now dist/2r (i.e. radians)                      */
 
 	prop->the[1]=atan((zb-za)/prop->dist);  /* temporarily set the slope from tx to rx          */
@@ -2061,18 +2067,18 @@ void hzns2(const double pfl[], prop_type *prop)
 	prop->hht=0.0;                      /* set tx obstacle height to 0                          */
 	prop->hhr=0.0;                      /* set rx obstacle height to 0                          */
 	prop->los=true;                     /* line-of-sight study ok?                              */
-    	
+
 	if(np>=2)
 	{
 		sa=0.0;						    /* sa is at tx loc                                     */
 		sb=prop->dist;                  /* sb is at rx loc                                     */
-		wq=true;                        /* line-of-site study ok?                              */
+		wq=true;                        /* assume entire path is Line-Of-Sight                 */
 
 		for(j=1; j<np; j++)
 		{
-			sa+=xi;                                    /* move sa towards rx loc               */
+			sa+=xi;                                       /* add to the distance from tx       */
 			q=pfl[j+2] - ((qc*sa+prop->the[0])*sa) - za;  /* height diff from pfl pt to sa,    */
-														  /* adjusted for curvature            */
+										    /* middle argument adjusts for earth's curvature   */
           		
 			if(q>0.0)                                  /* tx obstruction found?                */
 			{
@@ -2080,12 +2086,12 @@ void hzns2(const double pfl[], prop_type *prop)
 				prop->the[0]+=q/sa;
 				prop->dl[0]=sa;
 				prop->the[0]=min(prop->the[0],1.569); /* limit the max radians of takeoff angle */
-				prop->hht=pfl[j+2];				
+				prop->hht=pfl[j+2];	     /* Note: this can be 0, causing dr (below) to blow up! */
 				wq=false;
 			}
 		}
-		
-		if(!wq)                                  /* no tx obstructions so examine rx end      */
+
+		if(!wq)                               /* we know it's not LOS so examine the rx end   */
 		{				
 			for(i=1; i<np; i++)
 			{
@@ -2101,7 +2107,7 @@ void hzns2(const double pfl[], prop_type *prop)
 					prop->the[1]=min(prop->the[1],1.57); /* limit the rx take-off angle range */
 					prop->the[1]=max(prop->the[1],-1.568);					
 
-					prop->hhr=pfl[np+2-i];					
+					prop->hhr=pfl[np+2-i]; /* NOTE: this can be 0, causing dr (below) to blow up! */
 					prop->dl[1]=max(0.0,prop->dist-sb);
 				}
 			}
@@ -2112,27 +2118,40 @@ void hzns2(const double pfl[], prop_type *prop)
 		}
 	}
 
-	/* if the receiver horizon path is shorter than the total path, then there's */
-    /* some obstacle, so let's calculate the 2-ray reflection point.             */
+	/* if the receiver horizon path is shorter than the total path, then there's
+     * some obstacle, so let's calculate the 2-ray reflection point.
+     *
+     * dr is the distance in meters from the last obstruction peak to the reflection
+     *    point.
+     */
+	dr = 0.0;
 	if((prop->dl[1])<(prop->dist))
 	{
-		dshh=prop->dist-prop->dl[0]-prop->dl[1];
+		dshh=prop->dist-prop->dl[0]-prop->dl[1]; /* distance between obstacle peaks */
 
+        /* see ITWOM p63 and p162 */
 		if(trunc(dshh)==0) /* one obstacle */
 		{
-			dr=prop->dl[1]/(1+zb/prop->hht);		
+			if (prop->hht > 0.0) {
+				dr=prop->dl[1]/(1+zb/prop->hht);		
+			}
 		}
 		else	/* two obstacles */
 		{		
-			dr=prop->dl[1]/(1+zb/prop->hhr);		
+			if (prop->hhr > 0.0) {   /* if the antenna has 0 height, there is no 2-ray reflection */
+				dr=prop->dl[1]/(1+zb/prop->hhr);		
+			}
 		}	
 	}
 	else    /* line of sight  */
 	{
-		dr=(prop->dist)/(1+zb/za);
+		if (za > 0.0) {
+			dr=(prop->dist)/(1+zb/za);   /* if the antenna has 0 height, there is no 2-ray reflection */
+		}
 	}
 
 	rp=2+(int)(floor(0.5+dr/xi));
+
 	prop->rpl=rp;	
 	prop->rph=pfl[rp];
 }
@@ -2699,7 +2718,7 @@ void qlrpfl2(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_t
 			
 			for (j=0; j<2; j++)
 			{
-				prop->he[j]*=q;
+				prop->he[j]*=q; /* XXX ERROR: q might be used unitialized */
 				prop->dl[j]=sqrt(2.0*prop->he[j]/prop->gme)*exp(-0.07*sqrt(prop->dh/max(prop->he[j],5.0)));
 			}
 
@@ -2830,9 +2849,9 @@ void point_to_point_ITM(const double elev[], double tht_m, double rht_m, double 
 
 	propv.mdvar=12;
 
-	qlrps(frq_mhz,zsys,q,pol,eps_dielect,sgm_conductivity,&prop);   /* quick longley rice - setup */
+	qlrps(frq_mhz,zsys,q,pol,eps_dielect,sgm_conductivity,&prop); /* quick longley rice - setup */
 
-	qlrpfl(elev,propv.klim,propv.mdvar,&prop,&propa,&propv);        /* quick longley-rice, do the calculation */
+	qlrpfl(elev,propv.klim,propv.mdvar,&prop,&propa,&propv);  /* quick longley-rice, do the calculation */
 
 	fs=32.45+20.0*log10(frq_mhz)+20.0*log10(prop.dist/1000.0);
 	q=prop.dist-propa.dla;
