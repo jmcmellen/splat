@@ -2355,7 +2355,8 @@ int LoadSDF(int minlat, int maxlat, int minlon, int maxlon, bool hidef)
 		fclose(fp);
 
 	} else {
-		fprintf(stdout,"Region \"%s\" assumed as sea-level...", sdf_file);
+		fprintf(stdout,"Can't find file for region %d_%d_%d_%d. Assuming as sea-level.\n",
+			minlat, maxlat, minlon, maxlon);
 		fflush(stdout);
 
 		dem->max_west=maxlon;
@@ -8450,7 +8451,7 @@ int main(int argc, char *argv[])
 
 		fflush(stdout);
 
-		return 1;
+		return 0;
 	}
 
 	y=argc-1;
