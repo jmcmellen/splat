@@ -52,7 +52,7 @@
 #define GAMMA 2.5
 #define BZBUFFER 65536
 
-#define SPLAT_VERSION "1.5.0b1"
+#define SPLAT_VERSION "1.5.0b3"
 #define SPLAT_NAME "SPLAT! MT"
 
 #ifndef PI
@@ -650,6 +650,7 @@ DEM *AllocateDEM()
 	}
 	memset(dem, 0, sizeof(DEM));
 	dem->arysize = ippd;
+	if (dem->arysize < 1) dem->arysize = 1;
 	
 	do {
 		dem->data=(short**)malloc(dem->arysize*sizeof(short*));
