@@ -1019,6 +1019,24 @@ double qerfi(double q)
  *
  * Set up function for qlrpfl and qlrpfl2.
  *
+ * IN:
+ * fmhz: frequency at which to do the study, in mhz. Passed in to point_to_point() or area()
+ * zsys: average elevation of the study, usually calcuted by averaging the elevation array
+ *  en0: atmospheric refractivity at surface level, passed in to point_to_point()
+ * ipol: polarity (0 or 1). passed in to point_to_point()
+ *  eps: polarization constant. passed in to point_to_point()
+ *  sgm: ground constant. passed in to point_to_point()
+ *
+ * IN/OUT:
+ * prop: filled in by various calculations on these values.
+ * 
+ * Note that nothing here is particularly compute-intensive to calculate. However the values
+ * usually stay the same over a study. A (minor) performance enhancement would be to calculate
+ * them once and save them for all studies of that tx point.
+ *
+ * The exception is zsys, which depends on the path.
+ *
+ *
  * See ITWOM-SUB-ROUTINES.pdf, p262
  */
 void qlrps(double fmhz, double zsys, double en0, int ipol, double eps, double sgm, prop_type *prop)
@@ -2170,6 +2188,12 @@ void hzns2(const double pfl[], prop_type *prop)
 
 /* Linear least-squares fit
  *
+ * This is trying to create a line fitting the equation y=a+bx using
+ * a least squares fit (where b is derived by doing b=sum(x*y)/sum(x*x)
+ *
+ * THIS HAS A MAJOR FLAW IN IT AND SHOULD NOT BE USED. See the comments
+ * towards the end of the function.
+ *
  * z[]: input array of data points, where
  *	  z[0]: number of points in the array
  *	  z[1]: interval length between the points
@@ -2189,40 +2213,52 @@ void z1sq1 (const double z[], const double x1, const double x2, double *z0, doub
 	double xn, xa, xb, x, a, b;
 	int n, ja, jb;
 
-	xn=z[0];
-	xa=trunc(FORTRAN_DIM(x1/z[1],0.0));
-	xb=xn-trunc(FORTRAN_DIM(xn,x2/z[1]));
+	xn=z[0];                               /* does this really need to be a double? */
+	xa=trunc(FORTRAN_DIM(x1/z[1],0.0));    /* set our start interval count */
+	xb=xn-trunc(FORTRAN_DIM(xn,x2/z[1]));  /* set our end interval count  */
 
-	if (xb<=xa)
+	if (xb<=xa)     /* if we have a very short path, xb can be less than xa, so... */
 	{
-		xa=FORTRAN_DIM(xa,1.0);
-		xb=xn-FORTRAN_DIM(xn,xb+1.0);
+		xa=FORTRAN_DIM(xa,1.0);         /* move xa back by one (or set it to 0) */
+		xb=xn-FORTRAN_DIM(xn,xb+1.0);   /* move xb up by one (or set to the end) */
 	}
 
 	ja=(int)xa;
 	jb=(int)xb;
-	n=jb-ja;
-	xa=xb-xa;
-	x=-0.5*xa;
-	xb+=x;
-	a=0.5*(z[ja+2]+z[jb+2]);
-	b=0.5*(z[ja+2]-z[jb+2])*x;
+
+	n=jb-ja;					/* total number of points as an integer.          */
+	xa=xb-xa;					/* also the total number of points, but as a float. */
+	x=-0.5*xa;                  /* number of intervals below and above the midpoint */
+								/* crossing. We made it negative because we'll be */
+							    /* from -x to +x, past the middle at 0.			  */
+
+	xb+=x;                 /* xb is  now be the number of intervals to the middle */
+
+	a=0.5*(z[ja+2]+z[jb+2]);   /* avg of the start and end heights, i.e. initial intercept, a */
+	b=0.5*(z[ja+2]-z[jb+2])*x; /* avg of the start/end height difference times the run, i.e initial slope */
 
 	for (int i=2; i<=n; ++i)
 	{
 		++ja;
-		x+=1.0;
-		a+=z[ja+2];
-		b+=z[ja+2]*x;
+		x+=1.0;                /* we're moving from -x to +x, one by one		*/
+		a+=z[ja+2];			   /* a=sum(y)                                      */
+		b+=z[ja+2]*x;		   /* b=sum(x*y)                                    */
 	}
 
-	a/=xa;
-	b=b*12.0/((xa*xa+2.0)*xa);
-	*z0=a-b*xb;
-	*zn=a+b*(xn-xb);
+	a/=xa;						/* a = sum(y)/numpoints							*/
+
+	/* XXX The following is a MAJOR bug. The derived slope is nonsensical!		*/
+	b=b*12.0/((xa*xa+2.0)*xa);  /* b =  (huh, wha?)								*/
+
+							/* ok, now we have y=a+bx, so let's use it:         */
+	*z0=a-b*xb;             /* set height of z0                                 */
+	*zn=a+b*(xn-xb);        /* set height of zn                                 */
 }
 
 /* Linear least-squares fit
+ *
+ * This is trying to create a line fitting the equation y=a+bx using
+ * a least squares fit (where b is derived by doing b=sum(x*y)/sum(x*x)
  *
  * z[]: input array of data points, where
  *	  z[0]: number of points in the array
@@ -2234,6 +2270,11 @@ void z1sq1 (const double z[], const double x1, const double x2, double *z0, doub
  *  z0: z-axis value (height) of the transmitter
  *  z1: z-axis value (height) at the end (z[0]*z[1])
  *
+ *  In the comments:
+ *  Example 1: z[0] = 20
+ *               x1 = 0.0 (start of path)
+ *               x2 = z[1] (end of path)
+ *
  *  See ITWOM-SUB-ROUTINES.pdf p298
  */
 void z1sq2(const double z[], const double x1, const double x2, double *z0, double *zn)
@@ -2242,40 +2283,54 @@ void z1sq2(const double z[], const double x1, const double x2, double *z0, doubl
 	double xn, xa, xb, x, a, b, bn;
 	int n, ja, jb;
 
-	xn=z[0];
-	xa=trunc(FORTRAN_DIM(x1/z[1],0.0));
-	xb=xn-trunc(FORTRAN_DIM(xn,x2/z[1]));
-		
-	if (xb<=xa)
+	xn=z[0];                               /* does this really need to be a double? */
+	xa=trunc(FORTRAN_DIM(x1/z[1],0.0));    /* set our start interval count */
+	xb=xn-trunc(FORTRAN_DIM(xn,x2/z[1]));  /* set our end interval count  */
+
+	if (xb<=xa)     /* if we have a very short path, xb can be less than xa, so... */
 	{
-		xa=FORTRAN_DIM(xa,1.0);
-		xb=xn-FORTRAN_DIM(xn,xb+1.0);
+		xa=FORTRAN_DIM(xa,1.0);         /* move xa back by one (or set it to 0) */
+		xb=xn-FORTRAN_DIM(xn,xb+1.0);   /* move xb up by one (or set to the end) */
 	}
 
 	ja=(int)xa;
 	jb=(int)xb;
-	xa=(2*trunc((xb-xa)/2))-1;
-	x=-0.5*(xa+1);
-	xb+=x;
-	ja=jb-1-(int)xa;
-	n=jb-ja;
-	a=(z[ja+2]+z[jb+2]);
-	b=(z[ja+2]-z[jb+2])*x;
-	bn=2*(x*x);
+
+	xa=(2*trunc((xb-xa)/2))-1;	/* make xa an odd integer representing the number */
+								/* of intervals to consider. It has to be odd so  */
+								/* we have a midpoint zero crossing.              */	
+
+	x=-0.5*(xa+1);				/* number of intervals below and above the midpoint*/
+								/* crossing. We made it negative because we'll be */
+							    /* from -x to +x, past the middle at 0.			  */
+
+	xb+=x;						/* xb is the number of intervals to the middle    */
+	ja=jb-1-(int)xa;			/* fix up the start point because we insisted on  */
+								/* an odd number of intervals. We might need to   */
+							    /* move it a bit to accomodate.                   */
+
+	n=jb-ja;                   /* total number of intervals, which should be 2*xb */
+
+	a=(z[ja+2]+z[jb+2]);		/* sum of the start and end heights */
+	b=(z[ja+2]-z[jb+2])*x;		/* initial slope */
+
+	bn=2*(x*x);				/* initial value for our slope denominator, sum(x*x)   */
 	
 	for (int i=2; i<=n; ++i)
 	{
 		++ja;
-		x+=1.0;
-		bn+=(x*x);
-		a+=z[ja+2];
-		b+=z[ja+2]*x;
+		x+=1.0;            /* we're moving from -x to +x, one by one			*/
+		bn+=(x*x);         /* bn = sum(x*x)                                     */
+		a+=z[ja+2];		   /* a = sum(y)									    */
+		b+=z[ja+2]*x;      /* b = sum(x*y)                                      */
 	}
 
-	a/=(xa+2);
-	b=b/bn;
-	*z0=a-(b*xb);
-	*zn=a+(b*(xn-xb));
+	a/=(xa+2);				/* a = sum(y)/numpoints								*/
+	b=b/bn;					/* b = sum(x*y)/sum(x*x)                            */
+
+							/* ok, now we have y=a+bx, so let's use it:         */
+	*z0=a-(b*xb);			/* set height of z0									*/
+	*zn=a+(b*(xn-xb));      /* set height of zn                                 */
 }
 
 
