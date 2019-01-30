@@ -51,6 +51,8 @@
 /* 
  * prop_type
  *
+ * Propagation Type
+ *
  * This is used as the main state container throughout all these calls. It
  * is initialized in the main call to point_to_point() or area() and used
  * until those calls return.
@@ -96,9 +98,9 @@ typedef struct prop_type
 	double tsgh;     /*  the transmitter site ground height (AMSL) of either   */
 	                 /* the main transmitter in a call from alos2, or of an    */
 	                 /* obstruction peak in a call from adiff2.                */
-	double thera;    /* receive approach angle, radians                        */
+	double thera;    /* receive approach angle, radians. used in alos()        */
 	double thenr;    /* theta near receiver, slope of line from last elev pt   */
-	                 /* to receiver                                            */
+	                 /* to receiver. used in alos().                           */
     double xae;      /* relationship of frequency to earth's curvature         */
 	int rpl;         /* loc of 2-ray reflection point in pfl[] elev array      */
 	int kwx;         /* error indicator                                        */
@@ -116,6 +118,12 @@ typedef struct prop_type
 	bool wscat;      /* true if troposcatter coefficients have been calculated */
 } prop_type;
 
+/*
+ * propv_type
+ *
+ * Propagation Variability
+ *
+ */
 typedef struct propv_type
 {
 	double sgc;      /* stddev of situation variability (confidence)           */
@@ -132,6 +140,12 @@ typedef struct propv_type
                      /* 7. Maritime Temperate, Over Sea.                       */
 } propv_type;
 
+/*
+ * propa_type
+ *
+ * Propagation ...Attenuation?
+ *
+ */
 typedef struct propa_type
 {
 	double dlsa;   /* the sum of the smooth-earth horizon distance           */
@@ -1990,7 +2004,12 @@ double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *pro
 /*
  * Horizon calculations.
  *
- * Fills out a bunch of elements in prop - takeoff angles and horizon distances and so on.
+ * Fills out a bunch of elements in prop:
+ *	prop->the[0]: take-off angle at start
+ *	prop->the[1]: take-off angle at end
+ *
+ *	prop->dl[0]: start horizon or highest obstacle distance
+ *	prop->dl[1]: end horizon or highest obstacle distance
  *
  * This version is only used only with ITM 1.2.2. An updated version with improved obstacle
  * handling and that does caching for later calculations is below (hzns2).
@@ -2061,7 +2080,13 @@ void hzns(const double pfl[], prop_type *prop)
 /*
  * Horizon calculations.
  *
- * Fills out a bunch of elements in prop - takeoff angles and horizon distances and so on.
+ * Fills out a bunch of elements in prop:
+ *	prop->the[0]: take-off angle at start
+ *	prop->the[1]: take-off angle at end
+ *
+ *	prop->dl[0]: distance to start horizon or highest obstacle
+ *	prop->dl[1]: distance to end horizon or highest obstacle
+ *
  *
  * This version has improved obstacle handling and does some caching for later calculations.
  *
@@ -2196,13 +2221,18 @@ void hzns2(const double pfl[], prop_type *prop)
  *
  * z[]: input array of data points, where
  *	  z[0]: number of points in the array
- *	  z[1]: interval length between the points
- *  x1: distance, in meters from transmitter to start of path
- *  x2: distance, in meters from receiver to end of path
+ *	  z[1]: length between the points
+ *  x1: length from the start of the array to the start of the section of the
+ *      path we want to fit.
+ *  x2: length from the end of the array to the end of the section of the
+ *      path we want to fit.
  *
- * Returns:
- *  z0: the z-axis (height) value of the transmitter
- *  zn: the z-axis (height) value at the end (z[1]*z[2])
+ *  i.e. if the path is 20 units long and we want fit the line 2 units in
+ *    to 15 units in, x1 will be 2 and x2 will be 5.
+ *
+ *  Returns:
+ *  z0: calculated z-axis value (height) at x1
+ *  zn: calculated z-axis value (height) at x2
  *
  * See ITWOM-SUB-ROUTINES.pdf p289
  *
@@ -2258,22 +2288,25 @@ void z1sq1 (const double z[], const double x1, const double x2, double *z0, doub
 /* Linear least-squares fit
  *
  * This is trying to create a line fitting the equation y=a+bx using
- * a least squares fit (where b is derived by doing b=sum(x*y)/sum(x*x)
+ * a least squares fit (where b is derived by doing b=sum(x*y)/sum(x*x).
+ * This is using a simple linear regression without the intercept term - i.e.
+ * we're forcing the line to go through the origin at the midpoint of the
+ * path.
  *
  * z[]: input array of data points, where
  *	  z[0]: number of points in the array
- *	  z[1]: interval length between the points
- *  x1: distance, in meters from transmitter to start of path
- *  x2: distance, in meters from receiver to end of path
+ *	  z[1]: length between the points
+ *  x1: length from the start of the array to the start of the section of the
+ *      path we want to fit.
+ *  x2: length from the end of the array to the end of the section of the
+ *      path we want to fit.
+ *
+ *  i.e. if the path is 20 units long and we want fit the line 2 units in
+ *    to 15 units in, x1 will be 2 and x2 will be 5.
  *
  *  Returns:
- *  z0: z-axis value (height) of the transmitter
- *  z1: z-axis value (height) at the end (z[0]*z[1])
- *
- *  In the comments:
- *  Example 1: z[0] = 20
- *               x1 = 0.0 (start of path)
- *               x2 = z[1] (end of path)
+ *  z0: calculated z-axis value (height) at x1
+ *  zn: calculated z-axis value (height) at x2
  *
  *  See ITWOM-SUB-ROUTINES.pdf p298
  */
@@ -2646,6 +2679,17 @@ double d1thx2(const double pfl[], const double x1, const double x2)
  *
  * Quick Longley-Rice Profile
  *
+ * pfl[]: profile elevation array, with:
+ *		  pfl[0]: number of points in pfl
+ *		  pfl[1]: distance between points in pfl (in meters)
+ * klimx: climate code
+ * mdvarx: mode of variability. Usually 12, can be set to 1 for FCC mode.
+ * prop:  prop_type state variable
+ * propa: propa_type state variable
+ * propv: propv_type state variable
+ *
+ *
+ *
  * See ITWOM-SUB-ROUTINES.pdf p233
  */
 void qlrpfl(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
@@ -2653,8 +2697,8 @@ void qlrpfl(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_ty
 	int np, j;
 	double xl[2], q, za, zb, temp;
 
-	prop->dist=pfl[0]*pfl[1];
-	np=(int)pfl[0];
+	prop->dist=pfl[0]*pfl[1]; /* total distance of the pfl array */
+	np=(int)pfl[0];           /* number of points in the pfl array */
 
 	hzns(pfl,prop); /* analyse pfl and store horizon/obstruction info in prop */
 
@@ -2670,8 +2714,8 @@ void qlrpfl(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_ty
 	    /* the horizon (or obstruction) is far away... */
 
 		z1sq1(pfl,xl[0],xl[1],&za,&zb);                 /* do a linear least-squares fit */
-														/* za has elevation of avg height at tx */
-														/* zb has elevation of avg height at rx */
+														/* za has height of line at xl[0] */
+														/* zb has height of line at xl[1] */
 
 		/* set effective heights to endpoint heights plus an offset. See ITWOM p236 for discussion */
 		prop->he[0]=prop->hg[0]+FORTRAN_DIM(pfl[2],za);
@@ -2734,48 +2778,73 @@ void qlrpfl(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_ty
  *
  * Quick Longley-Rice Profile
  *
+ * pfl[]: profile elevation array, with:
+ *		  pfl[0]: number of points in pfl
+ *		  pfl[1]: distance between points in pfl (in meters)
+ * klimx: climate code
+ * mdvarx: mode of variability. Usually 12, can be set to 1 for FCC mode.
+ * prop:  prop_type state variable
+ * propa: propa_type state variable
+ * propv: propv_type state variable
+ *
  * See ITWOM-SUB-ROUTINES.pdf p247
  */
 void qlrpfl2(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
 {
 	int np, j;
-	double xl[2], dlb, q, za, zb, temp, rad, rae1, rae2;
+	double xl[2], dlb, za, zb, temp, rad, rae1, rae2;
+	double q = 1;
 
-	prop->dist=pfl[0]*pfl[1];
-	np=(int)pfl[0];
-	hzns2(pfl,prop);
+	prop->dist=pfl[0]*pfl[1];  /* total distance of the pfl array */
+	np=(int)pfl[0];            /* number of points in the pfl array */
+
+	hzns2(pfl,prop); /* analyse pfl and store horizon/obstruction info in prop */
+
 	dlb=prop->dl[0]+prop->dl[1];
 	prop->rch[0]=prop->hg[0]+pfl[2];
 	prop->rch[1]=prop->hg[1]+pfl[np+2];
 
-	for (j=0; j<2; j++)
-		xl[j]=min(15.0*prop->hg[j],0.1*prop->dl[j]);
+	for (j=0; j<2; j++)                              /* for both tx and rx... */
+		xl[j]=min(15.0*prop->hg[j],0.1*prop->dl[j]); /* ...set xl to min of 15x ant height or 1/10 horizon dist */
 
-	xl[1]=prop->dist-xl[1];
-	prop->dh=d1thx2(pfl,xl[0],xl[1]);
-	
+	xl[1]=prop->dist-xl[1];           /* adjust the rx distance to be from the far end */
+	prop->dh=d1thx2(pfl,xl[0],xl[1]); /* calculate the terrain irregularity factor */
+
+	/* The first branch of this if statement is for when there are no points in array (e.g. called in the now-deprecated
+	 * "area" mode, or when the distance between points is very large.
+	 *
+	 * In other words, it's not really ever used in modern code.
+	 */
 	if ((np<1) || (pfl[1]>150.0))
 	{
-		/* for TRANSHORIZON; diffraction over a mutual horizon, or for one or more obstructions */
+		/* TRANSHORIZON; diffraction over a mutual horizon, or for one or more obstructions */
 		if (dlb<1.5*prop->dist)  
 		{	
-			z1sq2(pfl,xl[0],0.9*prop->dl[0],&za,&q);
-			z1sq2(pfl,prop->dist-0.9*prop->dl[1],xl[1],&q,&zb);
-			prop->he[0]=prop->hg[0]+FORTRAN_DIM(pfl[2],za);
-			prop->he[1]=prop->hg[1]+FORTRAN_DIM(pfl[np+2],zb);
+			z1sq2(pfl,xl[0],0.9*prop->dl[0],&za,&q);       /* fit line to terrain from start to 90% of start horizon/obstacle */
+			z1sq2(pfl,prop->dist-0.9*prop->dl[1],xl[1],&q,&zb); /* ditto, but from the other end */
+
+			prop->he[0]=prop->hg[0]+FORTRAN_DIM(pfl[2],za);    /* set effective height at start (ASL) */
+			prop->he[1]=prop->hg[1]+FORTRAN_DIM(pfl[np+2],zb); /* ...and at end                 (ASL) */
 		}
 		
-		/* for a Line-of-Sight path */		
+		/* Line-of-Sight path */		
 		else
 		{			
-			z1sq2(pfl,xl[0],xl[1],&za,&zb);
-			prop->he[0]=prop->hg[0]+FORTRAN_DIM(pfl[2],za);
-			prop->he[1]=prop->hg[1]+FORTRAN_DIM(pfl[np+2],zb);
+			z1sq2(pfl,xl[0],xl[1],&za,&zb);			               /* fit a line */
+			prop->he[0]=prop->hg[0]+FORTRAN_DIM(pfl[2],za);        /* set effective height at start (ASL) */
+			prop->he[1]=prop->hg[1]+FORTRAN_DIM(pfl[np+2],zb);     /* set effective height at end (ASL) */
 
+			/* this is essentially calculating the horizon distances, using the earth's curvature as
+			 * an approximation. The calculation can be done much more accurately using the hzns call
+			 * with terrain data, rendering this whole section obsolete. */
 			for (j=0; j<2; j++)
 				prop->dl[j]=sqrt(2.0*prop->he[j]/prop->gme)*exp(-0.07*sqrt(prop->dh/max(prop->he[j],5.0)));
 			
-			/* for one or more obstructions only NOTE buried as in ITM FORTRAN and DLL, not functional  */
+			/* for one or more obstructions only
+			 * This was inoperative in the ITM FORTRAN and DLL. It was reactivated and tested and found
+			 * to be unstable. It was therefore reburied (made nonfunctional).
+			 * See the discussion in ITWOM p250.
+			 */
 			if ((prop->dl[0]+prop->dl[1])<=prop->dist)
 			{	
 				/* q=pow(prop->dist/(dl[0]+dl[1])),2.0); */
@@ -2783,9 +2852,11 @@ void qlrpfl2(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_t
 				q=temp*temp;
 			}
 			
+			/* re-recalculat the horizon distances, using the earth's curvature as an approximation. */
+			/* Obsolete. */
 			for (j=0; j<2; j++)
 			{
-				prop->he[j]*=q; /* XXX ERROR: q might be used unitialized */
+				prop->he[j]*=q;
 				prop->dl[j]=sqrt(2.0*prop->he[j]/prop->gme)*exp(-0.07*sqrt(prop->dh/max(prop->he[j],5.0)));
 			}
 
@@ -2797,31 +2868,36 @@ void qlrpfl2(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_t
 			}
 		}
 	}
-			
 	else    /* for ITWOM ,computes he for tx, rcvr, and the receiver approach angles for use in saalos */ 
 	{
-		prop->he[0]=prop->hg[0]+(pfl[2]);
-		prop->he[1]=prop->hg[1]+(pfl[np+2]);
+
+		prop->he[0]=prop->hg[0]+(pfl[2]);     /* set the effective height at start (ASL)  */
+		prop->he[1]=prop->hg[1]+(pfl[np+2]);  /* set the effective height at end (ASL)    */
 		
-		rad=(prop->dist-500.0);	
+		rad=(prop->dist-500.0);	/* receiver approach path start location. We consider the last half-km only */
 				
 		if (prop->dist>550.0)
 		{
-			z1sq2(pfl,rad,prop->dist,&rae1,&rae2);
+			z1sq2(pfl,rad,prop->dist,&rae1,&rae2); /* do a least-squares fit on that last half-km.*/
 		}
 		else
 		{
-		rae1=0.0;
-		rae2=0.0;
+			rae1=0.0;
+			rae2=0.0;
 		}
 
+		 /* theta, receive angle, is the slope of the least-squares line. This could be returned by
+		  * z1sq2, but recovering it isn't that hard.
+		  * It's only used in alos(). */
 		prop->thera=atan(fabs(rae2-rae1)/prop->dist);
 		
 		if (rae2<rae1)	
 		{
 			prop->thera=-prop->thera;
 		}
-		
+
+		 /* theta, near receiver, is the slope of the terrain right next to the receiver. It's
+		  * only used in alos(). */
 		prop->thenr=atan(max(0.0,(pfl[np+2]-pfl[np+1]))/pfl[1]);
 				
 	}	
