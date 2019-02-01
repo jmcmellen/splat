@@ -273,8 +273,8 @@ double ITWOMVersion();
 
 unsigned long long getTotalSystemMemory()
 {
-	long pages = sysconf(_SC_PHYS_PAGES);
-	long page_size = sysconf(_SC_PAGE_SIZE);
+	unsigned long pages = sysconf(_SC_PHYS_PAGES);
+	unsigned long page_size = sysconf(_SC_PAGE_SIZE);
 	return pages * page_size;
 }
 #else
@@ -3093,6 +3093,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 	}
 	ReadPath(source,destination,path);
 
+    /* XXX why +10? should it just be +2? Better yet, path->length+2? */
 	double *elev = (double*)calloc(path->arysize + 10, sizeof(double));
 
 	four_thirds_earth=FOUR_THIRDS*EARTHRADIUS;
@@ -6941,7 +6942,8 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 			}
 		}
 
-		fprintf(stdout,"\nHeight plot written to: \"%s.%s\"",basename,ext);
+		fprintf(stdout,"\n%seight plot written to: \"%s.%s\"",
+			normalized?"Normalized h":"H",basename,ext);
 		fflush(stdout);
 	}
 
@@ -8334,9 +8336,9 @@ int main(int argc, char *argv[])
 			north_min, north_max;
 
 	unsigned char	coverage=0, LRmap=0, terrain_plot=0,
-			elevation_plot=0, height_plot=0, map=0,
-			longley_plot=0, cities=0, bfs=0, txsites=0,
-			norm=0, topomap=0, geo=0, kml=0, pt2pt_mode=0,
+			elevation_plot=0, height_plot=0, norm_height_plot=0,
+			map=0, longley_plot=0, cities=0, bfs=0, txsites=0,
+			topomap=0, geo=0, kml=0, pt2pt_mode=0,
 			area_mode=0, max_txsites, ngs=0, nolospath=0,
 			nositereports=0, fresnel_plot=1, command_line_log=0;
 
@@ -8348,7 +8350,7 @@ int main(int argc, char *argv[])
 	unsigned char imagetype_set = 0;
  
 	char		mapfile[255], header[80], city_file[5][255], 
-			elevation_file[255], height_file[255], 
+			elevation_file[255], height_file[255], norm_height_file[255],
 			longley_file[255], terrain_file[255],
 			buf[255], rxfile[255], *env=NULL,
 			txfile[255], boundary_file[5][255],
@@ -8436,17 +8438,23 @@ int main(int argc, char *argv[])
 		unsigned long demmem;
 		pathmem = (WorkQueue::maxWorkers()*SizeofPath(APPMODE_NORMAL, maxpagesides))/1024;
 		demmem = (maxpagesides*maxpagesides*SizeofDEM(APPMODE_NORMAL))/1024;
-		/* fprintf(stdout,"Path: %lu KB\n", pathmem); */
-		/* fprintf(stdout,"DEM: %lu KB\n", demmem);   */
 		fprintf(stdout,"At the %dx%d maximum in normal mode it will require %lu MB of RAM\n",
             maxpagesides, maxpagesides, (pathmem+demmem)/1024);
+		/*
+		fprintf(stdout,"Each Path: %lu KB\n", pathmem);
+		fprintf(stdout,"Each DEM: %lu KB\n", demmem);
+		fprintf(stdout,"\n");
+	    */
 
 		pathmem = (WorkQueue::maxWorkers()*SizeofPath(APPMODE_HD, maxpagesides))/1024;
 		demmem = (maxpagesides*maxpagesides*SizeofDEM(APPMODE_HD))/1024;
-		/* fprintf(stdout,"Path(HD): %lu KB\n", pathmem);  */
-		/* fprintf(stdout,"DEM(HD): %lu KB\n", demmem);    */
 		fprintf(stdout,"At the %dx%d maximum in HD mode it will require %lu MB of RAM\n",
             maxpagesides, maxpagesides, (pathmem+demmem)/1024);
+		/*
+		  fprintf(stdout,"Each Path: %lu KB\n", pathmem);
+		  fprintf(stdout,"Each DEM: %lu KB\n", demmem);
+		  fprintf(stdout,"\n");
+		 */
 
 		fprintf(stdout,"You have %lu MB of RAM available\n", (unsigned long)(systemMemory/(1024*1024)) );
 
@@ -8641,7 +8649,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		if (strcmp(argv[x],"-h")==0 || strcmp(argv[x],"-H")==0)
+		if (strcmp(argv[x],"-h")==0)
 		{
 			z=x+1;
 
@@ -8651,11 +8659,18 @@ int main(int argc, char *argv[])
 				height_plot=1;
 				pt2pt_mode=1;
 			}
+		}
 
-			if (strcmp(argv[x],"-H")==0)
-				norm=1;
-			else
-				norm=0;
+		if (strcmp(argv[x],"-H")==0)
+		{
+			z=x+1;
+
+			if (z<=y && argv[z][0] && argv[z][0]!='-')
+			{
+				strncpy(norm_height_file,argv[z],253);
+				norm_height_plot=1;
+				pt2pt_mode=1;
+			}
 		}
 
 #ifdef HAVE_LIBPNG
@@ -9253,6 +9268,28 @@ int main(int argc, char *argv[])
 				strncpy(ext,"png\0",4);
 		}
 
+		if (norm_height_plot)
+		{
+			/* Extract extension (if present)
+			   from "norm_height_file" */
+
+			y= (int)strlen(norm_height_file);
+
+			for (x=y-1; x>0 && norm_height_file[x]!='.'; x--);
+
+			if (x>0)  /* Extension found */
+			{
+				for (z=x+1; z<=y && (z-(x+1))<10; z++)
+					ext[z-(x+1)]=tolower(norm_height_file[z]);
+
+				ext[z-(x+1)]=0;	/* Ensure an ending 0 */
+				norm_height_file[x]=0;  /* Chop off extension */
+			}
+
+			else
+				strncpy(ext,"png\0",4);
+		}
+
 		if (longley_plot)
 		{
 			/* Extract extension (if present)
@@ -9353,7 +9390,17 @@ int main(int argc, char *argv[])
 				else
 					snprintf(buf,250,"%s.%s%c",height_file,ext,0);
 
-				GraphHeight(tx_site[x],rx_site,buf,fresnel_plot,norm);
+				GraphHeight(tx_site[x],rx_site,buf,fresnel_plot,0);
+			}
+
+			if (norm_height_plot)
+			{
+				if (txsites>1)
+					snprintf(buf,250,"%s-%c.%s%c",norm_height_file,'1'+x,ext,0);
+				else
+					snprintf(buf,250,"%s.%s%c",norm_height_file,ext,0);
+
+				GraphHeight(tx_site[x],rx_site,buf,fresnel_plot,1);
 			}
 		}
 	}
