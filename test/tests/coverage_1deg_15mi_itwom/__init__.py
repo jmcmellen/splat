@@ -46,7 +46,7 @@ class TestObject1(unittest.TestCase):
 
     def test_02_compare_pngs(self):
         """Compare the area plot"""
-        self.assertGreater(utils.pyssim(self.img, self.img142), 0.999, "Images don't match closely enough!")
+        self.assertGreater(utils.pyssim(self.img, self.img142), 0.995, "Images don't match closely enough!")
 
     def test_03_compare_reports(self):
         """Compare the site_report"""

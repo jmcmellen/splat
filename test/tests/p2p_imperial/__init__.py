@@ -66,13 +66,13 @@ class TestObject1(unittest.TestCase):
 
     def test_04_compare_elevation_plots(self):
         """Compare the elevation plots"""
-        self.assertGreater(utils.pyssim(self.elev, self.elev142), 0.999, "Images don't match closely enough!")
+        self.assertGreater(utils.pyssim(self.elev, self.elev142), 0.995, "Images don't match closely enough!")
 
     def test_05_compare_height_plots(self):
         """Compare the height plots"""
-        self.assertGreater(utils.pyssim(self.height, self.height142), 0.999, "Images don't match closely enough!")
+        self.assertGreater(utils.pyssim(self.height, self.height142), 0.995, "Images don't match closely enough!")
 
     def test_06_compare_normalized_height_plots(self):
         """Compare the normalized height plots"""
-        self.assertGreater(utils.pyssim(self.normheight, self.normheight142), 0.999, "Images don't match closely enough!")
+        self.assertGreater(utils.pyssim(self.normheight, self.normheight142), 0.995, "Images don't match closely enough!")
 
