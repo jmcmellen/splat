@@ -18,3 +18,8 @@ utils/srtm2sdf
 utils/srtm2sdf-hd
 utils/usgs2sdf
 x64*
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class

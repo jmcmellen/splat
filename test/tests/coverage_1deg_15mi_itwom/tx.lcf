@@ -1,0 +1,31 @@
+; SPLAT! Auto-generated Path-Loss Color Definition ("tx.lcf") File
+;
+; Format for the parameters held in this file is as follows:
+;
+;	dB: red, green, blue
+;
+; ...where "dB" is the path loss (in dB) and
+; "red", "green", and "blue" are the corresponding RGB color
+; definitions ranging from 0 to 255 for the region specified.
+;
+; The following parameters may be edited and/or expanded
+; for future runs of SPLAT!  A total of 32 contour regions
+; may be defined in this file.
+;
+;
+ 80: 255,   0,   0
+ 90: 255, 128,   0
+100: 255, 165,   0
+110: 255, 206,   0
+120: 255, 255,   0
+130: 184, 255,   0
+140:   0, 255,   0
+150:   0, 208,   0
+160:   0, 196, 196
+170:   0, 148, 255
+180:  80,  80, 255
+190:   0,  38, 255
+200: 142,  63, 255
+210: 196,  54, 255
+220: 255,   0, 255
+230: 255, 194, 204

@@ -1,0 +1,20 @@
+
+
+---------------------------------------------------------------------------
+
+Site location: 40.7253 North / 111.5940 West (40° 43' 31" N / 111° 35' 38" W)
+Ground elevation: 7631.23 feet AMSL
+Antenna height: 98.43 feet AGL / 7729.66 feet AMSL
+Antenna height above average terrain: 432.64 feet
+
+Average terrain at   0 degrees azimuth: 6438.11 feet AMSL
+Average terrain at  45 degrees azimuth: 7309.17 feet AMSL
+Average terrain at  90 degrees azimuth: 6602.27 feet AMSL
+Average terrain at 135 degrees azimuth: 7044.62 feet AMSL
+Average terrain at 180 degrees azimuth: 9034.54 feet AMSL
+Average terrain at 225 degrees azimuth: 8217.44 feet AMSL
+Average terrain at 270 degrees azimuth: 6892.65 feet AMSL
+Average terrain at 315 degrees azimuth: 6837.33 feet AMSL
+
+---------------------------------------------------------------------------
+

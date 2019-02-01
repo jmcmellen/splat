@@ -1,0 +1,8 @@
+15.000 ; Earth Dielectric Constant (Relative permittivity) (15 = average ground)
+0.005 ; Earth Conductivity (Siemens per meter) (0.005 = average ground)
+301 ; Atmospheric Bending Constant (N-units) (301 typical uk value)
+1275 ; Frequency in MHz
+6 ; Radio Climate (6 = Maritime Temperate, over land (UK and west coasts of US & EU))
+1 ; Polarization (0 = Horizontal, 1 = Vertical)
+0.50 ; Fraction of situations (50% of locations)
+0.90 ; Fraction of time (90% of the time)
