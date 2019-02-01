@@ -68,9 +68,9 @@ IINNTTRROODDUUCCTTIIOONN
        and bearings between sites, antenna elevation angles (uptilt),  depres-
        sion  angles  (downtilt),  antenna height above mean sea level, antenna
        height above average terrain, bearings, distances,  and  elevations  to
-       known  obstructions,  Irregular  Terrain  Model  path  attenuation, and
-       received signal strength.  In  addition,  the  minimum  antenna  height
-       requirements  needed  to clear terrain, the first Fresnel zone, and any
+       known  obstructions,  Irregular Terrain Model path attenuation, and re-
+       ceived signal strength.  In addition, the minimum  antenna  height  re-
+       quirements  needed  to  clear  terrain, the first Fresnel zone, and any
        user-definable percentage of the first Fresnel zone are also provided.
 
        SSPPLLAATT!! produces reports, graphs, and high resolution  topographic  maps
@@ -132,8 +132,8 @@ SSPPLLAATT DDAATTAA FFIILLEESS
        the data sets  exist.   When  voids  are  detected,  the  ssrrttmm22ssddff  and
        ssrrttmm22ssddff--hhdd  utilities  replace  them  with corresponding data found in
        uussggss22ssddff generated SDF files.  If USGS-derived SDF data is  not  avail-
-       able,  voids  are  handled  through adjacent pixel averaging, or direct
-       replacement.
+       able, voids are handled through adjacent pixel averaging, or direct re-
+       placement.
 
        SPLAT Data Files contain integer value topographic elevations in meters
        referenced  to  mean  sea level for 1-degree by 1-degree regions of the
@@ -144,25 +144,25 @@ SSPPLLAATT DDAATTAA FFIILLEESS
        compressed, SSPPLLAATT!! searches for needed SDF data in uncompressed  format
        first.   If  uncompressed  data cannot be located, SSPPLLAATT!! then searches
        for data in bzip2 compressed format.  If no compressed SDF files can be
-       found  for  the  region  requested,  SSPPLLAATT!!  assumes the region is over
-       water, and will assign an elevation of sea-level to these areas.
+       found  for  the region requested, SSPPLLAATT!! assumes the region is over wa-
+       ter, and will assign an elevation of sea-level to these areas.
 
        This feature of SSPPLLAATT!! makes it possible to perform path  analysis  not
        only over land, but also between coastal areas not represented by Digi-
        tal Elevation Model data.  However, this  behavior  of  SSPPLLAATT!!   under-
-       scores  the  importance  of  having  all the SDF files required for the
-       region being analyzed if meaningful results are to be expected.
+       scores  the importance of having all the SDF files required for the re-
+       gion being analyzed if meaningful results are to be expected.
 
 SSIITTEE LLOOCCAATTIIOONN ((QQTTHH)) FFIILLEESS
        SSPPLLAATT!! imports site location information of  transmitter  and  receiver
        sites analyzed by the program from ASCII files having a _._q_t_h extension.
        QTH files contain the site's name, the  site's  latitude  (positive  if
-       North  of  the  equator,  negative  if South), the site's longitude (in
-       degrees West, 0 to 360 degrees, or degrees East 0 to -360 degrees), and
+       North  of the equator, negative if South), the site's longitude (in de-
+       grees West, 0 to 360 degrees, or degrees East 0 to -360  degrees),  and
        the site's antenna height above ground level (AGL), each separated by a
        single line-feed character.  The antenna height is assumed to be speci-
-       fied  in  feet  unless  followed  by the letter _m or the word _m_e_t_e_r_s in
-       either upper or lower case.  Latitude and longitude information may  be
+       fied  in feet unless followed by the letter _m or the word _m_e_t_e_r_s in ei-
+       ther upper or lower case.  Latitude and longitude  information  may  be
        expressed  in either decimal format (74.6864) or degree, minute, second
        (DMS) format (74 41 11.0).
 
@@ -246,8 +246,8 @@ IIRRRREEGGUULLAARR TTEERRRRAAIINN MMOODDEELL PPAARRAAM
        criteria  is typically used for digital television (8-level VSB modula-
        tion), while F(50,50) is used for analog (VSB-AM+NTSC) broadcasts.
 
-       For further information on ITM  propagation  model  parameters,  please
-       refer  to: _h_t_t_p_:_/_/_w_w_w_._i_t_s_._b_l_d_r_d_o_c_._g_o_v_/_r_e_s_o_u_r_c_e_s_/_r_a_d_i_o_-_p_r_o_p_a_g_a_t_i_o_n_-_s_o_f_t_-
+       For further information on ITM propagation model parameters, please re-
+       fer   to:  _h_t_t_p_:_/_/_w_w_w_._i_t_s_._b_l_d_r_d_o_c_._g_o_v_/_r_e_s_o_u_r_c_e_s_/_r_a_d_i_o_-_p_r_o_p_a_g_a_t_i_o_n_-_s_o_f_t_-
        _w_a_r_e_/_i_t_m_/_i_t_m_._a_s_p_x      and      _h_t_t_p_:_/_/_w_w_w_._s_o_f_t_w_r_i_g_h_t_._c_o_m_/_f_a_q_/_e_n_g_i_n_e_e_r_-
        _i_n_g_/_p_r_o_p___l_o_n_g_l_e_y___r_i_c_e_._h_t_m_l
 
@@ -263,8 +263,8 @@ IIRRRREEGGUULLAARR TTEERRRRAAIINN MMOODDEELL PPAARRAAM
        the _._l_r_p file to accomplish the same result.
 
 CCIITTYY LLOOCCAATTIIOONN FFIILLEESS
-       The names and locations of cities, tower  sites,  or  other  points  of
-       interest  may  be imported and plotted on topographic maps generated by
+       The names and locations of cities, tower sites, or other points of  in-
+       terest  may  be  imported  and plotted on topographic maps generated by
        SSPPLLAATT!!.  SSPPLLAATT!! imports the names of cities and  locations  from  ASCII
        files  containing the location of interest's name, latitude, and longi-
        tude.  Each field is separated by a comma.  Each record is separated by
@@ -286,32 +286,32 @@ CCIITTYY LLOOCCAATTIIOONN FFIILLEESS
        there is no limit to the size of these files.  SSPPLLAATT!! reads  city  data
        on  a  "first  come/first served" basis, and plots only those locations
        whose annotations do not conflict with annotations  of  locations  read
-       earlier  in  the  current  city  data file, or in previous files.  This
-       behavior minimizes clutter in SSPPLLAATT!! generated  topographic  maps,  but
-       also  mandates  that important locations be placed toward the beginning
-       of the first city data file, and locations less important be positioned
-       further down the list or in subsequent data files.
+       earlier  in the current city data file, or in previous files.  This be-
+       havior minimizes clutter in SSPPLLAATT!! generated topographic maps, but also
+       mandates that important locations be placed toward the beginning of the
+       first city data file, and locations less important be  positioned  fur-
+       ther down the list or in subsequent data files.
 
-       City  data  files  may  be  generated  manually  using any text editor,
-       imported from other sources, or derived from data  available  from  the
-       U.S.  Census Bureau using the cciittyyddeeccooddeerr utility included with SSPPLLAATT!!.
-       Such  data  is  available  free  of  charge  via   the   Internet   at:
-       _h_t_t_p_:_/_/_w_e_b_._a_r_c_h_i_v_e_._o_r_g_/_w_e_b_/_2_0_1_3_0_3_3_1_1_7_2_8_0_0_/_h_t_t_p_:_/_/_w_w_w_._c_e_n_-
-       _s_u_s_._g_o_v_/_g_e_o_/_w_w_w_/_c_o_b_/_b_d_y___f_i_l_e_s_._h_t_m_l, and must be in ASCII format.
+       City  data  files  may be generated manually using any text editor, im-
+       ported from other sources, or derived from data available from the U.S.
+       Census Bureau using the cciittyyddeeccooddeerr utility included with SSPPLLAATT!!.  Such
+       data is available free of charge via the  Internet  at:  _h_t_t_p_:_/_/_w_e_b_._a_r_-
+       _c_h_i_v_e_._o_r_g_/_w_e_b_/_2_0_1_3_0_3_3_1_1_7_2_8_0_0_/_h_t_t_p_:_/_/_w_w_w_._c_e_n_-
+       _s_u_s_._g_o_v_/_g_e_o_/_w_w_w_/_c_o_b_/_c_s_2_0_0_0_._h_t_m_l.   Select  the   "ARC/INFO   Ungenerate
+       (ASCII) format" near the bottom.
 
 CCAARRTTOOGGRRAAPPHHIICC BBOOUUNNDDAARRYY DDAATTAA FFIILLEESS
-       Cartographic boundary data may also be imported to plot the  boundaries
+       Cartographic  boundary data may also be imported to plot the boundaries
        of cities, counties, or states on topographic maps generated by SSPPLLAATT!!.
-       Such data must be of the form of  ARC/INFO  Ungenerate  (ASCII  Format)
-       Metadata  Cartographic  Boundary Files, and are available from the U.S.
-       Census    Bureau    via     the     Internet     at:     _h_t_t_p_:_/_/_w_e_b_._a_r_-
+       Such  data  must  be  of the form of ARC/INFO Ungenerate (ASCII Format)
+       Metadata Cartographic Boundary Files, and are available from  the  U.S.
+       Census     Bureau     via     the     Internet    at:    _h_t_t_p_:_/_/_w_e_b_._a_r_-
        _c_h_i_v_e_._o_r_g_/_w_e_b_/_2_0_1_3_0_3_3_1_1_4_4_9_3_4_/_h_t_t_p_:_/_/_w_w_w_._c_e_n_-
-       _s_u_s_._g_o_v_/_g_e_o_/_w_w_w_/_c_o_b_/_c_o_2_0_0_0_._h_t_m_l_#_a_s_c_i_i        and         _h_t_t_p_:_/_/_w_e_b_._a_r_-
+       _s_u_s_._g_o_v_/_g_e_o_/_w_w_w_/_c_o_b_/_c_o_2_0_0_0_._h_t_m_l            and           _h_t_t_p_:_/_/_w_e_b_._a_r_-
        _c_h_i_v_e_._o_r_g_/_w_e_b_/_2_0_1_3_0_5_0_7_0_7_5_6_5_8_/_h_t_t_p_:_/_/_w_w_w_._c_e_n_-
-       _s_u_s_._g_o_v_/_g_e_o_/_w_w_w_/_c_o_b_/_p_l_2_0_0_0_._h_t_m_l_#_a_s_c_i_i.  A total of five separate carto-
-       graphic  boundary files may be imported at a time.  It is not necessary
-       to import state boundaries  if  county  boundaries  have  already  been
-       imported.
+       _s_u_s_._g_o_v_/_g_e_o_/_w_w_w_/_c_o_b_/_p_l_2_0_0_0_._h_t_m_l.  A total of five separate cartographic
+       boundary files may be imported at a time.  It is not necessary  to  im-
+       port state boundaries if county boundaries have already been imported.
 
 PPRROOGGRRAAMM OOPPEERRAATTIIOONN
        SSPPLLAATT!!  is  invoked via the command-line using a series of switches and
@@ -404,10 +404,10 @@ PPOOIINNTT--TTOO--PPOOIINNTT AANNAALLYYSSIISS
        _q_t_h extensions are assumed by SSPPLLAATT!! for QTH files,  and  are  optional
        when  specifying -t and -r arguments on the command-line.  SSPPLLAATT!! auto-
        matically reads all SPLAT Data Files necessary to conduct  the  terrain
-       analysis  between  the  sites  specified.   SSPPLLAATT!!   searches  for  the
-       required SDF files in the current  working  directory  first.   If  the
-       needed  files are not found, SSPPLLAATT!! then searches in the path specified
-       by the _-_d command-line switch:
+       analysis  between  the  sites  specified.  SSPPLLAATT!!  searches for the re-
+       quired SDF files in the current working directory first.  If the needed
+       files  are not found, SSPPLLAATT!! then searches in the path specified by the
+       _-_d command-line switch:
 
        splat -t tx_site -r rx_site -d /cdrom/sdf/
 
@@ -421,9 +421,9 @@ PPOOIINNTT--TTOO--PPOOIINNTT AANNAALLYYSSIISS
 
        and can be generated using any text editor.
 
-       A graph of the terrain profile between  the  receiver  and  transmitter
-       locations  as a function of distance from the receiver can be generated
-       by adding the _-_p switch:
+       A graph of the terrain profile between the receiver and transmitter lo-
+       cations as a function of distance from the receiver can be generated by
+       adding the _-_p switch:
 
        splat -t tx_site -r rx_site -p terrain_profile.png
 
@@ -441,33 +441,32 @@ PPOOIINNTT--TTOO--PPOOIINNTT AANNAALLYYSSIISS
 
        splat -t tx_site -r rx_site -e elevation_profile.png
 
-       The graph produced using this  switch  illustrates  the  elevation  and
-       depression  angles  resulting  from  the terrain between the receiver's
-       location  and  the  transmitter  site  from  the  perspective  of   the
-       receiver's  location.   A second trace is plotted between the left side
-       of the graph (receiver's location) and the location of the transmitting
-       antenna  on  the  right.   This  trace  illustrates the elevation angle
-       required for a line-of-sight path to exist  between  the  receiver  and
-       transmitter  locations.   If the trace intersects the elevation profile
-       at any point on the graph, then this is an indication that  a  line-of-
-       sight  path does not exist under the conditions given, and the obstruc-
-       tions can be clearly identified on the graph at the point(s) of  inter-
-       section.
+       The graph produced using this switch illustrates the elevation and  de-
+       pression angles resulting from the terrain between the receiver's loca-
+       tion and the transmitter site from the perspective  of  the  receiver's
+       location.  A second trace is plotted between the left side of the graph
+       (receiver's location) and the location of the transmitting  antenna  on
+       the  right.   This trace illustrates the elevation angle required for a
+       line-of-sight path to exist between the receiver and transmitter  loca-
+       tions.   If  the trace intersects the elevation profile at any point on
+       the graph, then this is an indication that a  line-of-sight  path  does
+       not  exist  under  the  conditions  given,  and the obstructions can be
+       clearly identified on the graph at the point(s) of intersection.
 
-       A  graph illustrating terrain height referenced to a line-of-sight path
-       between the transmitter and receiver may  be  generated  using  the  _-_h
+       A graph illustrating terrain height referenced to a line-of-sight  path
+       between  the  transmitter  and  receiver  may be generated using the _-_h
        switch:
 
        splat -t tx_site -r rx_site -h height_profile.png
 
-       A  terrain  height  plot  normalized  to  the  transmitter and receiver
-       antenna heights can be obtained using the _-_H switch:
+       A terrain height plot normalized to the transmitter  and  receiver  an-
+       tenna heights can be obtained using the _-_H switch:
 
        splat -t tx_site -r rx_site -H normalized_height_profile.png
 
        A contour of the Earth's curvature is also plotted in this mode.
 
-       The first Fresnel Zone, and 60% of the first Fresnel Zone can be  added
+       The  first Fresnel Zone, and 60% of the first Fresnel Zone can be added
        to height profile graphs by adding the _-_f switch, and specifying a fre-
        quency (in MHz) at which the Fresnel Zone should be modeled:
 
@@ -482,48 +481,48 @@ PPOOIINNTT--TTOO--PPOOIINNTT AANNAALLYYSSIISS
 
        splat -t tx_site -r rx_site -l path_loss_profile.png
 
-       As  before,  adding  the _-_m_e_t_r_i_c switch forces the graphs to be plotted
-       using metric units of measure.  The _-_g_p_s_a_v switch instructs  SSPPLLAATT!!  to
-       preserve  (rather than delete) the ggnnuupplloott working files generated dur-
-       ing SSPPLLAATT!! execution, allowing the user to edit these files and  re-run
+       As before, adding the _-_m_e_t_r_i_c switch forces the graphs  to  be  plotted
+       using  metric  units of measure.  The _-_g_p_s_a_v switch instructs SSPPLLAATT!! to
+       preserve (rather than delete) the ggnnuupplloott working files generated  dur-
+       ing  SSPPLLAATT!! execution, allowing the user to edit these files and re-run
        ggnnuupplloott if desired.
 
-       When  performing  a  point-to-point  analysis,  a  SSPPLLAATT!! Path Analysis
-       Report is generated in the form of a text file  with  a  _._t_x_t  filename
-       extension.   The  report  contains  bearings  and distances between the
-       transmitter and receiver, as well as the free-space and ITM  path  loss
-       for  the  path being analyzed.  The mode of propagation for the path is
-       given as _L_i_n_e_-_o_f_-_S_i_g_h_t, _S_i_n_g_l_e  _H_o_r_i_z_o_n,  _D_o_u_b_l_e  _H_o_r_i_z_o_n,  _D_i_f_f_r_a_c_t_i_o_n
-       _D_o_m_i_n_a_n_t,  or  _T_r_o_p_o_s_c_a_t_t_e_r _D_o_m_i_n_a_n_t.  Additionally, if the receiver is
-       located at the peak of a single obstruction or at the peak of a  second
-       obstruction,  SSPPLLAATT!!  will  report  _R_X  _a_t _P_e_a_k _T_e_r_r_a_i_n _A_l_o_n_g _P_a_t_h when
-       operating under the ITWOM propagation model.
+       When performing a point-to-point analysis, a SSPPLLAATT!! Path  Analysis  Re-
+       port  is  generated in the form of a text file with a _._t_x_t filename ex-
+       tension.  The report contains bearings and distances between the trans-
+       mitter  and  receiver,  as well as the free-space and ITM path loss for
+       the path being analyzed.  The mode of propagation for the path is given
+       as _L_i_n_e_-_o_f_-_S_i_g_h_t, _S_i_n_g_l_e _H_o_r_i_z_o_n, _D_o_u_b_l_e _H_o_r_i_z_o_n, _D_i_f_f_r_a_c_t_i_o_n _D_o_m_i_n_a_n_t,
+       or _T_r_o_p_o_s_c_a_t_t_e_r _D_o_m_i_n_a_n_t.  Additionally, if the receiver is located  at
+       the  peak  of  a single obstruction or at the peak of a second obstruc-
+       tion, SSPPLLAATT!! will report _R_X _a_t _P_e_a_k _T_e_r_r_a_i_n _A_l_o_n_g _P_a_t_h  when  operating
+       under the ITWOM propagation model.
 
-       Distances and locations to known obstructions along  the  path  between
-       transmitter  and  receiver  are  also  provided.   If the transmitter's
-       effective radiated power is specified in the transmitter's  correspond-
-       ing  _._l_r_p  file,  then predicted signal strength and antenna voltage at
-       the receiving location is also provided in the Path Analysis Report.
+       Distances  and  locations  to known obstructions along the path between
+       transmitter and receiver are also provided.  If the  transmitter's  ef-
+       fective  radiated power is specified in the transmitter's corresponding
+       _._l_r_p file, then predicted signal strength and antenna  voltage  at  the
+       receiving location is also provided in the Path Analysis Report.
 
-       To determine the signal-to-noise (SNR) ratio at remote  location  where
+       To  determine  the signal-to-noise (SNR) ratio at remote location where
        random Johnson (thermal) noise is the primary limiting factor in recep-
        tion:
 
        _S_N_R=_T-_N_J-_L+_G-_N_F
 
-       where TT is the ERP of the transmitter in dBW in the  direction  of  the
-       receiver,  NNJJ  is Johnson Noise in dBW (-136 dBW for a 6 MHz television
-       channel), LL is the path loss provided by SSPPLLAATT!!  in dB (as  a  _p_o_s_i_t_i_v_e
-       number),  GG is the receive antenna gain in dB over isotropic, and NNFF is
+       where  TT  is  the ERP of the transmitter in dBW in the direction of the
+       receiver, NNJJ is Johnson Noise in dBW (-136 dBW for a 6  MHz  television
+       channel),  LL  is the path loss provided by SSPPLLAATT!!  in dB (as a _p_o_s_i_t_i_v_e
+       number), GG is the receive antenna gain in dB over isotropic, and NNFF  is
        the receiver noise figure in dB.
 
        TT may be computed as follows:
 
        _T=_T_I+_G_T
 
-       where TTII is actual amount of RF power  delivered  to  the  transmitting
-       antenna in dBW, GGTT is the transmitting antenna gain (over isotropic) in
-       the direction of the receiver (or the horizon if the receiver  is  over
+       where TTII is actual amount of RF power delivered to the transmitting an-
+       tenna in dBW, GGTT is the transmitting antenna gain (over  isotropic)  in
+       the  direction  of the receiver (or the horizon if the receiver is over
        the horizon).
 
        To compute how much more signal is available over the minimum to neces-
@@ -531,17 +530,16 @@ PPOOIINNTT--TTOO--PPOOIINNTT AANNAALLYYSSIISS
 
        _S_i_g_n_a_l__M_a_r_g_i_n=_S_N_R-_S
 
-       where SS is the minimum required SNR ratio (15.5 dB  for  ATSC  (8-level
+       where  SS  is  the minimum required SNR ratio (15.5 dB for ATSC (8-level
        VSB) DTV, 42 dB for analog NTSC television).
 
-       A  topographic  map  may  be  generated by SSPPLLAATT!! to visualize the path
-       between the transmitter and receiver sites from  yet  another  perspec-
-       tive.   Topographic maps generated by SSPPLLAATT!! display elevations using a
-       logarithmic  grayscale,  with  higher  elevations  represented  through
-       brighter  shades  of  gray.   The  dynamic range of the image is scaled
-       between the highest and lowest elevations present in the map.  The only
-       exception  to  this  is sea-level, which is represented using the color
-       blue.
+       A topographic map may be generated by SSPPLLAATT!! to visualize the path  be-
+       tween  the transmitter and receiver sites from yet another perspective.
+       Topographic maps generated by SSPPLLAATT!! display elevations using  a  loga-
+       rithmic  grayscale, with higher elevations represented through brighter
+       shades of gray.  The dynamic range of the image is scaled  between  the
+       highest  and  lowest elevations present in the map.  The only exception
+       to this is sea-level, which is represented using the color blue.
 
        Topographic output is invoked using the _-_o switch:
 
@@ -644,10 +642,10 @@ RREEGGIIOONNAALL CCOOVVEERRAAGGEE AANNAALLYYSSIISS
 
        When performing a regional analysis, SSPPLLAATT!! generates a site report for
        each  station  analyzed.   SSPPLLAATT!!  site  reports contain details of the
-       site's geographic location,  its  height  above  mean  sea  level,  the
-       antenna's height above mean sea level, the antenna's height above aver-
-       age terrain, and the height of the average  terrain  calculated  toward
-       the bearings of 0, 45, 90, 135, 180, 225, 270, and 315 degrees azimuth.
+       site's geographic location, its height above mean sea  level,  the  an-
+       tenna's height above mean sea level, the antenna's height above average
+       terrain, and the height of the average terrain  calculated  toward  the
+       bearings of 0, 45, 90, 135, 180, 225, 270, and 315 degrees azimuth.
 
 DDEETTEERRMMIINNIINNGG MMUULLTTIIPPLLEE RREEGGIIOONNSS OOFF LLOOSS CCOOVVEERRAAGGEE
        SSPPLLAATT!!  can  also  display  line-of-sight coverage areas for as many as
@@ -680,8 +678,8 @@ DDEETTEERRMMIINNIINNGG MMUULLTTIIPPLLEE RREEGGIIOONNSS
            site1 + site2 + site3 + site4: Gold2 (238,201,0)
 
        If separate _._q_t_h files are generated, each representing a  common  site
-       location  but  a  different  antenna  height,  a single topographic map
-       illustrating the regional coverage from as many as four separate  loca-
+       location  but  a different antenna height, a single topographic map il-
+       lustrating the regional coverage from as many as  four  separate  loca-
        tions on a single tower may be generated by SSPPLLAATT!!.
 
 PPAATTHH LLOOSSSS AANNAALLYYSSIISS
@@ -931,8 +929,8 @@ AANNTTEENNNNAA RRAADDIIAATTIIOONN PPAATTTTEERRNN PPAAR
        the same base name as the transmitter and LRP files, but with  _._a_z  and
        _._e_l  extensions  for azimuth and elevation pattern files, respectively.
        Specifications regarding pattern rotation (if any) and mechanical  beam
-       tilt  and  tilt  direction  (if  any)  are also contained within SSPPLLAATT!!
-       antenna pattern files.
+       tilt  and  tilt direction (if any) are also contained within SSPPLLAATT!! an-
+       tenna pattern files.
 
        For example, the first few lines of a SSPPLLAATT!! azimuth pattern file might
        appear as follows (_k_v_e_a_._a_z):
@@ -949,8 +947,8 @@ AANNTTEENNNNAA RRAADDIIAATTIIOONN PPAATTTTEERRNN PPAAR
                8       0.9060051
 
        The  first  line of the _._a_z file specifies the amount of azimuthal pat-
-       tern rotation (measured clockwise in degrees from  True  North)  to  be
-       applied  by SSPPLLAATT!! to the data contained in the _._a_z file.  This is fol-
+       tern rotation (measured clockwise in degrees from True North) to be ap-
+       plied  by  SSPPLLAATT!!  to the data contained in the _._a_z file.  This is fol-
        lowed by azimuth headings (0 to 360 degrees) and their associated  nor-
        malized field patterns (0.000 to 1.000) separated by whitespace.
 
@@ -983,15 +981,15 @@ AANNTTEENNNNAA RRAADDIIAATTIIOONN PPAATTTTEERRNN PPAAR
               -6.5    0.109
               -6.0    0.185
 
-       In  this  example,  the  antenna  is  mechanically  tilted downward 1.1
-       degrees towards an azimuth of 130.0 degrees.
+       In  this  example,  the antenna is mechanically tilted downward 1.1 de-
+       grees towards an azimuth of 130.0 degrees.
 
        For best results, the resolution of  azimuth  pattern  data  should  be
        specified  to  the  nearest  degree azimuth, and elevation pattern data
        resolution should be specified to the nearest  0.01  degrees.   If  the
        pattern  data specified does not reach this level of resolution, SSPPLLAATT!!
-       will interpolate the values provided  to  determine  the  data  at  the
-       required resolution, although this may result in a loss in accuracy.
+       will interpolate the values provided to determine the data at  the  re-
+       quired resolution, although this may result in a loss in accuracy.
 
 EEXXPPOORRTTIINNGG AANNDD IIMMPPOORRTTIINNGG RREEGGIIOONNAALL CCOONNTTOOUURR DDAATTAA
        Performing  a  regional coverage analysis based on an ITM path analysis
@@ -1060,17 +1058,17 @@ EEXXPPOORRTTIINNGG AANNDD IIMMPPOORRTTIINNGG RREEGGIIO
        angles refer to upward tilt (above the horizon), while positive  angles
        refer  to downward tilt (below the horizon).  These angles refer to the
        elevation to the receiving antenna at the  height  above  ground  level
-       specified  using  the  _-_L  switch  _i_f  the path between transmitter and
-       receiver is unobstructed.  If the  path  between  the  transmitter  and
-       receiver  is  obstructed,  an  asterisk (*) is placed on the end of the
-       line, and the elevation angle returned by SSPPLLAATT!! refers  the  elevation
-       angle  to  the  first  obstruction  rather than the geographic location
-       specified on the line.  This is done in response to the fact  that  the
-       ITM  model  considers  the  energy  reaching  a  distant  point over an
-       obstructed path to be the result of the energy scattered over  the  top
-       of the first obstruction along the path.  Since energy cannot reach the
-       obstructed location directly, the actual elevation angle to the  desti-
-       nation over such a path becomes irrelevant.
+       specified  using  the _-_L switch _i_f the path between transmitter and re-
+       ceiver is unobstructed.  If the path between the  transmitter  and  re-
+       ceiver is obstructed, an asterisk (*) is placed on the end of the line,
+       and the elevation angle returned by SSPPLLAATT!! refers the  elevation  angle
+       to  the first obstruction rather than the geographic location specified
+       on the line.  This is done in response to the fact that the  ITM  model
+       considers  the  energy reaching a distant point over an obstructed path
+       to be the result of the energy scattered over the top of the first  ob-
+       struction along the path.  Since energy cannot reach the obstructed lo-
+       cation directly, the actual elevation angle  to  the  destination  over
+       such a path becomes irrelevant.
 
        When  modifying SSPPLLAATT!! path loss files to reflect antenna pattern data,
        _o_n_l_y _t_h_e _l_a_s_t _n_u_m_e_r_i_c _c_o_l_u_m_n should be amended to reflect the antenna's
@@ -1079,15 +1077,15 @@ EEXXPPOORRTTIINNGG AANNDD IIMMPPOORRTTIINNGG RREEGGIIO
        an exercise for the user.
 
        Modified  alphanumeric  output  files  can be imported back into SSPPLLAATT!!
-       for generating revised coverage maps provided that  the  ERP  and  -dBm
-       options  are  used  as  they were when the alphanumeric output file was
-       originally generated:
+       for generating revised coverage maps provided that the ERP and -dBm op-
+       tions are used as they were when the alphanumeric output file was orig-
+       inally generated:
 
        splat -t kvea -ani pathloss.dat -s city.dat -b county.dat -o map.ppm
 
        Note that alphanumeric output files generated by splat cannot  be  used
-       with  splat-hd,  or  vice-versa  due  to the resolution incompatibility
-       between the two versions of the program.  Also, each of the three types
+       with  splat-hd, or vice-versa due to the resolution incompatibility be-
+       tween the two versions of the program.  Also, each of the  three  types
        of  alphanumeric  output  files are incompatible with one another, so a
        file containing path loss data cannot be imported into SSPPLLAATT!!  to  pro-
        duce signal strength or received power level contours, etc.
@@ -1113,9 +1111,9 @@ UUSSEERR--DDEEFFIINNEEDD TTEERRRRAAIINN IINNPPUUTT FFI
        terrain specified in the SDF data  for  the  locations  specified.   Be
        aware  that  each user-defined terrain feature specified will be inter-
        preted as being 3-arc seconds in both latitude and longitude  in  splat
-       and  1  arc-second  in  latitude  and  longitude in splat-hd.  Features
-       described in the user-defined  terrain  file  that  overlap  previously
-       defined features in the file are ignored by SSPPLLAATT!! to avoid ambiguity.
+       and  1  arc-second in latitude and longitude in splat-hd.  Features de-
+       scribed in the user-defined terrain file that  overlap  previously  de-
+       fined features in the file are ignored by SSPPLLAATT!! to avoid ambiguity.
 
 GGRROOUUNNDD CCLLUUTTTTEERR
        The height of ground clutter can be specified using the _-_g_c switch:
@@ -1132,8 +1130,8 @@ SSIIMMPPLLEE TTOOPPOOGGRRAAPPHHIICC MMAAPP GGEENNEERRA
        of  a  region  without plotting coverage areas, line-of-sight paths, or
        generating obstruction reports.  There are several ways of doing  this.
        If  one  wishes to generate a topographic map illustrating the location
-       of a transmitter and receiver site  along  with  a  brief  text  report
-       describing the locations and distances between the sites, the _-_n switch
+       of a transmitter and receiver site along with a brief text  report  de-
+       scribing  the  locations and distances between the sites, the _-_n switch
        should be invoked as follows:
 
        splat -t tx_site -r rx_site -n -o topo_map.ppm
@@ -1151,8 +1149,8 @@ SSIIMMPPLLEE TTOOPPOOGGRRAAPPHHIICC MMAAPP GGEENNEERRA
        where -R specifies the minimum radius of the map in miles  (or  kilome-
        ters  if  the  _-_m_e_t_r_i_c switch is used).  Note that the tx_site name and
        location are not displayed in this example.  If display of this  infor-
-       mation  is  desired,  simply  create a SSPPLLAATT!! city file (_-_s option) and
-       append it to the list of command-line options illustrated above.
+       mation is desired, simply create a SSPPLLAATT!! city file (_-_s option) and ap-
+       pend it to the list of command-line options illustrated above.
 
        If the _-_o switch and output filename are omitted in  these  operations,
        topographic  output  is written to a file named _t_x___s_i_t_e_._p_p_m in the cur-
@@ -1178,8 +1176,8 @@ GGOOOOGGLLEE MMAAPP KKMMLL FFIILLEE GGEENNEERRAATTIIOON
        splat -t wnjt-dt -r kd2bd -kml
 
        The  KML file generated will have the same filename structure as a Path
-       Analysis Report for the transmitter  and  receiver  site  names  given,
-       except it will carry a  _._k_m_l extension.
+       Analysis Report for the transmitter and receiver site names given,  ex-
+       cept it will carry a  _._k_m_l extension.
 
        Once  loaded into GGooooggllee EEaarrtthh (File --> Open), the KML file will anno-
        tate the map display with the names of  the  transmitter  and  receiver
@@ -1201,8 +1199,8 @@ DDEETTEERRMMIINNAATTIIOONN OOFF AANNTTEENNNNAA HHEEIIG
        to  the  procedure  defined  by  Federal Communications Commission Part
        73.313(d).  According to  this  definition,  terrain  elevations  along
        eight  radials  between  2  and 10 miles (3 and 16 kilometers) from the
-       site being analyzed are sampled and averaged for  each  45  degrees  of
-       azimuth  starting with True North.  If one or more radials lie entirely
+       site being analyzed are sampled and averaged for each 45 degrees of az-
+       imuth  starting  with  True North.  If one or more radials lie entirely
        over water or over land outside the United States (areas for  which  no
        USGS topography data is available), then those radials are omitted from
        the calculation of average terrain.
@@ -1220,10 +1218,10 @@ DDEETTEERRMMIINNAATTIIOONN OOFF AANNTTEENNNNAA HHEEIIG
        data in memory.
 
        When performing area prediction analysis,  enough  topography  data  is
-       normally  loaded  by  SSPPLLAATT!!  to  perform average terrain calculations.
-       Under such conditions, SSPPLLAATT!! will provide  the  antenna  height  above
-       average terrain as well as the average terrain above mean sea level for
-       azimuths of 0, 45, 90, 135, 180, 225, 270, and 315 degrees, and include
+       normally loaded by SSPPLLAATT!! to perform average terrain calculations.  Un-
+       der such conditions, SSPPLLAATT!! will provide the antenna height above aver-
+       age terrain as well as the average terrain above mean sea level for az-
+       imuths of 0, 45, 90, 135, 180, 225, 270, and 315 degrees,  and  include
        such  information  in the generated site report.  If one or more of the
        eight radials surveyed fall over water, or over regions  for  which  no
        SDF  data  is available, SSPPLLAATT!! reports _N_o _T_e_r_r_a_i_n for the radial paths
