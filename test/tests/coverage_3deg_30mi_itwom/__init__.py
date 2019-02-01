@@ -27,17 +27,19 @@ class TestObject1(unittest.TestCase):
     @classmethod
     def tearDownClass(self):
         #maybe don't remove these if there's an error?
-        os.remove(self.img)
-        os.remove(self.report)
+        #os.remove(self.img)
+        #os.remove(self.report)
+        pass
 
     # tests start here
 
     def test_01_runsplat(self):
         """Run SPLAT to generate the files"""
         (imgname, suffix) = os.path.splitext(self.img)
-        cmd="%s -d %s -itwom -t tx -L 10.0 -R 30 -o %s" % (self.splat, self.srtms, imgname)
-        print(cmd)
+        cmd="-d %s -itwom -t tx -L 10.0 -R 30 -o %s" % (self.srtms, imgname)
         splatargs=cmd.split()
+        splatargs.insert(0, self.splat)
+        print(*splatargs)
         #cp = subprocess.run(splatargs, capture_output=True)
         cp = subprocess.run(splatargs)
         self.assertEqual(cp.returncode, 0)
