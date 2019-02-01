@@ -1,0 +1,28 @@
+
+
+---------------------------------------------------------------------------
+
+Transmitter site: tx
+Site location: 40.7253 North / 111.5940 West (40° 43' 31" N / 111° 35' 38" W)
+Ground elevation: 7631.23 feet AMSL
+Antenna height: 98.43 feet AGL / 7729.66 feet AMSL
+Antenna height above average terrain: 432.64 feet
+Distance to rx: 9.46 miles
+Azimuth to rx: 74.84 degrees
+Depression angle to rx: -0.7533 degrees
+
+---------------------------------------------------------------------------
+
+Receiver site: rx
+Site location: 40.7610 North / 111.4195 West (40° 45' 39" N / 111° 25' 10" W)
+Ground elevation: 7099.74 feet AMSL
+Antenna height: 32.81 feet AGL / 7132.55 feet AMSL
+Antenna height above average terrain: 295.96 feet
+Distance to tx: 9.46 miles
+Azimuth to tx: 254.95 degrees
+Elevation angle to tx: +0.6164 degrees
+
+---------------------------------------------------------------------------
+
+
+No obstructions to LOS path due to terrain were detected by SPLAT! MT

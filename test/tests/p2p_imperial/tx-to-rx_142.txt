@@ -1,0 +1,47 @@
+
+
+---------------------------------------------------------------------------
+
+Transmitter site: tx
+Site location: 40.7253 North / 111.5940 West (40° 43' 31" N / 111° 35' 38" W)
+Ground elevation: 7631.23 feet AMSL
+Antenna height: 98.43 feet AGL / 7729.66 feet AMSL
+Antenna height above average terrain: 432.64 feet
+Distance to rx: 15.44 miles
+Azimuth to rx: 92.50 degrees
+Depression angle to rx: -0.9951 degrees
+Depression angle to the first obstruction: -0.5446 degrees
+
+---------------------------------------------------------------------------
+
+Receiver site: rx
+Site location: 40.7152 North / 111.2995 West (40° 42' 54" N / 111° 17' 58" W)
+Ground elevation: 6440.29 feet AMSL
+Antenna height: 32.81 feet AGL / 6473.10 feet AMSL
+Antenna height above average terrain: -812.67 feet
+Distance to tx: 15.44 miles
+Azimuth to tx: 272.70 degrees
+Elevation angle to tx: +0.7717 degrees
+Elevation angle to the first obstruction: +0.8773 degrees
+
+---------------------------------------------------------------------------
+
+Between rx and tx, SPLAT! MT detected obstructions at:
+
+    40.7174 N, 111.3624 W,  3.30 miles, 6748.69 feet AMSL
+    40.7175 N, 111.3632 W,  3.34 miles, 6843.83 feet AMSL
+    40.7175 N, 111.3641 W,  3.39 miles, 6922.57 feet AMSL
+    40.7175 N, 111.3649 W,  3.43 miles, 6958.66 feet AMSL
+    40.7176 N, 111.3657 W,  3.47 miles, 7007.87 feet AMSL
+    40.7176 N, 111.3666 W,  3.52 miles, 7053.81 feet AMSL
+    40.7176 N, 111.3674 W,  3.56 miles, 7112.86 feet AMSL
+    40.7176 N, 111.3682 W,  3.60 miles, 7165.35 feet AMSL
+    40.7177 N, 111.3691 W,  3.65 miles, 7208.01 feet AMSL
+    40.7177 N, 111.3699 W,  3.69 miles, 7244.09 feet AMSL
+    40.7177 N, 111.3707 W,  3.74 miles, 7286.75 feet AMSL
+    40.7178 N, 111.3716 W,  3.78 miles, 7342.52 feet AMSL
+    40.7178 N, 111.3724 W,  3.82 miles, 7391.73 feet AMSL
+    40.7178 N, 111.3732 W,  3.87 miles, 7398.29 feet AMSL
+
+Antenna at rx must be raised to at least 887.81 feet AGL
+to clear all obstructions detected by SPLAT! MT.
