@@ -76,6 +76,14 @@
 
 #define MAXPATHLEN 255
 
+#ifndef min
+#define min(i, j) ( i < j ? i : j)
+#endif
+#ifndef max
+#define max(i, j) ( i > j ? i : j)
+#endif
+
+
 /*****************************
  * Typedefs
  *****************************/
@@ -912,14 +920,16 @@ double Distance(Site site1, Site site2)
 	/* This function returns the great circle distance
 	   in miles between any two site locations. */
 
-	double	lat1, lon1, lat2, lon2, distance;
+	double	lat1, lon1, lat2, lon2, angle, distance;
 
 	lat1=site1.lat*DEG2RAD;
 	lon1=site1.lon*DEG2RAD;
 	lat2=site2.lat*DEG2RAD;
 	lon2=site2.lon*DEG2RAD;
 
-	distance=3959.0*acos(sin(lat1)*sin(lat2)+cos(lat1)*cos(lat2)*cos((lon1)-(lon2)));
+	angle = sin(lat1)*sin(lat2)+cos(lat1)*cos(lat2)*cos((lon1)-(lon2));
+	angle = max(-1.0, min(1.0, angle));
+	distance=3959.0*acos(angle);
 
 	return distance;
 }
@@ -931,6 +941,7 @@ double Azimuth(Site source, Site destination)
 
 	double	dest_lat, dest_lon, src_lat, src_lon,
 		beta, azimuth, diff, num, den, fraction;
+	double angle;
 
 	dest_lat=destination.lat*DEG2RAD;
 	dest_lon=destination.lon*DEG2RAD;
@@ -940,7 +951,9 @@ double Azimuth(Site source, Site destination)
 		
 	/* Calculate Surface Distance */
 
-	beta=acos(sin(src_lat)*sin(dest_lat)+cos(src_lat)*cos(dest_lat)*cos(src_lon-dest_lon));
+	angle = sin(src_lat)*sin(dest_lat)+cos(src_lat)*cos(dest_lat)*cos(src_lon-dest_lon);
+	angle = max(-1.0, min(1.0, angle));
+	beta=acos(angle);
 
 	/* Calculate Azimuth */
 
