@@ -25,8 +25,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #ifndef _WIN32
 #include <unistd.h>
+#include <limits.h>
+#include <libgen.h> /* dirname() and basename() */
 #else
 #define unlink _unlink
 #endif
@@ -48,6 +51,11 @@
 #include "fontdata.h"
 #include "workqueue.hpp"
 
+#ifdef _WIN32
+#define PATHSEP "\\"
+#else
+#define PATHSEP "/"
+#endif
 
 #define GAMMA 2.5
 #define BZBUFFER 65536
@@ -513,6 +521,138 @@ char* basename_s(char* path) {
 	++i; /* i is either -1 or the index of the slash, so move forward */
 	return &(path[i]);
 }
+
+void stripExtension(char *path, char* ext, size_t extlen)
+{
+	char *p;
+	size_t len;
+
+	p = strrchr(path, '.');
+
+	if (p == NULL) {
+		ext[0] = '\0';
+		return;
+	}
+
+	*p++ = '\0'; /* chop off extension and move ahead */
+
+	len = min(strlen(p)+1, extlen);
+	memcpy(ext, p, len);
+	ext[len] = '\0';
+}
+
+#ifndef _WIN32
+/* Windows has a useful function called _splitpath_s(). This is
+ * intended to replicate that. */
+int _splitpath_s(
+       const char * path,
+       char * dir,
+       size_t dirNumberOfElements,
+       char * fname,
+       size_t nameNumberOfElements,
+       char * ext,
+       size_t extNumberOfElements
+    )
+{
+    char *p;
+
+    if (path == NULL) {
+        return EINVAL;
+    }
+
+    char *fullpath = strdup(path);
+
+    /* Everything up to (but not including) the final slash.
+     * If there is no slash, gets ".". guaranteed to be null-terminated.
+     */
+    if (dir != NULL) {
+        char *tmp = strdup(fullpath); /* dirname munges things */
+        char *dname = dirname(tmp);
+        if (dirNumberOfElements < strlen(dname)+1) {
+            free(tmp);
+            free(fullpath);
+            return ERANGE;
+        }
+        memcpy(dir, dname, strlen(dname) + 1);
+        free(tmp);
+    }
+
+    /* Everything after the last slash, or the whole thing if
+     * there is no slash. guaranteed to be null-terminated.
+     */
+    char *base = basename(fullpath);
+
+    if ( ((p = strchr(base, '.')) == NULL) || (strlen(p) < 2)) {
+        /* Easy case: no suffix */
+        if (ext) {
+            if (extNumberOfElements < 1) {
+                free(fullpath);
+                return ERANGE;
+            }
+            ext[0] = '\0';
+        }
+    } else {
+        /* peel off everything from the first dot to the end. Note
+         * that multiple suffixes get treated as one; i.e. "foo.tar.gz"
+         * gets split into "foo" and "tar.gz".
+         */
+        *p++ = '\0';
+        if (ext) {
+            if (extNumberOfElements < strlen(p)) {
+                free(fullpath);
+                return ERANGE;
+            }
+            memcpy(ext, p, strlen(p) + 1);
+        }
+    }
+
+    if (fname) {
+        if (nameNumberOfElements < strlen(base)+1) {
+            free(fullpath);
+            return ERANGE;
+        }
+        memcpy(fname, base, strlen(base) + 1);
+    }
+
+    free(fullpath);
+    return 0;
+}
+#endif
+
+char* copyFilename(char *fname, const char *newSuffix) {
+	/* Copy a filename, up to but not including the suffix.
+	 * If newSuffix is specified, add that on.
+	 * The new filename is malloced and must be freed when
+	 * the caller is done with it.
+	 */
+	char pathbuf[1024], filebuf[512], suffixbuf[64];
+	char *newFname;
+
+	if (_splitpath_s(fname, pathbuf, 1024, filebuf, 512, suffixbuf, 64) != 0) {
+		return NULL;
+	}
+	
+	if (newSuffix && (strlen(newSuffix) > 0)) {
+		int len = strlen(pathbuf) + strlen(filebuf) + strlen(newSuffix) + 3;
+		newFname = (char*)malloc(len);
+		if (strcmp(pathbuf, ".")==0) {  /* if it's "./foo", just make it "foo" */
+			snprintf(newFname, len, "%s.%s", filebuf, newSuffix);
+		} else {
+			snprintf(newFname, len, "%s%s%s.%s", pathbuf, PATHSEP, filebuf, newSuffix);
+		}
+	} else {
+		int len = strlen(pathbuf) + strlen(filebuf) + 2;
+		newFname = (char*)malloc(len);
+		if (strcmp(pathbuf, ".")==0) {  /* if it's "./foo", just make it "foo" */
+			snprintf(newFname, len, "%s", filebuf);
+		} else {
+			snprintf(newFname, len, "%s%s%s", pathbuf, PATHSEP, filebuf);
+		}
+	}
+	return newFname;
+}
+
+
 
 int interpolate(int y0, int y1, int x0, int x1, int n)
 {
@@ -1723,14 +1863,14 @@ void LoadPAT(char *filename)
 	   loaded SPLAT! .lrp files.  */
 
 	int	a, b, w, x, y, z, last_index, next_index, span;
-	char	buf[255], azfile[MAXPATHLEN], elfile[MAXPATHLEN], *pointer=NULL;
+	char buf[255], *pointer=NULL;
+	char *azfile, *elfile;
 	float	az, xx, amplitude, rotation, valid1, valid2,
 		delta, azimuth[361], azimuth_pattern[361],
 		mechanical_tilt = 0.0, tilt_azimuth, sum;
 	double elevation;
 	/* elevation_pattern[361][1001]; */ /* 2.7MB. This blows the stack right out of the water. Allocate on heap. */
 	double tilt, tilt_increment, slant_angle[361];
-	char *p;
 	FILE	*fd=NULL;
 
 	float *el_pattern = (float*)malloc(sizeof(float) * 10001);
@@ -1740,28 +1880,8 @@ void LoadPAT(char *filename)
 		elevation_pattern[x] = (double*)malloc(sizeof(double) * 1001);
 	}
 
-
-	/* copy the whole thing and then find the last .
-	 * This lets us start our paths with ./blah
-	 */
-	for (x=0; filename[x]!=0 && x<(MAXPATHLEN-5); x++)
-	{
-		azfile[x]=filename[x];
-		elfile[x]=filename[x];
-	}
-	if ( (p = strrchr(filename, '.')) ) {
-	    x = (int)(p - filename);
-	}
-
-	azfile[x]='.';
-	azfile[x+1]='a';
-	azfile[x+2]='z';
-	azfile[x+3]=0;
-
-	elfile[x]='.';
-	elfile[x+1]='e';
-	elfile[x+2]='l';
-	elfile[x+3]=0;
+	azfile = copyFilename(filename, "az");
+	elfile = copyFilename(filename, "el");
 
 	rotation=0.0;
 
@@ -1926,6 +2046,7 @@ void LoadPAT(char *filename)
 
 		got_azimuth_pattern=true;
 	}
+	free(azfile);
 
 	/* Read and process .el file */
 
@@ -2123,6 +2244,7 @@ void LoadPAT(char *filename)
 
 		got_elevation_pattern=true;
 	}
+	free(elfile);
 
 	for (x=0; x<=360; x++)
 	{
@@ -2744,9 +2866,9 @@ char ReadLRParm(Site txsite, char forced_read)
 	   into this function to be used and written to "splat.lrp". */
 
 	double	din;
-	char	filename[MAXPATHLEN], buf[80], *pointer=NULL, return_value=0;
-	char *p;
-	int	iin, ok=0, x;
+	char buf[80], *pointer=NULL, return_value=0;
+	char *filename;
+	int	iin, ok=0;
 	FILE	*fd=NULL, *outfile=NULL;
 
 	/* Default parameters */
@@ -2769,20 +2891,7 @@ char ReadLRParm(Site txsite, char forced_read)
 
 	/* Generate .lrp filename from txsite filename. */
 
-	/* copy the whole thing and then find the last .
-	 * This lets us start our paths with ./blah
-	 */
-	for (x=0; txsite.filename[x]!=0 && x<(MAXPATHLEN-5); x++)
-		filename[x]=txsite.filename[x];
-	if ( (p = strrchr(filename, '.')) ) {
-	    x = (int)(p - filename);
-	}
-
-	filename[x]='.';
-	filename[x+1]='l';
-	filename[x+2]='r';
-	filename[x+3]='p';
-	filename[x+4]=0;
+	filename = copyFilename(txsite.filename, "lrp");
 
 	printf("Loading %s\n", filename);
 
@@ -2790,9 +2899,10 @@ char ReadLRParm(Site txsite, char forced_read)
 
 	if (fd==NULL)
 	{
-		/* Load default "splat.lrp" file */
+		free(filename);
 
-		strncpy(filename,"splat.lrp\0",10);
+		/* Load default "splat.lrp" file */
+		filename = strdup("splat.lrp");
 		fd=fopen(filename,"r");
 	}
 
@@ -3001,7 +3111,9 @@ char ReadLRParm(Site txsite, char forced_read)
 		return_value=1;
 	}
 
-	return (return_value);
+	free(filename);
+
+	return return_value;
 }
 
 int PlotPath(Site source, Site destination, char mask_value)
@@ -8368,7 +8480,7 @@ int main(int argc, char *argv[])
 			buf[255], rxfile[255], *env=NULL,
 			txfile[255], boundary_file[5][255],
 			udt_file[255], rxsite=0, ani_filename[255],
-			ano_filename[255], ext[20], logfile[255];
+			ano_filename[255], logfile[255];
 
 	double		altitude=0.0, altitudeLR=0.0, tx_range=0.0,
 			rx_range=0.0, deg_range=0.0, deg_limit=0.0,
@@ -9215,116 +9327,6 @@ int main(int argc, char *argv[])
 	{
 		PlaceMarker(rx_site);
 
-		if (terrain_plot)
-		{
-			/* Extract extension (if present)
-			   from "terrain_file" */
-
-			y= (int)strlen(terrain_file);
-
-			for (x=y-1; x>0 && terrain_file[x]!='.'; x--);
-
-			if (x>0)  /* Extension found */
-			{
-				for (z=x+1; z<=y && (z-(x+1))<10; z++)
-					ext[z-(x+1)]=tolower(terrain_file[z]);
-
-				ext[z-(x+1)]=0;		/* Ensure an ending 0 */
-				terrain_file[x]=0;  /* Chop off extension */
-			}
-
-			else
-				strncpy(ext,"png\0",4);
-		}
-
-		if (elevation_plot)
-		{
-			/* Extract extension (if present)
-			   from "elevation_file" */
-
-			y= (int)strlen(elevation_file);
-
-			for (x=y-1; x>0 && elevation_file[x]!='.'; x--);
-
-			if (x>0)  /* Extension found */
-			{
-				for (z=x+1; z<=y && (z-(x+1))<10; z++)
-					ext[z-(x+1)]=tolower(elevation_file[z]);
-
-				ext[z-(x+1)]=0;	   /* Ensure an ending 0 */
-				elevation_file[x]=0;  /* Chop off extension */
-			}
-
-			else
-				strncpy(ext,"png\0",4);
-		}
-
-		if (height_plot)
-		{
-			/* Extract extension (if present)
-			   from "height_file" */
-
-			y= (int)strlen(height_file);
-
-			for (x=y-1; x>0 && height_file[x]!='.'; x--);
-
-			if (x>0)  /* Extension found */
-			{
-				for (z=x+1; z<=y && (z-(x+1))<10; z++)
-					ext[z-(x+1)]=tolower(height_file[z]);
-
-				ext[z-(x+1)]=0;	/* Ensure an ending 0 */
-				height_file[x]=0;  /* Chop off extension */
-			}
-
-			else
-				strncpy(ext,"png\0",4);
-		}
-
-		if (norm_height_plot)
-		{
-			/* Extract extension (if present)
-			   from "norm_height_file" */
-
-			y= (int)strlen(norm_height_file);
-
-			for (x=y-1; x>0 && norm_height_file[x]!='.'; x--);
-
-			if (x>0)  /* Extension found */
-			{
-				for (z=x+1; z<=y && (z-(x+1))<10; z++)
-					ext[z-(x+1)]=tolower(norm_height_file[z]);
-
-				ext[z-(x+1)]=0;	/* Ensure an ending 0 */
-				norm_height_file[x]=0;  /* Chop off extension */
-			}
-
-			else
-				strncpy(ext,"png\0",4);
-		}
-
-		if (longley_plot)
-		{
-			/* Extract extension (if present)
-			   from "longley_file" */
-
-			y=(int)strlen(longley_file);
-
-			for (x=y-1; x>0 && longley_file[x]!='.'; x--);
-
-			if (x>0)  /* Extension found */
-			{
-				for (z=x+1; z<=y && (z-(x+1))<10; z++)
-					ext[z-(x+1)]=tolower(longley_file[z]);
-
-				ext[z-(x+1)]=0;	 /* Ensure an ending 0 */
-				longley_file[x]=0;  /* Chop off extension */
-			}
-
-			else
-				strncpy(ext,"png\0",4);
-		}
-
 		for (x=0; x<txsites && x<4; x++)
 		{
 			PlaceMarker(tx_site[x]);
@@ -9356,13 +9358,19 @@ int main(int argc, char *argv[])
 			if (kml)
 				WriteKML(tx_site[x],rx_site);
 
-			if (txsites>1)
-				snprintf(buf,250,"%s-%c.%s%c",longley_file,'1'+x,ext,0);
-			else
-				snprintf(buf,250,"%s.%s%c",longley_file,ext,0);
 
-			if (nositereports==0)
+			if (nositereports==0 && longley_plot==1)
 			{
+				char ext[20];
+				stripExtension(longley_file, ext, 20);
+				if (strlen(ext) == 0) {
+					strcpy(ext, "png");
+				}
+				if (txsites>1)
+					snprintf(buf,250,"%s-%c.%s%c", longley_file, '1'+x, ext, 0);
+				else
+					snprintf(buf,250,"%s.%s%c", longley_file, ext, 0);
+
 				if (longley_file[0]==0)
 				{
 					ReadLRParm(tx_site[x],0);
@@ -9378,8 +9386,13 @@ int main(int argc, char *argv[])
 
 			if (terrain_plot)
 			{
+				char ext[20];
+				stripExtension(terrain_file, ext, 20);
+				if (strlen(ext) == 0) {
+					strcpy(ext, "png");
+				}
 				if (txsites>1)
-					snprintf(buf,250,"%s-%c.%s%c",terrain_file,'1'+x,ext,0);
+					snprintf(buf,250,"%s-%c.%s%c",terrain_file,'1'+x, ext,0);
 				else
 					snprintf(buf,250,"%s.%s%c",terrain_file,ext,0);
 
@@ -9388,6 +9401,11 @@ int main(int argc, char *argv[])
 
 			if (elevation_plot)
 			{
+				char ext[20];
+				stripExtension(elevation_file, ext, 20);
+				if (strlen(ext) == 0) {
+					strcpy(ext, "png");
+				}
 				if (txsites>1)
 					snprintf(buf,250,"%s-%c.%s%c",elevation_file,'1'+x,ext,0);
 				else
@@ -9398,6 +9416,11 @@ int main(int argc, char *argv[])
 
 			if (height_plot)
 			{
+				char ext[20];
+				stripExtension(height_file, ext, 20);
+				if (strlen(ext) == 0) {
+					strcpy(ext, "png");
+				}
 				if (txsites>1)
 					snprintf(buf,250,"%s-%c.%s%c",height_file,'1'+x,ext,0);
 				else
@@ -9408,6 +9431,11 @@ int main(int argc, char *argv[])
 
 			if (norm_height_plot)
 			{
+				char ext[20];
+				stripExtension(norm_height_file, ext, 20);
+				if (strlen(ext) == 0) {
+					strcpy(ext, "png");
+				}
 				if (txsites>1)
 					snprintf(buf,250,"%s-%c.%s%c",norm_height_file,'1'+x,ext,0);
 				else
