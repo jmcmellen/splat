@@ -625,15 +625,30 @@ char* copyFilename(char *fname, const char *newSuffix) {
 	 * The new filename is malloced and must be freed when
 	 * the caller is done with it.
 	 */
-	char pathbuf[1024], filebuf[512], suffixbuf[64];
+	char pathbuf[1027], filebuf[512], suffixbuf[64];
 	char *newFname;
 
+#ifdef _WIN32
+	char drivebuf[3];
+	drivebuf[0] = '\0';
+	if (_splitpath_s(fname, drivebuf, 3, pathbuf, 1024, filebuf, 512, suffixbuf, 64) != 0) {
+		return NULL;
+	}
+	int offset = strlen(drivebuf);
+	if ((offset > 0) && (strlen(pathbuf) > 0)) {
+		offset++; /* make room for the colon */
+		memmove(pathbuf+offset, pathbuf, strlen(pathbuf));
+		pathbuf[offset--] = ':';
+		memcpy(pathbuf, drivebuf, offset);
+	}
+#else
 	if (_splitpath_s(fname, pathbuf, 1024, filebuf, 512, suffixbuf, 64) != 0) {
 		return NULL;
 	}
+#endif
 	
 	if (newSuffix && (strlen(newSuffix) > 0)) {
-		int len = strlen(pathbuf) + strlen(filebuf) + strlen(newSuffix) + 3;
+		size_t len = strlen(pathbuf) + strlen(filebuf) + strlen(newSuffix) + 3;
 		newFname = (char*)malloc(len);
 		if (strcmp(pathbuf, ".")==0) {  /* if it's "./foo", just make it "foo" */
 			snprintf(newFname, len, "%s.%s", filebuf, newSuffix);
@@ -641,7 +656,7 @@ char* copyFilename(char *fname, const char *newSuffix) {
 			snprintf(newFname, len, "%s%s%s.%s", pathbuf, PATHSEP, filebuf, newSuffix);
 		}
 	} else {
-		int len = strlen(pathbuf) + strlen(filebuf) + 2;
+		size_t len = strlen(pathbuf) + strlen(filebuf) + 2;
 		newFname = (char*)malloc(len);
 		if (strcmp(pathbuf, ".")==0) {  /* if it's "./foo", just make it "foo" */
 			snprintf(newFname, len, "%s", filebuf);
@@ -6330,6 +6345,9 @@ void GraphTerrain(Site source, Site destination, char *name)
 	}
 	ReadPath(destination,source,path); 
 
+	/* XXX this isn't right. We need to to know the directory to put these files into,
+	 * not just write them to the current work dir
+	 */
 	fd=fopen("profile.gp","wb");
 
 	if (clutter>0.0)
@@ -6502,6 +6520,9 @@ void GraphElevation(Site source, Site destination, char *name)
 	refangle=ElevationAngle(destination,source);
 	distance=Distance(source,destination);
 
+	/* XXX this isn't right. We need to to know the directory to put these files into,
+	 * not just write them to the current work dir
+	 */
 	fd=fopen("profile.gp","wb");
 
 	if (clutter>0.0)
