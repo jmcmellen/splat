@@ -53,6 +53,7 @@
 
 #ifdef _WIN32
 #define PATHSEP "\\"
+#define strdup _strdup
 #else
 #define PATHSEP "/"
 #endif
@@ -634,7 +635,7 @@ char* copyFilename(char *fname, const char *newSuffix) {
 	if (_splitpath_s(fname, drivebuf, 3, pathbuf, 1024, filebuf, 512, suffixbuf, 64) != 0) {
 		return NULL;
 	}
-	int offset = strlen(drivebuf);
+	size_t offset = strlen(drivebuf);
 	if ((offset > 0) && (strlen(pathbuf) > 0)) {
 		offset++; /* make room for the colon */
 		memmove(pathbuf+offset, pathbuf, strlen(pathbuf));
