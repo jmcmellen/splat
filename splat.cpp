@@ -542,6 +542,24 @@ void stripExtension(char *path, char* ext, size_t extlen)
 	ext[len] = '\0';
 }
 
+#ifdef _WIN32
+/* gnupplot's internal interpreter doesn't handle single backslashes
+ * properly on windows. Our options are to either escape them by turning
+ * them into double backslashes or converting them to forward slashes.
+ * Here we do an in-place conversion to forward slashes so that we don't
+ * have to reallocate any memory. */
+int convertBackslashes(char *path)
+{
+	size_t i;
+	for (i=strlen(path)-1; i; --i) {
+		if (path[i] == '\\') path[i]='/';
+	}
+}
+#else
+/* empty macro */
+#define convertBackslashes(x) 
+#endif
+
 #ifndef _WIN32
 /* Windows has a useful function called _splitpath_s(). This is
  * intended to replicate that. */
@@ -667,7 +685,6 @@ char* copyFilename(char *fname, const char *newSuffix) {
 	}
 	return newFname;
 }
-
 
 
 int interpolate(int y0, int y1, int x0, int x1, int n)
@@ -6334,8 +6351,8 @@ void GraphTerrain(Site source, Site destination, char *name)
 	   to set gnuplot's terminal setting and output file type.
 	   If no extension is found, .png is assumed.  */
 
-	int	x, y, z;
-	char	basename[255], term[30], ext[15];
+	int	x;
+	char	basename[255], term[30], ext[20];
 	double	minheight=100000.0, maxheight=-100000.0;
 	FILE	*fd=NULL, *fd1=NULL;
 
@@ -6347,7 +6364,8 @@ void GraphTerrain(Site source, Site destination, char *name)
 	ReadPath(destination,source,path); 
 
 	/* XXX this isn't right. We need to to know the directory to put these files into,
-	 * not just write them to the current work dir
+	 * not just write them to the current work dir, and we should put the whole name
+	 * into the splat.gp file later.
 	 */
 	fd=fopen("profile.gp","wb");
 
@@ -6387,50 +6405,31 @@ void GraphTerrain(Site source, Site destination, char *name)
 	if (name[0]=='.')
 	{
 		/* Default filename and output file type */
-
-		strncpy(basename,"profile\0",8);
-		strncpy(term,"png\0",4);
-		strncpy(ext,"png\0",4);
+		strcpy(basename,"profile");
+		strcpy(ext,"png");
 	}
-
 	else
 	{
 		/* Extract extension and terminal type from "name" */
-
-		ext[0]=0;
-		y= (int)strlen(name);
-		strncpy(basename,name,254);
-
-		for (x=y-1; x>0 && name[x]!='.'; x--);
-
-		if (x>0)  /* Extension found */
+		strncpy(basename, name, 255);
+		basename[255] = '\0';
+		stripExtension(basename, ext, 20);
+		convertBackslashes(basename);
+		if (strlen(ext) == 0)
 		{
-			for (z=x+1; z<=y && (z-(x+1))<10; z++)
-			{
-				ext[z-(x+1)]=tolower(name[z]);
-				term[z-(x+1)]=name[z];
-			}
-
-			ext[z-(x+1)]=0;  /* Ensure an ending 0 */
-			term[z-(x+1)]=0;
-			basename[x]=0;
-		}
-
-		if (ext[0]==0)	/* No extension -- Default is png */
-		{
-			strncpy(term,"png\0",4);
-			strncpy(ext,"png\0",4);
+			strcpy(ext,"png");
 		}
 	}
+	strcpy(term,ext);
 
 	/* Either .ps or .postscript may be used
 	   as an extension for postscript output. */
 
 	if (strncmp(term,"postscript",10)==0)
-		strncpy(ext,"ps\0",3);
+		strcpy(ext,"ps");
 
 	else if (strncmp(ext,"ps",2)==0)
-			strncpy(term,"postscript enhanced color\0",26);
+			strcpy(term,"postscript enhanced color");
 
 	if (maxheight<1.0)
 	{
@@ -6505,8 +6504,8 @@ void GraphElevation(Site source, Site destination, char *name)
 	   to set gnuplot's terminal setting and output file type.
 	   If no extension is found, .png is assumed.  */
 
-	int	x, y, z;
-	char	basename[255], term[30], ext[15];
+	int	x;
+	char	basename[255], term[30], ext[20];
 	double	angle, clutter_angle=0.0, refangle, maxangle=-90.0,
 		   	minangle=90.0, distance;
 	Site	remote, remote2;
@@ -6522,7 +6521,8 @@ void GraphElevation(Site source, Site destination, char *name)
 	distance=Distance(source,destination);
 
 	/* XXX this isn't right. We need to to know the directory to put these files into,
-	 * not just write them to the current work dir
+	 * not just write them to the current work dir, and we should put the whole name
+	 * into the splat.gp file later.
 	 */
 	fd=fopen("profile.gp","wb");
 
@@ -6603,50 +6603,32 @@ void GraphElevation(Site source, Site destination, char *name)
 	if (name[0]=='.')
 	{
 		/* Default filename and output file type */
-
-		strncpy(basename,"profile\0",8);
-		strncpy(term,"png\0",4);
-		strncpy(ext,"png\0",4);
+		strcpy(basename,"profile");
+		strcpy(ext,"png");
 	}
-
 	else
 	{
 		/* Extract extension and terminal type from "name" */
-
-		ext[0]=0;
-		y= (int)strlen(name);
-		strncpy(basename,name,254);
-
-		for (x=y-1; x>0 && name[x]!='.'; x--);
-
-		if (x>0)  /* Extension found */
+		strncpy(basename, name, 255);
+		basename[255] = '\0';
+		stripExtension(basename, ext, 20);
+		convertBackslashes(basename);
+		if (strlen(ext) == 0)
 		{
-			for (z=x+1; z<=y && (z-(x+1))<10; z++)
-			{
-				ext[z-(x+1)]=tolower(name[z]);
-				term[z-(x+1)]=name[z];
-			}
-
-			ext[z-(x+1)]=0;  /* Ensure an ending 0 */
-			term[z-(x+1)]=0;
-			basename[x]=0;
-		}
-
-		if (ext[0]==0)	/* No extension -- Default is png */
-		{
-			strncpy(term,"png\0",4);
-			strncpy(ext,"png\0",4);
+			strcpy(ext,"png");
 		}
 	}
+
+	strcpy(term,ext);
 
 	/* Either .ps or .postscript may be used
 	   as an extension for postscript output. */
 
 	if (strncmp(term,"postscript",10)==0)
-		strncpy(ext,"ps\0",3);
+		strcpy(ext,"ps");
 
 	else if (strncmp(ext,"ps",2)==0)
-			strncpy(term,"postscript enhanced color\0",26);
+			strcpy(term,"postscript enhanced color");
 
 	fd=fopen("splat.gp","w");
 
@@ -6719,8 +6701,8 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 	   setting and output file type.  If no extension is found,
 	   .png is assumed.  */
 
-	int	x, y, z;
-	char	basename[255], term[30], ext[15];
+	int	x;
+	char	basename[255], term[30], ext[20];
 	double	a, b, c, height=0.0, refangle, cangle, maxheight=-100000.0,
 		minheight=100000.0, lambda=0.0, f_zone=0.0, fpt6_zone=0.0,
 		nm=0.0, nb=0.0, ed=0.0, es=0.0, r=0.0, d=0.0, d1=0.0,
@@ -6760,6 +6742,10 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 		nm=(-source.alt-es-nb)/(path->distance[path->length-1]);
 	}
 
+	/* XXX this isn't right. We need to to know the directory to put these files into,
+	 * not just write them to the current work dir, and we should put the whole name
+	 * into the splat.gp file later.
+	 */
 	fd=fopen("profile.gp","wb");
 
 	if (clutter>0.0)
@@ -6933,50 +6919,31 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 	if (name[0]=='.')
 	{
 		/* Default filename and output file type */
-
-		strncpy(basename,"profile\0",8);
-		strncpy(term,"png\0",4);
-		strncpy(ext,"png\0",4);
+		strcpy(basename,"profile");
+		strcpy(ext,"png");
 	}
-
 	else
 	{
 		/* Extract extension and terminal type from "name" */
-
-		ext[0]=0;
-		y= (int)strlen(name);
-		strncpy(basename,name,254);
-
-		for (x=y-1; x>0 && name[x]!='.'; x--);
-
-		if (x>0)  /* Extension found */
+		strncpy(basename, name, 255);
+		basename[255] = '\0';
+		stripExtension(basename, ext, 20);
+		convertBackslashes(basename);
+		if (strlen(ext) == 0)
 		{
-			for (z=x+1; z<=y && (z-(x+1))<10; z++)
-			{
-				ext[z-(x+1)]=tolower(name[z]);
-				term[z-(x+1)]=name[z];
-			}
-
-			ext[z-(x+1)]=0;  /* Ensure an ending 0 */
-			term[z-(x+1)]=0;
-			basename[x]=0;
-		}
-
-		if (ext[0]==0)	/* No extension -- Default is png */
-		{
-			strncpy(term,"png\0",4);
-			strncpy(ext,"png\0",4);
+			strcpy(ext,"png");
 		}
 	}
+	strcpy(term,ext);
 
 	/* Either .ps or .postscript may be used
 	   as an extension for postscript output. */
 
 	if (strncmp(term,"postscript",10)==0)
-		strncpy(ext,"ps\0",3);
+		strcpy(ext,"ps");
 
 	else if (strncmp(ext,"ps",2)==0)
-			strncpy(term,"postscript enhanced color\0",26);
+			strcpy(term,"postscript enhanced color");
 
 	fd=fopen("splat.gp","w");
 
@@ -7303,8 +7270,8 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 	   terminal setting and output file type.  If no extension is
 	   found, .png is assumed. */
 
-	int	x, y, z, errnum;
-	char	basename[255], term[30], ext[15], strmode[100],
+	int	x, y, errnum;
+	char	basename[255], term[30], ext[20], strmode[100],
 		report_name[80], block=0, propbuf[20];
 	double	maxloss=-100000.0, minloss=100000.0, loss, haavt,
 		angle1, angle2, azimuth, pattern=1.0, patterndB=0.0,
@@ -7886,50 +7853,31 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		if (name[0]=='.')
 		{
 			/* Default filename and output file type */
-
-			strncpy(basename,"profile\0",8);
-			strncpy(term,"png\0",4);
-			strncpy(ext,"png\0",4);
+			strcpy(basename,"profile");
+			strcpy(ext,"png");
 		}
-
 		else
 		{
 			/* Extract extension and terminal type from "name" */
-
-			ext[0]=0;
-			y= (int)strlen(name);
-			strncpy(basename,name,254);
-
-			for (x=y-1; x>0 && name[x]!='.'; x--);
-
-			if (x>0)  /* Extension found */
+			strncpy(basename, name, 255);
+			basename[255] = '\0';
+			stripExtension(basename, ext, 20);
+			convertBackslashes(basename);
+			if (strlen(ext) == 0)
 			{
-				for (z=x+1; z<=y && (z-(x+1))<10; z++)
-				{
-					ext[z-(x+1)]=tolower(name[z]);
-					term[z-(x+1)]=name[z];
-				}
-
-				ext[z-(x+1)]=0;  /* Ensure an ending 0 */
-				term[z-(x+1)]=0;
-				basename[x]=0;
+				strcpy(ext,"png");
 			}
 		}
-
-		if (ext[0]==0)	/* No extension -- Default is png */
-		{
-			strncpy(term,"png\0",4);
-			strncpy(ext,"png\0",4);
-		}
+		strcpy(term,ext);
 
 		/* Either .ps or .postscript may be used
 		   as an extension for postscript output. */
 
 		if (strncmp(term,"postscript",10)==0)
-			strncpy(ext,"ps\0",3);
+			strcpy(ext,"ps0");
 
 		else if (strncmp(ext,"ps",2)==0)
-				strncpy(term,"postscript enhanced color\0",26);
+				strcpy(term,"postscript enhanced color0");
 
 		fd=fopen("splat.gp","w");
 
