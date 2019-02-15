@@ -44,7 +44,7 @@ class TestObject1(unittest.TestCase):
 
     def test_01_runsplat(self):
         """Run SPLAT to generate the files"""
-        cmd="-d %s -t tx -r rx -e %s -h %s -H %s" % (self.srtms, self.elev, self.height, self.normheight)
+        cmd="-d %s -t tx -r rx -e %s -h %s -H %s -gpsav" % (self.srtms, self.elev, self.height, self.normheight)
         splatargs=cmd.split()
         splatargs.insert(0, self.splat)
         print(*splatargs)
@@ -66,13 +66,13 @@ class TestObject1(unittest.TestCase):
 
     def test_04_compare_elevation_plots(self):
         """Compare the elevation plots"""
-        self.assertGreater(utils.pyssim(self.elev, self.elev142), 0.995, "Images don't match closely enough!")
+        self.assertGreater(utils.pyssim(self.elev, self.elev142), 0.94, "Images don't match closely enough!")
 
     def test_05_compare_height_plots(self):
         """Compare the height plots"""
-        self.assertGreater(utils.pyssim(self.height, self.height142), 0.995, "Images don't match closely enough!")
+        self.assertGreater(utils.pyssim(self.height, self.height142), 0.94, "Images don't match closely enough!")
 
     def test_06_compare_normalized_height_plots(self):
         """Compare the normalized height plots"""
-        self.assertGreater(utils.pyssim(self.normheight, self.normheight142), 0.995, "Images don't match closely enough!")
+        self.assertGreater(utils.pyssim(self.normheight, self.normheight142), 0.94, "Images don't match closely enough!")
 
