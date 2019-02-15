@@ -548,7 +548,7 @@ void stripExtension(char *path, char* ext, size_t extlen)
  * them into double backslashes or converting them to forward slashes.
  * Here we do an in-place conversion to forward slashes so that we don't
  * have to reallocate any memory. */
-int convertBackslashes(char *path)
+void convertBackslashes(char *path)
 {
 	size_t i;
 	for (i=strlen(path)-1; i; --i) {
@@ -6412,7 +6412,7 @@ void GraphTerrain(Site source, Site destination, char *name)
 	{
 		/* Extract extension and terminal type from "name" */
 		strncpy(basename, name, 255);
-		basename[255] = '\0';
+		basename[254] = '\0';
 		stripExtension(basename, ext, 20);
 		convertBackslashes(basename);
 		if (strlen(ext) == 0)
@@ -6610,7 +6610,7 @@ void GraphElevation(Site source, Site destination, char *name)
 	{
 		/* Extract extension and terminal type from "name" */
 		strncpy(basename, name, 255);
-		basename[255] = '\0';
+		basename[254] = '\0';
 		stripExtension(basename, ext, 20);
 		convertBackslashes(basename);
 		if (strlen(ext) == 0)
@@ -6926,7 +6926,7 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 	{
 		/* Extract extension and terminal type from "name" */
 		strncpy(basename, name, 255);
-		basename[255] = '\0';
+		basename[254] = '\0';
 		stripExtension(basename, ext, 20);
 		convertBackslashes(basename);
 		if (strlen(ext) == 0)
@@ -7860,7 +7860,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		{
 			/* Extract extension and terminal type from "name" */
 			strncpy(basename, name, 255);
-			basename[255] = '\0';
+			basename[254] = '\0';
 			stripExtension(basename, ext, 20);
 			convertBackslashes(basename);
 			if (strlen(ext) == 0)
