@@ -44,7 +44,7 @@ class TestObject1(unittest.TestCase):
 
     def test_01_runsplat(self):
         """Run SPLAT to generate the files"""
-        cmd="-d %s -t tx -r rx -e %s -h %s -H %s -gpsav" % (self.srtms, self.elev, self.height, self.normheight)
+        cmd="-d %s -t tx -r rx -e %s -h %s -H %s" % (self.srtms, self.elev, self.height, self.normheight)
         splatargs=cmd.split()
         splatargs.insert(0, self.splat)
         print(*splatargs)
