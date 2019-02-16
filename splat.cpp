@@ -9295,7 +9295,44 @@ int main(int argc, char *argv[])
 
 	if (pt2pt_mode)
 	{
+		char longley_ext[20], terrain_ext[20], elevation_ext[20], height_ext[20], norm_height_ext[20];
+
 		PlaceMarker(rx_site);
+
+		if (longley_plot) {
+			stripExtension(longley_file, longley_ext, 20);
+			if (strlen(longley_ext) == 0) {
+				strcpy(longley_ext, "png");
+			}
+		}
+
+		if (terrain_plot) {
+			stripExtension(terrain_file, terrain_ext, 20);
+			if (strlen(terrain_ext) == 0) {
+				strcpy(terrain_ext, "png");
+			}
+		}
+
+		if (elevation_plot) {
+			stripExtension(elevation_file, elevation_ext, 20);
+			if (strlen(elevation_ext) == 0) {
+				strcpy(elevation_ext, "png");
+			}
+		}
+
+		if (height_plot) {
+			stripExtension(height_file, height_ext, 20);
+			if (strlen(height_ext) == 0) {
+				strcpy(height_ext, "png");
+			}
+		}
+
+		if (norm_height_plot) {
+			stripExtension(norm_height_file, norm_height_ext, 20);
+			if (strlen(norm_height_ext) == 0) {
+				strcpy(norm_height_ext, "png");
+			}
+		}
 
 		for (x=0; x<txsites && x<4; x++)
 		{
@@ -9328,88 +9365,53 @@ int main(int argc, char *argv[])
 			if (kml)
 				WriteKML(tx_site[x],rx_site);
 
-
-			if (nositereports==0 && longley_plot==1)
+			if (longley_plot && nositereports==0)
 			{
-				char ext[20];
-				stripExtension(longley_file, ext, 20);
-				if (strlen(ext) == 0) {
-					strcpy(ext, "png");
-				}
 				if (txsites>1)
-					snprintf(buf,250,"%s-%c.%s%c", longley_file, '1'+x, ext, 0);
+					snprintf(buf,250,"%s-%c.%s", longley_file, '1'+x, longley_ext);
 				else
-					snprintf(buf,250,"%s.%s%c", longley_file, ext, 0);
+					snprintf(buf,250,"%s.%s", longley_file, longley_ext);
 
-				if (longley_file[0]==0)
-				{
-					ReadLRParm(tx_site[x],0);
-					PathReport(tx_site[x],rx_site,buf,0);
-				}
-
-				else
-				{
-					ReadLRParm(tx_site[x],1);
-					PathReport(tx_site[x],rx_site,buf,longley_file[0]);
-				}
+				ReadLRParm(tx_site[x], (longley_file[0]!=0));
+				PathReport(tx_site[x],rx_site,buf, (longley_file[0]!=0));
 			}
 
 			if (terrain_plot)
 			{
-				char ext[20];
-				stripExtension(terrain_file, ext, 20);
-				if (strlen(ext) == 0) {
-					strcpy(ext, "png");
-				}
 				if (txsites>1)
-					snprintf(buf,250,"%s-%c.%s%c",terrain_file,'1'+x, ext,0);
+					snprintf(buf,250,"%s-%c.%s",terrain_file,'1'+x, terrain_ext);
 				else
-					snprintf(buf,250,"%s.%s%c",terrain_file,ext,0);
+					snprintf(buf,250,"%s.%s",terrain_file,terrain_ext);
 
 				GraphTerrain(tx_site[x],rx_site,buf);
 			}
 
 			if (elevation_plot)
 			{
-				char ext[20];
-				stripExtension(elevation_file, ext, 20);
-				if (strlen(ext) == 0) {
-					strcpy(ext, "png");
-				}
 				if (txsites>1)
-					snprintf(buf,250,"%s-%c.%s%c",elevation_file,'1'+x,ext,0);
+					snprintf(buf,250,"%s-%c.%s",elevation_file,'1'+x,elevation_ext);
 				else
-					snprintf(buf,250,"%s.%s%c",elevation_file,ext,0);
+					snprintf(buf,250,"%s.%s",elevation_file,elevation_ext);
 
 				GraphElevation(tx_site[x],rx_site,buf);
 			}
 
 			if (height_plot)
 			{
-				char ext[20];
-				stripExtension(height_file, ext, 20);
-				if (strlen(ext) == 0) {
-					strcpy(ext, "png");
-				}
 				if (txsites>1)
-					snprintf(buf,250,"%s-%c.%s%c",height_file,'1'+x,ext,0);
+					snprintf(buf,250,"%s-%c.%s",height_file,'1'+x,height_ext);
 				else
-					snprintf(buf,250,"%s.%s%c",height_file,ext,0);
+					snprintf(buf,250,"%s.%s",height_file,height_ext);
 
 				GraphHeight(tx_site[x],rx_site,buf,fresnel_plot,0);
 			}
 
 			if (norm_height_plot)
 			{
-				char ext[20];
-				stripExtension(norm_height_file, ext, 20);
-				if (strlen(ext) == 0) {
-					strcpy(ext, "png");
-				}
 				if (txsites>1)
-					snprintf(buf,250,"%s-%c.%s%c",norm_height_file,'1'+x,ext,0);
+					snprintf(buf,250,"%s-%c.%s",norm_height_file,'1'+x,norm_height_ext);
 				else
-					snprintf(buf,250,"%s.%s%c",norm_height_file,ext,0);
+					snprintf(buf,250,"%s.%s",norm_height_file,norm_height_ext);
 
 				GraphHeight(tx_site[x],rx_site,buf,fresnel_plot,1);
 			}
