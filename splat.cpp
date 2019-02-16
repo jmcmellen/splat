@@ -7261,11 +7261,12 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 
 void PathReport(Site source, Site destination, char *name, char graph_it)
 {
-	/* This function writes a SPLAT! Path Report (name.txt) to
-	   the filesystem.  If (graph_it == 1), then gnuplot is invoked
+	/* This function writes a SPLAT! Path Report (source.name-to-dest.name.txt)
+	   to the filesystem.  If (graph_it == 1), then gnuplot is invoked
 	   to generate an appropriate output file indicating the ITM
 	   model loss between the source and destination locations.
-		   "filename" is the name assigned to the output file generated
+	   You don't get a choice in the name of the text report, but
+	   "name" is the name assigned to the output file generated
 	   by gnuplot.  The filename extension is used to set gnuplot's
 	   terminal setting and output file type.  If no extension is
 	   found, .png is assumed. */
@@ -9365,15 +9366,15 @@ int main(int argc, char *argv[])
 			if (kml)
 				WriteKML(tx_site[x],rx_site);
 
-			if (longley_plot && nositereports==0)
+			if (nositereports==0)
 			{
 				if (txsites>1)
 					snprintf(buf,250,"%s-%c.%s", longley_file, '1'+x, longley_ext);
 				else
 					snprintf(buf,250,"%s.%s", longley_file, longley_ext);
 
-				ReadLRParm(tx_site[x], (longley_file[0]!=0));
-				PathReport(tx_site[x],rx_site,buf, (longley_file[0]!=0));
+				ReadLRParm(tx_site[x],longley_plot);
+				PathReport(tx_site[x],rx_site,buf,longley_plot);
 			}
 
 			if (terrain_plot)
