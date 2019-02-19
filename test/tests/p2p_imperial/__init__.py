@@ -44,7 +44,7 @@ class TestObject1(unittest.TestCase):
 
     def test_01_runsplat(self):
         """Run SPLAT to generate the files"""
-        cmd="-d %s -t tx -r rx -e %s -h %s -H %s -gpsav" % (self.srtms, self.elev, self.height, self.normheight)
+        cmd="-d %s -t tx -r rx -e %s -h %s -H %s" % (self.srtms, self.elev, self.height, self.normheight)
         splatargs=cmd.split()
         splatargs.insert(0, self.splat)
         print(*splatargs)
@@ -54,14 +54,14 @@ class TestObject1(unittest.TestCase):
 
     def test_01_compare_reports(self):
         """Compare the tx site report"""
-        utils.striplinefromfile(self.report, "Site Analysis ")
-        utils.striplinefromfile(self.report142, "Site Analysis ")
+        utils.striplinefromfile(self.report, "SPLAT!")
+        utils.striplinefromfile(self.report142, "SPLAT!")
         self.assertTrue(filecmp.cmp(self.report, self.report142), "site_reports don't match")
 
     def test_02_compare_txrx(self):
         """Compare the tx-to-rx"""
-        utils.striplinefromfile(self.txrx, "Path Analysis ")
-        utils.striplinefromfile(self.txrx142, "Path Analysis ")
+        utils.striplinefromfile(self.txrx, "SPLAT!")
+        utils.striplinefromfile(self.txrx142, "SPLAT!")
         self.assertTrue(filecmp.cmp(self.txrx, self.txrx142), "tx-to-rx reports don't match")
 
     def test_04_compare_elevation_plots(self):

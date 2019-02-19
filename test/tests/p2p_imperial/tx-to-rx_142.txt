@@ -26,7 +26,29 @@ Elevation angle to the first obstruction: +0.8773 degrees
 
 ---------------------------------------------------------------------------
 
-Between rx and tx, SPLAT! MT detected obstructions at:
+Longley-Rice Parameters Used In This Analysis:
+
+Earth's Dielectric Constant: 15.000
+Earth's Conductivity: 0.005 Siemens/meter
+Atmospheric Bending Constant (N-units): 325.000 ppm
+Frequency: 1275.000 MHz
+Radio Climate: 6 (Martitime Temperate, Over Land)
+Polarization: 1 (Vertical)
+Fraction of Situations: 50.0%
+Fraction of Time: 90.0%
+
+---------------------------------------------------------------------------
+
+Summary For The Link Between tx and rx:
+
+Free space path loss: 122.48 dB
+Longley-Rice path loss: 186.96 dB
+Attenuation due to terrain shielding: 64.48 dB
+Mode of propagation: Double Horizon, Diffraction Dominant
+Longley-Rice model error number: 0 (No error)
+
+---------------------------------------------------------------------------
+
 
     40.7174 N, 111.3624 W,  3.30 miles, 6748.69 feet AMSL
     40.7175 N, 111.3632 W,  3.34 miles, 6843.83 feet AMSL
@@ -44,4 +66,9 @@ Between rx and tx, SPLAT! MT detected obstructions at:
     40.7178 N, 111.3732 W,  3.87 miles, 7398.29 feet AMSL
 
 Antenna at rx must be raised to at least 887.81 feet AGL
-to clear all obstructions detected by SPLAT! MT.
+
+Antenna at rx must be raised to at least 3385.81 feet AGL
+to clear the first Fresnel zone.
+
+Antenna at rx must be raised to at least 2300.81 feet AGL
+to clear 60% of the first Fresnel zone.
