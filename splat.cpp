@@ -83,7 +83,8 @@
 #define	KM_PER_MILE 1.609344
 #define FOUR_THIRDS 1.3333333333333
 
-#define MAXPATHLEN 255
+#define MAX_PATH_LEN 255
+#define MAX_LINE_LEN 128
 
 #ifndef min
 #define min(i, j) ( i < j ? i : j)
@@ -102,8 +103,8 @@ typedef struct Site {
 	double lon;
 	double alt;
 	unsigned char amsl_flag;
-	char name[50];
-	char filename[MAXPATHLEN];
+	char name[MAX_LINE_LEN];
+	char filename[MAX_PATH_LEN];
 } Site;
 
 // data about a path between two points
@@ -191,7 +192,7 @@ const int appArraySize[2][MAXPAGESIDES] = {
 	{ 5092, 14844, 32600, 57713, 90072, 129650, 176437, 230430 } /* HD mode */
 };
 
-char sdf_path[MAXPATHLEN], home_sdf_path[MAXPATHLEN], dashes[80];
+char sdf_path[MAX_PATH_LEN], home_sdf_path[MAX_PATH_LEN], dashes[80];
 
 double	earthradius, max_range=0.0, forced_erp=-1.0, dpp, ppd,
 	fzone_clearance=0.6, forced_freq, clutter;
@@ -1812,20 +1813,22 @@ Site LoadQTH(char *filename)
 	   above ground (AGL), and the amsl_flag is set accordingly. */
 
 	int	x;
-	char	buf[50], qthfile[MAXPATHLEN];
+	char	buf[MAX_LINE_LEN], qthfile[MAX_PATH_LEN];
 	Site    tempsite;
 	FILE	*fd=NULL;
 
+	/* XXX FIX ME */
 	x= (int)strlen(filename);
-	strncpy(qthfile, filename, MAXPATHLEN-1);
+	strncpy(qthfile, filename, MAX_PATH_LEN-1);
 
 	if (qthfile[x-3]!='q' || qthfile[x-2]!='t' || qthfile[x-1]!='h')
 	{
-		if (x>249)
-			qthfile[249]=0;
+		if (x>MAX_PATH_LEN-4)
+			qthfile[MAX_PATH_LEN-4]=0;
 
-		strncat(qthfile,".qth\0",5);
+		strcat(qthfile,".qth");
 	}
+
 
 	tempsite.lat=91.0;
 	tempsite.lon=361.0;
@@ -1838,7 +1841,7 @@ Site LoadQTH(char *filename)
 	if (fd!=NULL)
 	{
 		/* Site Name */
-		fgets(buf,49,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 
 		/* Strip <CR> and/or <LF> from end of site name */
 
@@ -1847,18 +1850,18 @@ Site LoadQTH(char *filename)
 		tempsite.name[x]=0;
 
 		/* Site Latitude */
-		fgets(buf,49,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 		tempsite.lat=ReadBearing(buf);
 
 		/* Site Longitude */
-		fgets(buf,49,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 		tempsite.lon=ReadBearing(buf);
 
 		if (tempsite.lon<0.0)
 			tempsite.lon+=360.0;
 
 		/* Antenna Height */
-		fgets(buf,49,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 		fclose(fd);
 
 		/* Remove <CR> and/or <LF> from antenna height
@@ -1880,7 +1883,7 @@ Site LoadQTH(char *filename)
 		else
 			tempsite.amsl_flag=0;
 
-		for (x=0; x<254 && qthfile[x]!=0; x++)
+		for (x=0; x<(MAX_PATH_LEN-1) && qthfile[x]!=0; x++)
 			tempsite.filename[x]=qthfile[x];
 
 		tempsite.filename[x]=0;
@@ -1896,7 +1899,7 @@ void LoadPAT(char *filename)
 	   loaded SPLAT! .lrp files.  */
 
 	int	a, b, w, x, y, z, last_index, next_index, span;
-	char buf[255], *pointer=NULL;
+	char buf[MAX_LINE_LEN], *pointer=NULL;
 	char *azfile, *elfile;
 	float	az, xx, amplitude, rotation, valid1, valid2,
 		delta, azimuth[361], azimuth_pattern[361],
@@ -1941,7 +1944,7 @@ void LoadPAT(char *filename)
 		   in degrees measured clockwise
 		   from true North. */
 
-		fgets(buf,254,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
@@ -1963,7 +1966,7 @@ void LoadPAT(char *filename)
               radials entered (which is necessary for the averaging).
         */
 
-		fgets(buf,254,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
@@ -1981,7 +1984,7 @@ void LoadPAT(char *filename)
 				read_count[x]++;
 			}
 
-			fgets(buf,254,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 			pointer=strchr(buf,';');
 
 			if (pointer!=NULL)
@@ -2099,7 +2102,7 @@ void LoadPAT(char *filename)
 		   tilt azimuth in degrees measured
 		   clockwise from true North. */  
 
-		fgets(buf,254,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
@@ -2120,7 +2123,7 @@ void LoadPAT(char *filename)
               radials entered (which is necessary for the averaging).
         */
 
-		fgets(buf,254,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
@@ -2373,7 +2376,7 @@ int LoadSDF(int minlat, int maxlat, int minlon, int maxlon, bool hidef)
 
 	int	x, y, data;
 	char line[64];
-	char sdf_file[MAXPATHLEN*2];
+	char sdf_file[MAX_PATH_LEN*2];
 	SDFCompressType compressType = SDF_COMPRESSTYPE_NONE;
 	DEM *dem;
 	FILE *fp = NULL;
@@ -2415,14 +2418,14 @@ int LoadSDF(int minlat, int maxlat, int minlon, int maxlon, bool hidef)
 	/* check -d directory */
 	if (sdf_path[0]!=0) {
 		for (int i=0; i<known_formats; ++i) {
-			snprintf(sdf_file, MAXPATHLEN*2, "%s%d_%d_%d_%d%s.%s", sdf_path,
+			snprintf(sdf_file, MAX_PATH_LEN*2, "%s%d_%d_%d_%d%s.%s", sdf_path,
 				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
 			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
 				compressType=formats[i].type;
 				break;
 			}
 #ifndef _WIN32
-			snprintf(sdf_file, MAXPATHLEN*2, "%s%d:%d:%d:%d%s.%s", sdf_path,
+			snprintf(sdf_file, MAX_PATH_LEN*2, "%s%d:%d:%d:%d%s.%s", sdf_path,
 				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
 			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
 				compressType=formats[i].type;
@@ -2435,14 +2438,14 @@ int LoadSDF(int minlat, int maxlat, int minlon, int maxlon, bool hidef)
 	/* check local directory */
 	if (!fp) {
 		for (int i=0; i<known_formats; ++i) {
-			snprintf(sdf_file, MAXPATHLEN*2, "%d_%d_%d_%d%s.%s",
+			snprintf(sdf_file, MAX_PATH_LEN*2, "%d_%d_%d_%d%s.%s",
 				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
 			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
 				compressType=formats[i].type;
 				break;
 			}
 #ifndef _WIN32
-			snprintf(sdf_file, MAXPATHLEN*2, "%d:%d:%d:%d%s.%s",
+			snprintf(sdf_file, MAX_PATH_LEN*2, "%d:%d:%d:%d%s.%s",
 				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
 			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
 				compressType=formats[i].type;
@@ -2455,14 +2458,14 @@ int LoadSDF(int minlat, int maxlat, int minlon, int maxlon, bool hidef)
 	/* check $HOME/.splat_path directory */
 	if (!fp && home_sdf_path[0]!=0) {
 		for (int i=0; i<known_formats; ++i) {
-			snprintf(sdf_file, MAXPATHLEN*2, "%s%d_%d_%d_%d%s.%s", home_sdf_path,
+			snprintf(sdf_file, MAX_PATH_LEN*2, "%s%d_%d_%d_%d%s.%s", home_sdf_path,
 				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
 			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
 				compressType=formats[i].type;
 				break;
 			}
 #ifndef _WIN32
-			snprintf(sdf_file, MAXPATHLEN*2, "%s%d:%d:%d:%d%s.%s", home_sdf_path,
+			snprintf(sdf_file, MAX_PATH_LEN*2, "%s%d:%d:%d:%d%s.%s", home_sdf_path,
 				minlat, maxlat, minlon, maxlon, (hidef?"-hd":""), formats[i].suffix);
 			if ((fp=fopen(sdf_file,"rb"))!= NULL) {
 				compressType=formats[i].type;
@@ -2602,7 +2605,7 @@ void LoadCities(char *filename)
 	   read on topographic maps generated by SPLAT! */
 
 	int	x, y, z;
-	char	input[80], str[3][80];
+	char	input[MAX_LINE_LEN], str[3][MAX_LINE_LEN];
 	Site	city_site;
 	FILE	*fd=NULL;
 
@@ -2610,7 +2613,7 @@ void LoadCities(char *filename)
 
 	if (fd!=NULL)
 	{
-		fgets(input,78,fd);
+		fgets(input,MAX_LINE_LEN,fd);
 
 		fprintf(stdout,"\nReading \"%s\"... ",filename);
 		fflush(stdout);
@@ -2619,23 +2622,23 @@ void LoadCities(char *filename)
 		{
 			/* Parse line for name, latitude, and longitude */
 
-			for (x=0, y=0, z=0; x<78 && input[x]!=0 && z<3; x++)
+			for (x=0, y=0, z=0; x<MAX_LINE_LEN && input[x]!=0 && z<3; x++)
 			{
-				if (input[x]!=',' && y<78)
+				if (input[x]!=',' && y<MAX_LINE_LEN)
 				{
 					str[z][y]=input[x];
 					y++;
 				}
-
 				else
 				{
-					str[z][y]=0;
+					str[z][y]='\0';
 					z++;
 					y=0;
 				}
 			}
 
-			strncpy(city_site.name,str[0],49);
+			strncpy(city_site.name,str[0],MAX_LINE_LEN-1);
+			city_site.name[MAX_LINE_LEN-1] = '\0';
 			city_site.lat=ReadBearing(str[1]);
 			city_site.lon=ReadBearing(str[2]);
 			city_site.alt=0.0;
@@ -2645,7 +2648,7 @@ void LoadCities(char *filename)
 
 			PlaceMarker(city_site);
 
-			fgets(input,78,fd);
+			fgets(input,MAX_LINE_LEN,fd);
 		}
 
 		fclose(fd);
@@ -2669,7 +2672,7 @@ void LoadUDT(char *filename)
 	   elevation data already loaded into memory. */
 
 	int	i, x, y, z, ypix, xpix, tempxpix, tempypix, fd=0;
-	char	input[80], str[3][80], tempname[15], *pointer=NULL;
+	char	input[MAX_LINE_LEN], str[3][MAX_LINE_LEN], tempname[15], *pointer=NULL;
 	double	latitude, longitude, height, tempheight;
 	FILE	*fd1=NULL, *fd2=NULL;
 
@@ -2682,7 +2685,7 @@ void LoadUDT(char *filename)
 		fd=mkstemp(tempname);
 		fd2=fopen(tempname,"w");
 
-		fgets(input,78,fd1);
+		fgets(input,MAX_LINE_LEN,fd1);
 
 		pointer=strchr(input,';');
 
@@ -2696,9 +2699,9 @@ void LoadUDT(char *filename)
 		{
 			/* Parse line for latitude, longitude, height */
 
-			for (x=0, y=0, z=0; x<78 && input[x]!=0 && z<3; x++)
+			for (x=0, y=0, z=0; x<MAX_LINE_LEN && input[x]!=0 && z<3; x++)
 			{
-				if (input[x]!=',' && y<78)
+				if (input[x]!=',' && y<MAX_LINE_LEN)
 				{
 					str[z][y]=input[x];
 					y++;
@@ -2706,7 +2709,7 @@ void LoadUDT(char *filename)
 
 				else
 				{
-					str[z][y]=0;
+					str[z][y]='\0';
 					z++;
 					y=0;
 				}
@@ -2731,7 +2734,7 @@ void LoadUDT(char *filename)
 			   in meters.  Otherwise the height is interpreted
 			   as being expressed in feet.  */
 
-			for (i=0; str[2][i]!='M' && str[2][i]!='m' && str[2][i]!=0 && i<48; i++);
+			for (i=0; str[2][i]!='M' && str[2][i]!='m' && str[2][i]!=0 && i<MAX_LINE_LEN; i++);
 
 			if (str[2][i]=='M' || str[2][i]=='m')
 			{
@@ -2748,7 +2751,7 @@ void LoadUDT(char *filename)
 			if (height>0.0)
 				fprintf(fd2,"%d, %d, %f\n",(int)rint(latitude/dpp), (int)rint(longitude/dpp), height);
 
-			fgets(input,78,fd1);
+			fgets(input,MAX_LINE_LEN,fd1);
 
 			pointer=strchr(input,';');
 
@@ -2827,7 +2830,7 @@ void LoadBoundaries(char *filename)
 
 	int	x;
 	double	lat0, lon0, lat1, lon1;
-	char	buf[80];
+	char	buf[MAX_LINE_LEN];
 	Site    source, destination;
 	FILE	*fd=NULL;
 
@@ -2835,17 +2838,17 @@ void LoadBoundaries(char *filename)
 
 	if (fd!=NULL)
 	{
-		fgets(buf,78,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 
 		fprintf(stdout,"\nReading \"%s\"... ",filename);
 		fflush(stdout);
 
 		do
 		{
-			fgets(buf,78,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 			sscanf(buf,"%lf %lf", &lon0, &lat0);
-			fgets(buf,78,fd);
 
+			fgets(buf,MAX_LINE_LEN,fd);
 			do
 			{
 				sscanf(buf,"%lf %lf", &lon1, &lat1);
@@ -2874,7 +2877,7 @@ void LoadBoundaries(char *filename)
 
 			} while (strncmp(buf,"END",3)!=0 && feof(fd)==0);
 
-			fgets(buf,78,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 
 		} while (strncmp(buf,"END",3)!=0 && feof(fd)==0);
 
@@ -2899,7 +2902,7 @@ char ReadLRParm(Site txsite, char forced_read)
 	   into this function to be used and written to "splat.lrp". */
 
 	double	din;
-	char buf[80], *pointer=NULL, return_value=0;
+	char buf[MAX_LINE_LEN], *pointer=NULL, return_value=0;
 	char *filename;
 	int	iin, ok=0;
 	FILE	*fd=NULL, *outfile=NULL;
@@ -2941,7 +2944,7 @@ char ReadLRParm(Site txsite, char forced_read)
 
 	if (fd!=NULL)
 	{
-		fgets(buf,80,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 
 		pointer=strchr(buf,';');
 
@@ -2954,7 +2957,7 @@ char ReadLRParm(Site txsite, char forced_read)
 		{
 			LR.eps_dielect=din;
 
-			fgets(buf,80,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 
 			pointer=strchr(buf,';');
 
@@ -2968,7 +2971,7 @@ char ReadLRParm(Site txsite, char forced_read)
 		{
 			LR.sgm_conductivity=din;
 
-			fgets(buf,80,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 
 			pointer=strchr(buf,';');
 
@@ -2982,7 +2985,7 @@ char ReadLRParm(Site txsite, char forced_read)
 		{
 			LR.eno_ns_surfref=din;
 
-			fgets(buf,80,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 
 			pointer=strchr(buf,';');
 
@@ -2996,7 +2999,7 @@ char ReadLRParm(Site txsite, char forced_read)
 		{
 			LR.frq_mhz=din;
 
-			fgets(buf,80,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 
 			pointer=strchr(buf,';');
 
@@ -3010,7 +3013,7 @@ char ReadLRParm(Site txsite, char forced_read)
 		{
 			LR.radio_climate=iin;
 
-			fgets(buf,80,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 
 			pointer=strchr(buf,';');
 
@@ -3024,7 +3027,7 @@ char ReadLRParm(Site txsite, char forced_read)
 		{
 			LR.pol=iin;
 
-			fgets(buf,80,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 
 			pointer=strchr(buf,';');
 
@@ -3038,7 +3041,7 @@ char ReadLRParm(Site txsite, char forced_read)
 		{
 			LR.conf=din;
 
-			fgets(buf,80,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 
 			pointer=strchr(buf,';');
 
@@ -3054,7 +3057,7 @@ char ReadLRParm(Site txsite, char forced_read)
 			din=0.0;
 			return_value=1;
 
-			if (fgets(buf,80,fd)!=NULL)
+			if (fgets(buf,MAX_LINE_LEN,fd)!=NULL)
 			{
 				pointer=strchr(buf,';');
 
@@ -3225,7 +3228,6 @@ int PlotPath(Site source, Site destination, char mask_value)
 	return 0;
 }
 
-#define MAX_TEXT_LEN 128
 int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd)
 {
 	/* This function plots the RF path loss between source and
@@ -3241,7 +3243,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 		field_strength=0.0;
 
 	Site temp;
-	char textout[MAX_TEXT_LEN];
+	char textout[MAX_LINE_LEN];
 	size_t textlen = 0;
 
 	Path *path = AllocatePath();
@@ -3386,7 +3388,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 			azimuth=(Azimuth(source,temp));
 
 			if (fd!=NULL) {
-				textlen = snprintf(textout, MAX_TEXT_LEN, "%.7f, %.7f, %.3f, %.3f, ",
+				textlen = snprintf(textout, MAX_LINE_LEN, "%.7f, %.7f, %.3f, %.3f, ",
 							path->lat[y], path->lon[y], azimuth, elevation);
 			}
 
@@ -3395,7 +3397,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 			   or received power level (below), as appropriate. */
 
 			if (fd!=NULL && LR.erp==0.0) {
-				textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.2f",loss);
+				textlen += snprintf(textout + textlen, MAX_LINE_LEN - textlen, "%.2f",loss);
 			}
 
 			/* Integrate the antenna's radiation
@@ -3428,7 +3430,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 					dBm=10.0*(log10(rxp*1000.0));
 
 					if (fd!=NULL) {
-						textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.3f",dBm);
+						textlen += snprintf(textout + textlen, MAX_LINE_LEN - textlen, "%.3f",dBm);
 					}
 
 					/* Scale roughly between 0 and 255 */
@@ -3470,7 +3472,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 					PutSignal(path->lat[y],path->lon[y],(unsigned char)ifs);
 	
 					if (fd!=NULL) {
-						textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%.3f",field_strength);
+						textlen += snprintf(textout + textlen, MAX_LINE_LEN - textlen, "%.3f",field_strength);
 					}
 				}
 			}
@@ -3491,7 +3493,7 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 			}
 
 			if (fd!=NULL) {
-				textlen += snprintf(textout + textlen, MAX_TEXT_LEN - textlen, "%s",
+				textlen += snprintf(textout + textlen, MAX_LINE_LEN - textlen, "%s",
 					block ? " *\n" : "\n");
 			}
 
@@ -8844,7 +8846,7 @@ int main(int argc, char *argv[])
 			z=x+1;
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
-				strncpy(sdf_path,argv[z],MAXPATHLEN-2);
+				strncpy(sdf_path,argv[z],MAX_PATH_LEN-2);
 
 			/* Ensure it has a trailing slash */
 			if (sdf_path[strlen(sdf_path)]!='/') {
@@ -9068,17 +9070,17 @@ int main(int argc, char *argv[])
 #ifndef _WIN32
 	/* read the home_sdf_path */
 	env=getenv("HOME");
-	snprintf(buf,MAXPATHLEN-2,"%s/.splat_path",env);
+	snprintf(buf,MAX_PATH_LEN-2,"%s/.splat_path",env);
 	fd=fopen(buf,"r");
 	if (fd!=NULL)
 	{
-		fgets(buf,253,fd);
+		fgets(buf,MAX_PATH_LEN-2,fd);
 
 		/* Remove <CR> and/or <LF> from buf */
-		for (x=0; buf[x]!=13 && buf[x]!=10 && buf[x]!=0 && x<253; x++);
+		for (x=0; buf[x]!=13 && buf[x]!=10 && buf[x]!=0 && x<(MAX_PATH_LEN-2); x++);
 		buf[x]=0;
 
-		strncpy(home_sdf_path,buf,MAXPATHLEN-2);
+		strncpy(home_sdf_path,buf,MAX_PATH_LEN-2);
 		fclose(fd);
 
 		/* Ensure it has a trailing slash */
