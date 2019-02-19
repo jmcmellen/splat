@@ -24,5 +24,33 @@ Elevation angle to tx: +0.6164 degrees
 
 ---------------------------------------------------------------------------
 
+Longley-Rice Parameters Used In This Analysis:
 
-No obstructions to LOS path due to terrain were detected by SPLAT! MT
+Earth's Dielectric Constant: 15.000
+Earth's Conductivity: 0.005 Siemens/meter
+Atmospheric Bending Constant (N-units): 325.000 ppm
+Frequency: 1275.000 MHz
+Radio Climate: 6 (Martitime Temperate, Over Land)
+Polarization: 1 (Vertical)
+Fraction of Situations: 50.0%
+Fraction of Time: 90.0%
+
+---------------------------------------------------------------------------
+
+Summary For The Link Between tx and rx:
+
+Free space path loss: 118.23 dB
+Longley-Rice path loss: 118.21 dB
+Attenuation due to terrain shielding: -0.02 dB
+Mode of propagation: Line-Of-Sight Mode
+Longley-Rice model error number: 0 (No error)
+
+---------------------------------------------------------------------------
+
+
+
+Antenna at rx must be raised to at least 84.81 feet AGL
+to clear the first Fresnel zone.
+
+Antenna at rx must be raised to at least 53.81 feet AGL
+to clear 60% of the first Fresnel zone.
