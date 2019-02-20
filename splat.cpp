@@ -594,8 +594,8 @@ int _splitpath_s(
             free(fullpath);
             return ERANGE;
         }
-		if (dname[0] = '.' && dname[1] == '\0') {
-			dir = '\0';
+		if (dname[0] == '.' && dname[1] == '\0') {
+			dir[0] = '\0';
 		}
 		else {
 			memcpy(dir, dname, strlen(dname) + 1);
