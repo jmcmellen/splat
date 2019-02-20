@@ -582,18 +582,24 @@ int _splitpath_s(
 
     char *fullpath = strdup(path);
 
-    /* Everything up to (but not including) the final slash.
-     * If there is no slash, gets ".". guaranteed to be null-terminated.
-     */
+    /* Peel off everything up to (but not including) the final slash.
+	 * If there is no slash (local file), returns an empty string.
+	 * Guaranteed to be NULL terminated.
+	 */
     if (dir != NULL) {
-        char *tmp = strdup(fullpath); /* dirname munges things */
-        char *dname = dirname(tmp);
+        char *tmp = strdup(fullpath); /* dirname munges its arg so copy*/
+        char *dname = dirname(tmp); /* If there is no slash, gets ".". */
         if (dirNumberOfElements < strlen(dname)+1) {
             free(tmp);
             free(fullpath);
             return ERANGE;
         }
-        memcpy(dir, dname, strlen(dname) + 1);
+		if (dname[0] = '.' && dname[1] == '\0') {
+			dir = '\0';
+		}
+		else {
+			memcpy(dir, dname, strlen(dname) + 1);
+		}
         free(tmp);
     }
 
@@ -670,7 +676,7 @@ char* copyFilename(char *fname, const char *newSuffix) {
 	if (newSuffix && (strlen(newSuffix) > 0)) {
 		size_t len = strlen(pathbuf) + strlen(filebuf) + strlen(newSuffix) + 3;
 		newFname = (char*)malloc(len);
-		if (strcmp(pathbuf, ".")==0) {  /* if it's "./foo", just make it "foo" */
+		if (strlen(pathbuf)==0 || strcmp(pathbuf, ".")==0) {  /* if it's "./foo", just make it "foo" */
 			snprintf(newFname, len, "%s.%s", filebuf, newSuffix);
 		} else {
 			snprintf(newFname, len, "%s%s%s.%s", pathbuf, PATHSEP, filebuf, newSuffix);
@@ -678,7 +684,7 @@ char* copyFilename(char *fname, const char *newSuffix) {
 	} else {
 		size_t len = strlen(pathbuf) + strlen(filebuf) + 2;
 		newFname = (char*)malloc(len);
-		if (strcmp(pathbuf, ".")==0) {  /* if it's "./foo", just make it "foo" */
+		if (strlen(pathbuf) == 0 || strcmp(pathbuf, ".")==0) {  /* if it's "./foo", just make it "foo" */
 			snprintf(newFname, len, "%s", filebuf);
 		} else {
 			snprintf(newFname, len, "%s%s%s", pathbuf, PATHSEP, filebuf);

@@ -104,7 +104,6 @@ public:
 private:
     std::deque<std::function<void()>> m_work;
     std::vector<std::thread> m_workers;
-    int thread_id = { 0 };
     std::mutex m_mutex;
 
     std::condition_variable m_signalWaiting;
@@ -116,7 +115,6 @@ private:
     // Thread main loop
     void doWork() {
         std::unique_lock<std::mutex> ul(m_mutex); // constructed locked
-        //int myId = thread_id++;
 
         while (!m_exit || (m_finish_work && !m_work.empty()) ) {
             if (!m_work.empty()) {

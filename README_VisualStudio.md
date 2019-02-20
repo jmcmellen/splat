@@ -1,7 +1,7 @@
 # SPLAT! for Windows (Command line)
 
-### NOTE: SDF files under Windows *must* be named so that they have 'x's instead of ':'s in them.
-  For instance, a file that was formerly "44:45:120:121.sdf" must now be "44x45x120x121.sdf".
+### NOTE: SDF files under Windows *must* be named so that they have '_'s instead of ':'s in them.
+  For instance, a file that was formerly "44:45:120:121.sdf" must now be "44_45_120_121.sdf".
    
 
 ## Visual Studio version
@@ -84,6 +84,14 @@
           - lpng1636\pnglibconf.h to splat\png.h         (if you don't have this you didn't build pnglibconf properly)
           - lpng1636\projects\vstudio\Release Library\libpng16.lib to splat\libpng.lib
           - lpng1636\projects\vstudio\Release Library\zlib.lib to splat\zlib.lib
+          
+* Auxiliary Programs
+    You need gnuplot to get the terrain and elevation profile plots. It can be installed either by downloading from
+    the gnuplot site:
+        `https://sourceforge.net/projects/gnuplot/`
+        
+    or by using chocolatey (the Windows package manager available from https://chocolatey.org/):
+        `choco install gnuplot`
         
 ## Troubleshooting
     * Splat can't find png_write_row(), png_set_compression_level, etc:
