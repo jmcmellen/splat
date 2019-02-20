@@ -252,13 +252,20 @@ double aknfe(const double v2)
 /*
  * Function Height-Gain for Three-Radii
  *
- * Calculates the height-gain over a smooth spherical earth for use with
- * the three-radii method, as used in adiff().
+ * Calculates the height-gain over a smooth spherical earth for use when
+ * calculating the rounded earth attenuation. This is described in 
+ * Hufford (itm_alg.pdf, p17, formula 6.4) as an approximation to an
+ * Airy function used as part of L.E. Vogler's 1964 formulation of the
+ * solution to the smooth, spherical earth problem (itm_alg.pdf, p7-8)
+ * and TN101, Sec 8. This used in the three-radii smooth earth analysis.
  *
  *  x:
  * pk:
  *
- * See ITWOM-SUB-ROUTINES.pdf, p 143
+ * See ITWOM-SUB-ROUTINES.pdf, pp12-15 for a general description
+ * See ITWOM-SUB-ROUTINES.pdf p143, for a function description
+ * ...which refers to itm_alg.pdf, p15, specifically section 6.4.
+ *
  */
 double fht(const double x, const double pk)
 {
@@ -1035,7 +1042,7 @@ double qerfi(double q)
  *
  * IN:
  * fmhz: frequency at which to do the study, in mhz. Passed in to point_to_point() or area()
- * zsys: average elevation of the study, usually calcuted by averaging the elevation array
+ * zsys: average elevation of the study, usually calculated by averaging the elevation array
  *  en0: atmospheric refractivity at surface level, passed in to point_to_point()
  * ipol: polarity (0 or 1). passed in to point_to_point()
  *  eps: polarization constant. passed in to point_to_point()
@@ -2399,7 +2406,7 @@ double qtile (const int nn, double a[], const int ir)
 
 	m=0;
 	n=nn;
-	k=min(max(0,ir),n);
+	k=min(max(0,ir),n-1);
 
 	while (!done)
 	{
@@ -2661,9 +2668,8 @@ double d1thx2(const double pfl[], const double x1, const double x2)
 	}
 
 	/* Now find the difference between the 90% and 10% heights.
-	 * By far the greatest amount of processing time is spent in these two
-	 * qtile calls, which for "normal" splat (not HD) can have 500-700 elements.
-	 */
+	 * These two qtiles calls take a (relatively) enormous amount of
+	 * processing time. */
 	d1thx2v=qtile(n-1,s+2,ka-1)-qtile(n-1,s+2,kb-1);
 
 	/* apply empirical data matching magic scaling. See ITWOM p124. */
@@ -2852,7 +2858,7 @@ void qlrpfl2(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_t
 				q=temp*temp;
 			}
 			
-			/* re-recalculat the horizon distances, using the earth's curvature as an approximation. */
+			/* re-recalculate the horizon distances, using the earth's curvature as an approximation. */
 			/* Obsolete. */
 			for (j=0; j<2; j++)
 			{
