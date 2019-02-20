@@ -666,11 +666,9 @@ char* copyFilename(char *fname, const char *newSuffix) {
 	if (_splitpath_s(fname, drivebuf, 3, pathbuf, 1024, filebuf, 512, suffixbuf, 64) != 0) {
 		return NULL;
 	}
-	size_t offset = strlen(drivebuf);
+	size_t offset = strlen(drivebuf); /* includes room for colon */
 	if ((offset > 0) && (strlen(pathbuf) > 0)) {
-		offset++; /* make room for the colon */
 		memmove(pathbuf+offset, pathbuf, strlen(pathbuf));
-		pathbuf[offset--] = ':';
 		memcpy(pathbuf, drivebuf, offset);
 	}
 #else
