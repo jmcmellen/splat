@@ -1275,11 +1275,17 @@ void ReadPath(Site &source, Site &destination, Path *path)
 				lon2=lon1+arccos(num,den);
 		}
 	
-		while (lon2<0.0)
-			lon2+=TWOPI;
+		if (lon2<0.0)
+		{
+			while (lon2<0.0)
+				lon2+=TWOPI;
+		}
 
-		while (lon2>TWOPI)
-			lon2-=TWOPI;
+		if (lon2>TWOPI)
+		{
+			while (lon2>TWOPI)
+				lon2-=TWOPI;
+		}
  
 		lat2=lat2/DEG2RAD;
 		lon2=lon2/DEG2RAD;
@@ -1427,11 +1433,15 @@ double AverageTerrain(Site source, double azimuthx, double start_distance, doubl
 			lon2=lon1+arccos(num,den);
 	}
 	
-	while (lon2<0.0)
-		lon2+=TWOPI;
+	if (lon2<0.0) {
+		while (lon2<0.0)
+			lon2+=TWOPI;
+	}
 
-	while (lon2>TWOPI)
-		lon2-=TWOPI;
+	if (lon2>TWOPI) {
+		while (lon2>TWOPI)
+			lon2-=TWOPI;
+	}
  
 	lat2=lat2/DEG2RAD;
 	lon2=lon2/DEG2RAD;
