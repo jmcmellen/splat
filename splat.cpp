@@ -85,6 +85,7 @@
 
 #define MAX_PATH_LEN 255
 #define MAX_LINE_LEN 128
+#define MAX_SITE_NAME_LEN 64
 
 #ifndef min
 #define min(i, j) ( i < j ? i : j)
@@ -103,7 +104,7 @@ typedef struct Site {
 	double lon;
 	double alt;
 	unsigned char amsl_flag;
-	char name[MAX_LINE_LEN];
+	char name[MAX_SITE_NAME_LEN];
 	char filename[MAX_PATH_LEN];
 } Site;
 
@@ -524,6 +525,11 @@ char* basename_s(char* path) {
 	return &(path[i]);
 }
 
+/* Strip the extension off a path
+ *    path: path to strip
+ *     ext: buffer to hold the extension
+ *  extlen: size of ext INCLUDING the null byte
+ */
 void stripExtension(char *path, char* ext, size_t extlen)
 {
 	char *p;
@@ -787,7 +793,7 @@ char *dec2dms(double decimal)
 	int	degrees, minutes, seconds;
 	double	a, b, c, d;
 
-	static char buf[255];
+	static char buf[MAX_LINE_LEN];
 
 	if (decimal<0.0)
 	{
@@ -814,7 +820,7 @@ char *dec2dms(double decimal)
 		seconds=59;
 
 	buf[0]=0;
-	snprintf(buf,250,"%d%c %d\' %d\"", degrees*sign, 176, minutes, seconds);
+	snprintf(buf,MAX_LINE_LEN,"%d%c %d\' %d\"", degrees*sign, 176, minutes, seconds);
 	return (buf);
 }
 
@@ -1861,7 +1867,7 @@ Site LoadQTH(char *filename)
 
 		/* Strip <CR> and/or <LF> from end of site name */
 
-		for (x=0; buf[x]!=13 && buf[x]!=10 && buf[x]!=0; tempsite.name[x]=buf[x], x++);
+		for (x=0; buf[x]!=13 && buf[x]!=10 && buf[x]!=0 && x<(MAX_SITE_NAME_LEN-1); tempsite.name[x]=buf[x], x++);
 
 		tempsite.name[x]=0;
 
@@ -2653,8 +2659,8 @@ void LoadCities(char *filename)
 				}
 			}
 
-			strncpy(city_site.name,str[0],MAX_LINE_LEN-1);
-			city_site.name[MAX_LINE_LEN-1] = '\0';
+			strncpy(city_site.name,str[0],MAX_SITE_NAME_LEN-1);
+			city_site.name[MAX_SITE_NAME_LEN-1] = '\0';
 			city_site.lat=ReadBearing(str[1]);
 			city_site.lon=ReadBearing(str[2]);
 			city_site.alt=0.0;
@@ -3973,17 +3979,10 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 void LoadSignalColors(Site xmtr)
 {
 	int x, y, ok, val[4];
-	char filename[255], buf[80], *pointer=NULL;
+	char *filename, buf[MAX_LINE_LEN], *pointer=NULL;
 	FILE *fd=NULL;
 
-	for (x=0; xmtr.filename[x]!='.' && xmtr.filename[x]!=0 && x<250; x++)
-		filename[x]=xmtr.filename[x];
-
-	filename[x]='.';
-	filename[x+1]='s';
-	filename[x+2]='c';
-	filename[x+3]='f';
-	filename[x+4]=0;
+	filename = copyFilename(xmtr.filename, "scf");
 
 	/* Default values */
 
@@ -4078,11 +4077,10 @@ void LoadSignalColors(Site xmtr)
 
 		fclose(fd);
 	}
-
 	else
 	{
 		x=0;
-		fgets(buf,80,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 
 		while (x<32 && feof(fd)==0)
 		{
@@ -4111,28 +4109,23 @@ void LoadSignalColors(Site xmtr)
 				x++;
 			}
 
-			fgets(buf,80,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 		}
 
 		fclose(fd);
 		region.levels=x;
 	}
+
+	free(filename);
 }
 
 void LoadLossColors(Site xmtr)
 {
 	int x, y, ok, val[4];
-	char filename[255], buf[80], *pointer=NULL;
+	char *filename, buf[MAX_LINE_LEN], *pointer=NULL;
 	FILE *fd=NULL;
 
-	for (x=0; xmtr.filename[x]!='.' && xmtr.filename[x]!=0 && x<250; x++)
-		filename[x]=xmtr.filename[x];
-
-	filename[x]='.';
-	filename[x+1]='l';
-	filename[x+2]='c';
-	filename[x+3]='f';
-	filename[x+4]=0;
+	filename = copyFilename(xmtr.filename, "lcf");
 
 	/* Default values */
 
@@ -4246,7 +4239,7 @@ void LoadLossColors(Site xmtr)
 	else
 	{
 		x=0;
-		fgets(buf,80,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 
 		while (x<32 && feof(fd)==0)
 		{
@@ -4275,28 +4268,23 @@ void LoadLossColors(Site xmtr)
 				x++;
 			}
 
-			fgets(buf,80,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 		}
 
 		fclose(fd);
 		region.levels=x;
 	}
+
+	free(filename);
 }
 
 void LoadDBMColors(Site xmtr)
 {
 	int x, y, ok, val[4];
-	char filename[255], buf[80], *pointer=NULL;
+	char *filename, buf[MAX_LINE_LEN], *pointer=NULL;
 	FILE *fd=NULL;
 
-	for (x=0; xmtr.filename[x]!='.' && xmtr.filename[x]!=0 && x<250; x++)
-		filename[x]=xmtr.filename[x];
-
-	filename[x]='.';
-	filename[x+1]='d';
-	filename[x+2]='c';
-	filename[x+3]='f';
-	filename[x+4]=0;
+	filename = copyFilename(xmtr.filename, "dcf");
 
 	/* Default values */
 
@@ -4410,7 +4398,7 @@ void LoadDBMColors(Site xmtr)
 	else
 	{
 		x=0;
-		fgets(buf,80,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 
 		while (x<32 && feof(fd)==0)
 		{
@@ -4446,12 +4434,14 @@ void LoadDBMColors(Site xmtr)
 				x++;
 			}
 
-			fgets(buf,80,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 		}
 
 		fclose(fd);
 		region.levels=x;
 	}
+
+	free(filename);
 }
 
 void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned char kml, unsigned char ngs, Site *xmtr, unsigned char txsites)
@@ -4462,7 +4452,8 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	   degrees from its representation in dem[][] so that north points
 	   up and east points right in the image generated. */
 
-	char mapfile[255], geofile[255], kmlfile[255];
+	const char *suffix;
+	char *mapfile, *geofile, *kmlfile;
 	unsigned char mask;
 	unsigned width, height, terrain;
 	int x, y, x0=0, y0=0;
@@ -4480,50 +4471,31 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 	width=(unsigned)(ippd*ReduceAngle(max_west-min_west));
 	height=(unsigned)(ippd*ReduceAngle(max_north-min_north));
 
-	if (filename[0]==0)
+	if (!filename || filename[0]=='\0')
 	{
-		strncpy(filename, xmtr[0].filename,254);
-		filename[strlen(filename)-4]=0;  /* Remove .qth */
+		filename = xmtr[0].filename;
 	}
 
-	y= (int)strlen(filename);
-
-	if (y>4)
-	{
-		if (filename[y-1]=='m' && filename[y-2]=='p' && filename[y-3]=='p' && filename[y-4]=='.')
-			y-=4;
-	}
-
-	for (x=0; x<y; x++)
-	{
-		mapfile[x]=filename[x];
-		geofile[x]=filename[x];
-		kmlfile[x]=filename[x];
-	}
-
-	mapfile[x]=0;
 	switch (imagetype) {
 		default:
 #ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
-			strcat(mapfile, ".png");
+			suffix = "png";
 			break;
 #endif
 #ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
-			strcat(mapfile, ".jpg");
+			suffix = "jpg";
 			break;
 #endif
 		case IMAGETYPE_PPM:
-			strcat(mapfile, ".ppm");
+			suffix = "ppm";
 			break;
 	}
+	mapfile = copyFilename(filename, suffix);
+	geofile = copyFilename(filename, "geo");
+	kmlfile = copyFilename(filename, "kml");
 
-	geofile[x]=0;
-	strcat(geofile, ".geo");
-
-	kmlfile[x]=0;
-	strcat(kmlfile, ".kml");
 
 	minwest=((double)min_west)+dpp;
 
@@ -4743,6 +4715,10 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
 
 	ImageWriterFinish(&iw);
 
+	free(mapfile);
+	free(geofile);
+	free(kmlfile);
+
 	fprintf(stdout,"Done!\n");
 	fflush(stdout);
 }
@@ -4755,7 +4731,8 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 	   90 degrees from its representation in dem[][] so that north
 	   points up and east points right in the image generated. */
 
-	char mapfile[255], geofile[255], kmlfile[255],  ckfile[255];
+	const char *suffix;
+	char *mapfile, *geofile, *kmlfile, *ckfile;
 	unsigned int width, height, red, green, blue, terrain=0;
 	unsigned int imgheight, imgwidth;
 	unsigned char mask;
@@ -4777,60 +4754,34 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 	LoadLossColors(xmtr[0]);
 
-	if (filename[0]==0)
+	if (!filename || filename[0]=='\0')
 	{
-		strncpy(filename, xmtr[0].filename,254);
-		filename[strlen(filename)-4]=0;  /* Remove .qth */
+		filename = xmtr[0].filename;
 	}
 
-	y= (int)strlen(filename);
-
-	if (y>240)
-		y=240;
-
-
-	if (y>4)
-	{
-		if (filename[y-1]=='m' && filename[y-2]=='p' && filename[y-3]=='p' && filename[y-4]=='.')
-			y-=4;
-	}
-
-	for (x=0; x<y; x++)
-	{
-		mapfile[x]=filename[x];
-		geofile[x]=filename[x];
-		kmlfile[x]=filename[x];
-		ckfile[x]=filename[x];
-	}
-
-	mapfile[x]=0;
-
-    const char* suffix;
 	switch (imagetype) {
 		default:
 #ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
-            suffix = ".png";
+			suffix = "png";
 			break;
 #endif
 #ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
-            suffix = ".jpg";
+			suffix = "jpg";
 			break;
 #endif
 		case IMAGETYPE_PPM:
-            suffix = ".ppm";
+			suffix = "ppm";
 			break;
 	}
-    strcat(mapfile, suffix);
+	mapfile = copyFilename(filename, suffix);
+	geofile = copyFilename(filename, "geo");
+	kmlfile = copyFilename(filename, "kml");
 
-	geofile[x]=0;
-	strcat(geofile, ".geo");
-
-	kmlfile[x]=0;
-	strcat(kmlfile, ".kml");
-
-	ckfile[x]=0;
+	/* ick */
+	ckfile = copyFilename(filename, NULL);
+	ckfile = (char*)realloc(ckfile, strlen(ckfile)+strlen(suffix)+4);
 	strcat(ckfile, "-ck");
 	strcat(ckfile, suffix);
 
@@ -5229,6 +5180,11 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
 		ImageWriterFinish(&iw);
 	}
 
+	free(mapfile);
+	free(geofile);
+	free(kmlfile);
+	free(ckfile);
+
 	fprintf(stdout,"Done!\n");
 	fflush(stdout);
 }
@@ -5244,7 +5200,8 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 	   In this version of the WriteImage function the Signal Strength is
 	   plotted (vs the Power Level, plotted by WriteImageDBM). */
 
-	char mapfile[255], geofile[255], kmlfile[255], ckfile[255];
+	const char *suffix;
+	char *mapfile, *geofile, *kmlfile, *ckfile;
 	unsigned width, height, terrain, red, green, blue;
 	unsigned int imgheight, imgwidth;
 	unsigned char mask;
@@ -5266,58 +5223,34 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 
 	LoadSignalColors(xmtr[0]);
 
-	if (filename[0]==0)
+	if (!filename || filename[0]=='\0')
 	{
-		strncpy(filename, xmtr[0].filename,254);
-		filename[strlen(filename)-4]=0;  /* Remove .qth */
+		filename = xmtr[0].filename;
 	}
 
-	y= (int)strlen(filename);
-
-	if (y>240)
-		y=240;
-
-	if (y>4)
-	{
-		if (filename[y-1]=='m' && filename[y-2]=='p' && filename[y-3]=='p' && filename[y-4]=='.')
-			y-=4;
-	}
-
-	for (x=0; x<y; x++)
-	{
-		mapfile[x]=filename[x];
-		geofile[x]=filename[x];
-		kmlfile[x]=filename[x];
-		ckfile[x]=filename[x];
-	}
-
-	mapfile[x]=0;
-    const char* suffix;
 	switch (imagetype) {
 		default:
 #ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
-            suffix = ".png";
+			suffix = "png";
 			break;
 #endif
 #ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
-            suffix = ".jpg";
+			suffix = "jpg";
 			break;
 #endif
 		case IMAGETYPE_PPM:
-            suffix = ".ppm";
+			suffix = "ppm";
 			break;
 	}
-    strcat(mapfile, suffix);
+	mapfile = copyFilename(filename, suffix);
+	geofile = copyFilename(filename, "geo");
+	kmlfile = copyFilename(filename, "kml");
 
-	geofile[x]=0;
-	strcat(geofile, ".geo");
-
-	kmlfile[x]=0;
-	strcat(kmlfile, ".kml");
-
-	ckfile[x]=0;
+	/* ick */
+	ckfile = copyFilename(filename, NULL);
+	ckfile = (char*)realloc(ckfile, strlen(ckfile)+strlen(suffix)+4);
 	strcat(ckfile, "-ck");
 	strcat(ckfile, suffix);
 
@@ -5756,6 +5689,11 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
 		ImageWriterFinish(&iw);
 	}
 
+	free(mapfile);
+	free(geofile);
+	free(kmlfile);
+	free(ckfile);
+
 	fprintf(stdout,"Done!\n");
 	fflush(stdout);
 }
@@ -5771,7 +5709,8 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 	   In this version of the WriteImage function the PowerLevel is
 	   plotted (vs the Signal Strength, plotted by WriteImageSS). */
 
-	char mapfile[255], geofile[255], kmlfile[255], ckfile[255];
+	const char *suffix;
+	char *mapfile, *geofile, *kmlfile, *ckfile;
 	unsigned width, height, terrain, red, green, blue;
 	unsigned int imgheight, imgwidth;
 	unsigned char mask;
@@ -5793,61 +5732,37 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 
 	LoadDBMColors(xmtr[0]);
 
-	if (filename[0]==0)
+	if (!filename || filename[0]=='\0')
 	{
-		strncpy(filename, xmtr[0].filename,254);
-		filename[strlen(filename)-4]=0;  /* Remove .qth */
+		filename = xmtr[0].filename;
 	}
 
-	y= (int)strlen(filename);
-
-	if (y>240)
-		y=240;
-
-	if (y>4)
-	{
-		if (filename[y-1]=='m' && filename[y-2]=='p' && filename[y-3]=='p' && filename[y-4]=='.')
-			y-=4;
-	}
-
-	for (x=0; x<y; x++)
-	{
-		mapfile[x]=filename[x];
-		geofile[x]=filename[x];
-		kmlfile[x]=filename[x];
-		ckfile[x]=filename[x];
-	}
-
-	mapfile[x]=0;
-
-    const char* suffix;
 	switch (imagetype) {
 		default:
 #ifdef HAVE_LIBPNG
 		case IMAGETYPE_PNG:
-            suffix = ".png";
+			suffix = "png";
 			break;
 #endif
 #ifdef HAVE_LIBJPEG
 		case IMAGETYPE_JPG:
-            suffix = ".jpg";
+			suffix = "jpg";
 			break;
 #endif
 		case IMAGETYPE_PPM:
-            suffix = ".ppm";
+			suffix = "ppm";
 			break;
 	}
-    strcat(mapfile, suffix);
+	mapfile = copyFilename(filename, suffix);
+	geofile = copyFilename(filename, "geo");
+	kmlfile = copyFilename(filename, "kml");
 
-	geofile[x]=0;
-	strcat(geofile, ".geo");
-
-	kmlfile[x]=0;
-	strcat(kmlfile, ".kml");
-
-	ckfile[x]=0;
+	/* ick */
+	ckfile = copyFilename(filename, NULL);
+	ckfile = (char*)realloc(ckfile, strlen(ckfile)+strlen(suffix)+4);
 	strcat(ckfile, "-ck");
 	strcat(ckfile, suffix);
+
 
 	minwest=((double)min_west)+dpp;
 
@@ -6355,6 +6270,11 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
 		ImageWriterFinish(&iw);
 	}
 
+	free(mapfile);
+	free(geofile);
+	free(kmlfile);
+	free(ckfile);
+
 	fprintf(stdout,"Done!\n");
 	fflush(stdout);
 }
@@ -6370,7 +6290,7 @@ void GraphTerrain(Site source, Site destination, char *name)
 	   If no extension is found, .png is assumed.  */
 
 	int	x;
-	char	basename[255], term[30], ext[20];
+	char	basename[MAX_PATH_LEN], term[30], ext[20];
 	double	minheight=100000.0, maxheight=-100000.0;
 	FILE	*fd=NULL, *fd1=NULL;
 
@@ -6381,10 +6301,6 @@ void GraphTerrain(Site source, Site destination, char *name)
 	}
 	ReadPath(destination,source,path); 
 
-	/* XXX this isn't right. We need to to know the directory to put these files into,
-	 * not just write them to the current work dir, and we should put the whole name
-	 * into the splat.gp file later.
-	 */
 	fd=fopen("profile.gp","wb");
 
 	if (clutter>0.0)
@@ -6429,8 +6345,7 @@ void GraphTerrain(Site source, Site destination, char *name)
 	else
 	{
 		/* Extract extension and terminal type from "name" */
-		strncpy(basename, name, 255);
-		basename[254] = '\0';
+		strncpy(basename, name, MAX_PATH_LEN-1);
 		stripExtension(basename, ext, 20);
 		convertBackslashes(basename);
 		if (strlen(ext) == 0)
@@ -6523,7 +6438,7 @@ void GraphElevation(Site source, Site destination, char *name)
 	   If no extension is found, .png is assumed.  */
 
 	int	x;
-	char	basename[255], term[30], ext[20];
+	char	basename[MAX_PATH_LEN], term[30], ext[20];
 	double	angle, clutter_angle=0.0, refangle, maxangle=-90.0,
 		   	minangle=90.0, distance;
 	Site	remote, remote2;
@@ -6538,10 +6453,6 @@ void GraphElevation(Site source, Site destination, char *name)
 	refangle=ElevationAngle(destination,source);
 	distance=Distance(source,destination);
 
-	/* XXX this isn't right. We need to to know the directory to put these files into,
-	 * not just write them to the current work dir, and we should put the whole name
-	 * into the splat.gp file later.
-	 */
 	fd=fopen("profile.gp","wb");
 
 	if (clutter>0.0)
@@ -6627,8 +6538,7 @@ void GraphElevation(Site source, Site destination, char *name)
 	else
 	{
 		/* Extract extension and terminal type from "name" */
-		strncpy(basename, name, 255);
-		basename[254] = '\0';
+		strncpy(basename, name, MAX_PATH_LEN-1);
 		stripExtension(basename, ext, 20);
 		convertBackslashes(basename);
 		if (strlen(ext) == 0)
@@ -6720,7 +6630,7 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 	   .png is assumed.  */
 
 	int	x;
-	char	basename[255], term[30], ext[20];
+	char	basename[MAX_PATH_LEN], term[30], ext[20];
 	double	a, b, c, height=0.0, refangle, cangle, maxheight=-100000.0,
 		minheight=100000.0, lambda=0.0, f_zone=0.0, fpt6_zone=0.0,
 		nm=0.0, nb=0.0, ed=0.0, es=0.0, r=0.0, d=0.0, d1=0.0,
@@ -6760,10 +6670,6 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 		nm=(-source.alt-es-nb)/(path->distance[path->length-1]);
 	}
 
-	/* XXX this isn't right. We need to to know the directory to put these files into,
-	 * not just write them to the current work dir, and we should put the whole name
-	 * into the splat.gp file later.
-	 */
 	fd=fopen("profile.gp","wb");
 
 	if (clutter>0.0)
@@ -6943,8 +6849,7 @@ void GraphHeight(Site source, Site destination, char *name, unsigned char fresne
 	else
 	{
 		/* Extract extension and terminal type from "name" */
-		strncpy(basename, name, 255);
-		basename[254] = '\0';
+		strncpy(basename, name, MAX_PATH_LEN-1);
 		stripExtension(basename, ext, 20);
 		convertBackslashes(basename);
 		if (strlen(ext) == 0)
@@ -7095,7 +7000,7 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 	double	h_r, h_t, h_x, h_r_orig, cos_tx_angle, cos_test_angle,
 		cos_tx_angle_f1, cos_tx_angle_fpt6, d_tx, d_x,
 		h_r_f1, h_r_fpt6, h_f, h_los, lambda=0.0;
-	char	buf[255], buf_fpt6[255], buf_f1[255];
+	char	buf[MAX_PATH_LEN], buf_fpt6[MAX_PATH_LEN], buf_f1[MAX_PATH_LEN];
 
 	Path *path = AllocatePath();
 	if (!path) {
@@ -7230,40 +7135,40 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 	if (h_r>h_r_orig)
 	{
 		if (metric)
-			snprintf(buf,150,"\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear all obstructions detected by %s.\n",rcvr.name, METERS_PER_FOOT*(h_r-GetElevation(rcvr)-earthradius),SPLAT_NAME);
+			snprintf(buf,MAX_PATH_LEN,"\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear all obstructions detected by %s.\n",rcvr.name, METERS_PER_FOOT*(h_r-GetElevation(rcvr)-earthradius),SPLAT_NAME);
 		else
-			snprintf(buf,150,"\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear all obstructions detected by %s.\n",rcvr.name, h_r-GetElevation(rcvr)-earthradius,SPLAT_NAME);
+			snprintf(buf,MAX_PATH_LEN,"\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear all obstructions detected by %s.\n",rcvr.name, h_r-GetElevation(rcvr)-earthradius,SPLAT_NAME);
 	}
 
 	else
-		snprintf(buf,150,"\nNo obstructions to LOS path due to terrain were detected by %s\n",SPLAT_NAME);
+		snprintf(buf,MAX_PATH_LEN,"\nNo obstructions to LOS path due to terrain were detected by %s\n",SPLAT_NAME);
 
 	if (f)
 	{
 		if (h_r_fpt6>h_r_orig)
 		{
 			if (metric)
-				snprintf(buf_fpt6,150,"\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear %.0f%c of the first Fresnel zone.\n",rcvr.name, METERS_PER_FOOT*(h_r_fpt6-GetElevation(rcvr)-earthradius),fzone_clearance*100.0,37);
+				snprintf(buf_fpt6,MAX_PATH_LEN,"\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear %.0f%c of the first Fresnel zone.\n",rcvr.name, METERS_PER_FOOT*(h_r_fpt6-GetElevation(rcvr)-earthradius),fzone_clearance*100.0,37);
 
 			else
-				snprintf(buf_fpt6,150,"\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear %.0f%c of the first Fresnel zone.\n",rcvr.name, h_r_fpt6-GetElevation(rcvr)-earthradius,fzone_clearance*100.0,37);
+				snprintf(buf_fpt6,MAX_PATH_LEN,"\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear %.0f%c of the first Fresnel zone.\n",rcvr.name, h_r_fpt6-GetElevation(rcvr)-earthradius,fzone_clearance*100.0,37);
 		}
 
 		else
-			snprintf(buf_fpt6,150,"\n%.0f%c of the first Fresnel zone is clear.\n",fzone_clearance*100.0,37);
+			snprintf(buf_fpt6,MAX_PATH_LEN,"\n%.0f%c of the first Fresnel zone is clear.\n",fzone_clearance*100.0,37);
 	
 		if (h_r_f1>h_r_orig)
 		{
 			if (metric)
-				snprintf(buf_f1,150,"\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear the first Fresnel zone.\n",rcvr.name, METERS_PER_FOOT*(h_r_f1-GetElevation(rcvr)-earthradius));
+				snprintf(buf_f1,MAX_PATH_LEN,"\nAntenna at %s must be raised to at least %.2f meters AGL\nto clear the first Fresnel zone.\n",rcvr.name, METERS_PER_FOOT*(h_r_f1-GetElevation(rcvr)-earthradius));
 
 			else			
-				snprintf(buf_f1,150,"\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear the first Fresnel zone.\n",rcvr.name, h_r_f1-GetElevation(rcvr)-earthradius);
+				snprintf(buf_f1,MAX_PATH_LEN,"\nAntenna at %s must be raised to at least %.2f feet AGL\nto clear the first Fresnel zone.\n",rcvr.name, h_r_f1-GetElevation(rcvr)-earthradius);
 
 		}
 
 		else
-			    snprintf(buf_f1,150,"\nThe first Fresnel zone is clear.\n");
+			    snprintf(buf_f1,MAX_PATH_LEN,"\nThe first Fresnel zone is clear.\n");
 	}
 
 	fprintf(outfile,"%s",buf);
@@ -7290,8 +7195,8 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 	   found, .png is assumed. */
 
 	int	x, y, errnum;
-	char	basename[255], term[30], ext[20], strmode[100],
-		report_name[80], block=0, propbuf[20];
+	char	basename[MAX_PATH_LEN], term[30], ext[20], strmode[100],
+		report_name[MAX_PATH_LEN], block=0, propbuf[20];
 	double	maxloss=-100000.0, minloss=100000.0, loss, haavt,
 		angle1, angle2, azimuth, pattern=1.0, patterndB=0.0,
 		total_loss=0.0, cos_xmtr_angle, cos_test_angle=0.0,
@@ -7301,7 +7206,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		power_density;
 	FILE	*fd=NULL, *fd2=NULL;
 
-	sprintf(report_name,"%s-to-%s.txt",source.name,destination.name);
+	snprintf(report_name,MAX_PATH_LEN,"%s-to-%s.txt",source.name,destination.name);
 
 	Path *path = AllocatePath();
 	if (!path) {
@@ -7878,8 +7783,7 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		else
 		{
 			/* Extract extension and terminal type from "name" */
-			strncpy(basename, name, 255);
-			basename[254] = '\0';
+			strncpy(basename, name, MAX_PATH_LEN-1);
 			stripExtension(basename, ext, 20);
 			convertBackslashes(basename);
 			if (strlen(ext) == 0)
@@ -7954,12 +7858,12 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 
 void SiteReport(Site xmtr)
 {
-	char	report_name[80];
+	char	report_name[MAX_PATH_LEN];
 	double	terrain;
 	int	x, azi;
 	FILE	*fd;
 
-	sprintf(report_name,"%s-site_report.txt",xmtr.name);
+	snprintf(report_name,MAX_PATH_LEN,"%s-site_report.txt",xmtr.name);
 
 	for (x=0; report_name[x]!=0; x++)
 		if (report_name[x]==32 || report_name[x]==17 || report_name[x]==92 || report_name[x]==42 || report_name[x]==47)
@@ -8109,7 +8013,7 @@ int LoadANO(char *filename)
 	   file (-ani option) for analysis and/or map generation. */
 
 	int	error=0, max_west, min_west, max_north, min_north;
-	char	buf[80], *pointer=NULL;
+	char	buf[MAX_LINE_LEN], *pointer=NULL;
 	double	latitude=0.0, longitude=0.0, azimuth=0.0, elevation=0.0,
 		ano=0.0;
 	FILE	*fd;
@@ -8118,7 +8022,7 @@ int LoadANO(char *filename)
 
 	if (fd!=NULL)
 	{
-		fgets(buf,78,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
@@ -8126,7 +8030,7 @@ int LoadANO(char *filename)
 
 		sscanf(buf,"%d, %d",&max_west, &min_west);
 
-		fgets(buf,78,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
@@ -8134,7 +8038,7 @@ int LoadANO(char *filename)
 
 		sscanf(buf,"%d, %d",&max_north, &min_north);
 
-		fgets(buf,78,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 		pointer=strchr(buf,';');
 
 		if (pointer!=NULL)
@@ -8145,7 +8049,7 @@ int LoadANO(char *filename)
 		fprintf(stdout,"\nReading \"%s\"... ",filename);
 		fflush(stdout);
 
-		fgets(buf,78,fd);
+		fgets(buf,MAX_LINE_LEN,fd);
 		sscanf(buf,"%lf, %lf, %lf, %lf, %lf",&latitude, &longitude, &azimuth, &elevation, &ano);
 
 		while (feof(fd)==0)
@@ -8201,7 +8105,7 @@ int LoadANO(char *filename)
 				}
 			}
 
-			fgets(buf,78,fd);
+			fgets(buf,MAX_LINE_LEN,fd);
 			sscanf(buf,"%lf, %lf, %lf, %lf, %lf",&latitude, &longitude, &azimuth, &elevation, &ano);
 		}
 
@@ -8220,7 +8124,7 @@ int LoadANO(char *filename)
 void WriteKML(Site source, Site destination)
 {
 	int	x, y;
-	char	block, report_name[80];
+	char	block, report_name[MAX_PATH_LEN];
 	double	distance, rx_alt, tx_alt, cos_xmtr_angle,
 		azimuth, cos_test_angle, test_alt;
 	FILE	*fd=NULL;
@@ -8232,7 +8136,7 @@ void WriteKML(Site source, Site destination)
 	}
 	ReadPath(source,destination,path);
 
-	sprintf(report_name,"%s-to-%s.kml",source.name,destination.name);
+	snprintf(report_name,MAX_PATH_LEN,"%s-to-%s.kml",source.name,destination.name);
 
 	for (x=0; report_name[x]!=0; x++)
 		if (report_name[x]==32 || report_name[x]==17 || report_name[x]==92 || report_name[x]==42 || report_name[x]==47)
@@ -8463,13 +8367,18 @@ int main(int argc, char *argv[])
 #endif
 	unsigned char imagetype_set = 0;
  
-	char		mapfile[255], header[80], city_file[5][255], 
-			elevation_file[255], height_file[255], norm_height_file[255],
-			longley_file[255], terrain_file[255],
-			buf[255], rxfile[255], *env=NULL,
-			txfile[255], boundary_file[5][255],
-			udt_file[255], rxsite=0, ani_filename[255],
-			ano_filename[255], logfile[255];
+	char    header[80];
+	char	mapfile[MAX_PATH_LEN], city_file[5][MAX_PATH_LEN];
+	char	longley_file[MAX_PATH_LEN-8], terrain_file[MAX_PATH_LEN-8],
+			elevation_file[MAX_PATH_LEN-8], height_file[MAX_PATH_LEN-8],
+			norm_height_file[MAX_PATH_LEN-8];
+	char	buf[MAX_PATH_LEN], rxfile[MAX_PATH_LEN], 
+			txfile[MAX_PATH_LEN], boundary_file[5][MAX_PATH_LEN],
+			udt_file[MAX_PATH_LEN], ani_filename[MAX_PATH_LEN],
+			ano_filename[MAX_PATH_LEN], logfile[MAX_PATH_LEN];
+
+	char    *env = NULL;
+	char    rxsite = 0;
 
 	double		altitude=0.0, altitudeLR=0.0, tx_range=0.0,
 			rx_range=0.0, deg_range=0.0, deg_limit=0.0,
@@ -8691,7 +8600,7 @@ int main(int argc, char *argv[])
 			z=x+1;
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
-				strncpy(mapfile,argv[z],253);
+				strncpy(mapfile,argv[z],MAX_PATH_LEN-1);
 			map=1;
 		}
 
@@ -8702,7 +8611,7 @@ int main(int argc, char *argv[])
 			logfile[0]=0;
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
-				strncpy(logfile,argv[z],253);
+				strncpy(logfile,argv[z],MAX_PATH_LEN-1);
 
 			command_line_log=1;
 		}
@@ -8713,7 +8622,7 @@ int main(int argc, char *argv[])
 			z=x+1;
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
-				strncpy(udt_file,argv[z],253);
+				strncpy(udt_file,argv[z],MAX_PATH_LEN-1);
 		}
 #endif
 
@@ -8745,7 +8654,7 @@ int main(int argc, char *argv[])
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
 			{
-				strncpy(terrain_file,argv[z],253);
+				strncpy(terrain_file,argv[z],MAX_PATH_LEN-10);
 				terrain_plot=1;
 				pt2pt_mode=1;
 			}
@@ -8757,7 +8666,7 @@ int main(int argc, char *argv[])
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
 			{
-				strncpy(elevation_file,argv[z],253);
+				strncpy(elevation_file,argv[z],MAX_PATH_LEN-10);
 				elevation_plot=1;
 				pt2pt_mode=1;
 			}
@@ -8769,7 +8678,7 @@ int main(int argc, char *argv[])
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
 			{
-				strncpy(height_file,argv[z],253);
+				strncpy(height_file,argv[z],MAX_PATH_LEN-10);
 				height_plot=1;
 				pt2pt_mode=1;
 			}
@@ -8781,7 +8690,7 @@ int main(int argc, char *argv[])
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
 			{
-				strncpy(norm_height_file,argv[z],253);
+				strncpy(norm_height_file,argv[z],MAX_PATH_LEN-10);
 				norm_height_plot=1;
 				pt2pt_mode=1;
 			}
@@ -8878,7 +8787,7 @@ int main(int argc, char *argv[])
 
 			while (z<=y && argv[z][0] && argv[z][0]!='-' && txsites<30)
 			{
-				strncpy(txfile,argv[z],253);
+				strncpy(txfile,argv[z],MAX_PATH_LEN-1);
 				tx_site[txsites]=LoadQTH(txfile);
 				txsites++;
 				z++;
@@ -8909,7 +8818,7 @@ int main(int argc, char *argv[])
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
 			{
-				strncpy(longley_file,argv[z],253);
+				strncpy(longley_file,argv[z],MAX_PATH_LEN-10);
 				longley_plot=1;
 				pt2pt_mode=1;
 			}
@@ -8923,7 +8832,7 @@ int main(int argc, char *argv[])
 
 			if (z<=y && argv[z][0] && argv[z][0]!='-')
 			{
-				strncpy(rxfile,argv[z],253);
+				strncpy(rxfile,argv[z],MAX_PATH_LEN-1);
 				rx_site=LoadQTH(rxfile);
 				rxsite=1;
 				pt2pt_mode=1;
@@ -8938,7 +8847,7 @@ int main(int argc, char *argv[])
 
 			while (z<=y && argv[z][0] && argv[z][0]!='-' && cities<5)
 			{
-				strncpy(city_file[cities],argv[z],253);
+				strncpy(city_file[cities],argv[z],MAX_PATH_LEN-1);
 				cities++;
 				z++;
 			}
@@ -8954,7 +8863,7 @@ int main(int argc, char *argv[])
 
 			while (z<=y && argv[z][0] && argv[z][0]!='-' && bfs<5)
 			{
-				strncpy(boundary_file[bfs],argv[z],253);
+				strncpy(boundary_file[bfs],argv[z],MAX_PATH_LEN-1);
 				bfs++;
 				z++;
 			}
@@ -9096,12 +9005,14 @@ int main(int argc, char *argv[])
 		for (x=0; buf[x]!=13 && buf[x]!=10 && buf[x]!=0 && x<(MAX_PATH_LEN-2); x++);
 		buf[x]=0;
 
-		strncpy(home_sdf_path,buf,MAX_PATH_LEN-2);
+		strcpy(home_sdf_path,buf);
 		fclose(fd);
 
 		/* Ensure it has a trailing slash */
-		if (home_sdf_path[strlen(home_sdf_path)]!='/') {
-			strcat(home_sdf_path, "/");
+		size_t len = strlen(home_sdf_path);
+		if (len > 0 && home_sdf_path[len-1] !='/') {
+			home_sdf_path[len-1] = '/';
+			home_sdf_path[len] = '\0';
 		}
 	}
 #endif
@@ -9314,40 +9225,40 @@ int main(int argc, char *argv[])
 
 	if (pt2pt_mode)
 	{
-		char longley_ext[20], terrain_ext[20], elevation_ext[20], height_ext[20], norm_height_ext[20];
+		char longley_ext[4], terrain_ext[4], elevation_ext[4], height_ext[4], norm_height_ext[4];
 
 		PlaceMarker(rx_site);
 
 		if (longley_plot) {
-			stripExtension(longley_file, longley_ext, 20);
+			stripExtension(longley_file, longley_ext, 4);
 			if (strlen(longley_ext) == 0) {
 				strcpy(longley_ext, "png");
 			}
 		}
 
 		if (terrain_plot) {
-			stripExtension(terrain_file, terrain_ext, 20);
+			stripExtension(terrain_file, terrain_ext, 4);
 			if (strlen(terrain_ext) == 0) {
 				strcpy(terrain_ext, "png");
 			}
 		}
 
 		if (elevation_plot) {
-			stripExtension(elevation_file, elevation_ext, 20);
+			stripExtension(elevation_file, elevation_ext, 4);
 			if (strlen(elevation_ext) == 0) {
 				strcpy(elevation_ext, "png");
 			}
 		}
 
 		if (height_plot) {
-			stripExtension(height_file, height_ext, 20);
+			stripExtension(height_file, height_ext, 4);
 			if (strlen(height_ext) == 0) {
 				strcpy(height_ext, "png");
 			}
 		}
 
 		if (norm_height_plot) {
-			stripExtension(norm_height_file, norm_height_ext, 20);
+			stripExtension(norm_height_file, norm_height_ext, 4);
 			if (strlen(norm_height_ext) == 0) {
 				strcpy(norm_height_ext, "png");
 			}
@@ -9387,9 +9298,9 @@ int main(int argc, char *argv[])
 			if (nositereports==0)
 			{
 				if (txsites>1)
-					snprintf(buf,250,"%s-%c.%s", longley_file, '1'+x, longley_ext);
+					snprintf(buf,MAX_PATH_LEN,"%s-%d.%s", longley_file, x, longley_ext);
 				else
-					snprintf(buf,250,"%s.%s", longley_file, longley_ext);
+					snprintf(buf,MAX_PATH_LEN,"%s.%s", longley_file, longley_ext);
 
 				LoadLRP(tx_site[x],longley_plot);
 				PathReport(tx_site[x],rx_site,buf,longley_plot);
@@ -9398,9 +9309,9 @@ int main(int argc, char *argv[])
 			if (terrain_plot)
 			{
 				if (txsites>1)
-					snprintf(buf,250,"%s-%c.%s",terrain_file,'1'+x, terrain_ext);
+					snprintf(buf,MAX_PATH_LEN,"%s-%d.%s",terrain_file,x, terrain_ext);
 				else
-					snprintf(buf,250,"%s.%s",terrain_file,terrain_ext);
+					snprintf(buf,MAX_PATH_LEN,"%s.%s",terrain_file,terrain_ext);
 
 				GraphTerrain(tx_site[x],rx_site,buf);
 			}
@@ -9408,9 +9319,9 @@ int main(int argc, char *argv[])
 			if (elevation_plot)
 			{
 				if (txsites>1)
-					snprintf(buf,250,"%s-%c.%s",elevation_file,'1'+x,elevation_ext);
+					snprintf(buf,MAX_PATH_LEN,"%s-%d.%s",elevation_file,x,elevation_ext);
 				else
-					snprintf(buf,250,"%s.%s",elevation_file,elevation_ext);
+					snprintf(buf,MAX_PATH_LEN,"%s.%s",elevation_file,elevation_ext);
 
 				GraphElevation(tx_site[x],rx_site,buf);
 			}
@@ -9418,9 +9329,9 @@ int main(int argc, char *argv[])
 			if (height_plot)
 			{
 				if (txsites>1)
-					snprintf(buf,250,"%s-%c.%s",height_file,'1'+x,height_ext);
+					snprintf(buf,MAX_PATH_LEN,"%s-%d.%s",height_file,x,height_ext);
 				else
-					snprintf(buf,250,"%s.%s",height_file,height_ext);
+					snprintf(buf,MAX_PATH_LEN,"%s.%s",height_file,height_ext);
 
 				GraphHeight(tx_site[x],rx_site,buf,fresnel_plot,0);
 			}
@@ -9428,9 +9339,9 @@ int main(int argc, char *argv[])
 			if (norm_height_plot)
 			{
 				if (txsites>1)
-					snprintf(buf,250,"%s-%c.%s",norm_height_file,'1'+x,norm_height_ext);
+					snprintf(buf,MAX_PATH_LEN,"%s-%d.%s",norm_height_file,x,norm_height_ext);
 				else
-					snprintf(buf,250,"%s.%s",norm_height_file,norm_height_ext);
+					snprintf(buf,MAX_PATH_LEN,"%s.%s",norm_height_file,norm_height_ext);
 
 				GraphHeight(tx_site[x],rx_site,buf,fresnel_plot,1);
 			}
