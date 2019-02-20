@@ -2907,7 +2907,7 @@ void LoadBoundaries(char *filename)
 		fprintf(stderr,"\n*** ERROR: \"%s\": not found!",filename);
 }
 
-char ReadLRParm(Site txsite, char forced_read)
+char LoadLRP(Site txsite, char forced_read)
 {
 	/* This function reads ITM parameter data for the transmitter
 	   site.  The file name is the same as the txsite, except the
@@ -9112,7 +9112,7 @@ int main(int argc, char *argv[])
 
 	if (ani_filename[0])
 	{
-		ReadLRParm(tx_site[0],0); /* Get ERP status */
+		LoadLRP(tx_site[0],0); /* Get ERP status */
 		y=LoadANO(ani_filename);
 
 		for (x=0; x<txsites && x<max_txsites; x++)
@@ -9391,7 +9391,7 @@ int main(int argc, char *argv[])
 				else
 					snprintf(buf,250,"%s.%s", longley_file, longley_ext);
 
-				ReadLRParm(tx_site[x],longley_plot);
+				LoadLRP(tx_site[x],longley_plot);
 				PathReport(tx_site[x],rx_site,buf,longley_plot);
 			}
 
@@ -9444,7 +9444,7 @@ int main(int argc, char *argv[])
 			if (coverage)
 				PlotLOSMap(tx_site[x],altitude, multithread);
 
-			else if (ReadLRParm(tx_site[x],1))
+			else if (LoadLRP(tx_site[x],1))
 					PlotLRMap(tx_site[x],altitudeLR,ano_filename, multithread);
 
 			SiteReport(tx_site[x]);
