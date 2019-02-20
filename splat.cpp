@@ -52,10 +52,10 @@
 #include "workqueue.hpp"
 
 #ifdef _WIN32
-#define PATHSEP "\\"
+#define PATHSEP '\\'
 #define strdup _strdup
 #else
-#define PATHSEP "/"
+#define PATHSEP '/'
 #endif
 
 #define GAMMA 2.5
@@ -683,7 +683,7 @@ char* copyFilename(char *fname, const char *newSuffix) {
 		if (strlen(pathbuf)==0 || strcmp(pathbuf, ".")==0) {  /* if it's "./foo", just make it "foo" */
 			snprintf(newFname, len, "%s.%s", filebuf, newSuffix);
 		} else {
-			snprintf(newFname, len, "%s%s%s.%s", pathbuf, PATHSEP, filebuf, newSuffix);
+			snprintf(newFname, len, "%s%c%s.%s", pathbuf, PATHSEP, filebuf, newSuffix);
 		}
 	} else {
 		size_t len = strlen(pathbuf) + strlen(filebuf) + 2;
@@ -691,7 +691,7 @@ char* copyFilename(char *fname, const char *newSuffix) {
 		if (strlen(pathbuf) == 0 || strcmp(pathbuf, ".")==0) {  /* if it's "./foo", just make it "foo" */
 			snprintf(newFname, len, "%s", filebuf);
 		} else {
-			snprintf(newFname, len, "%s%s%s", pathbuf, PATHSEP, filebuf);
+			snprintf(newFname, len, "%s%c%s", pathbuf, PATHSEP, filebuf);
 		}
 	}
 	return newFname;
@@ -8772,8 +8772,10 @@ int main(int argc, char *argv[])
 				strncpy(sdf_path,argv[z],MAX_PATH_LEN-2);
 
 			/* Ensure it has a trailing slash */
-			if (sdf_path[strlen(sdf_path)]!='/') {
-				strcat(sdf_path, "/");
+			size_t len = strlen(sdf_path);
+			if (len > 0 && sdf_path[len-1]!=PATHSEP) {
+				sdf_path[len] = PATHSEP;
+				sdf_path[len + 1] = '\0';
 			}
 		}
 
@@ -9008,10 +9010,11 @@ int main(int argc, char *argv[])
 
 		/* Ensure it has a trailing slash */
 		size_t len = strlen(home_sdf_path);
-		if (len > 0 && home_sdf_path[len-1] !='/') {
-			home_sdf_path[len-1] = '/';
+		if (len > 0 && home_sdf_path[len-1] != PATHSEP) {
+			home_sdf_path[len-1] = PATHSEP;
 			home_sdf_path[len] = '\0';
 		}
+
 	}
 #endif
 
