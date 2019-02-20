@@ -1,44 +1,54 @@
 #!/usr/bin/env python3
 
 import sys
+import shutil
 import unittest
 
-errors=0
+err = False
 
 # we requires python3 as a minimum
 if sys.version_info[0] < 3:
     print('The testsuite requires Python 3.\n')
     exit(-1)
+	
+needed_modules=""
 
 # check for numpy.
 try:
     import numpy
 except ImportError:
-    print('The testsuite requires the numpy module. Try \"pip3 install numpy\".\n')
-    errors+=1
+	needed_modules+="numpy "
+	err = True
 
 # check for scipy. This implies having numpy
 try:
     import scipy
 except ImportError:
-    print('The testsuite requires the scipy module. Try \"pip3 install scipy\".\n')
-    errors+=1
+	needed_modules+="scipy "
+	err = True
 
 # check for pillow, which is imported as PIL
 try:
     import PIL
 except ImportError:
-    print('The testsuite requires the pillow module. Try \"pip3 install pillow\".\n')
-    errors+=1
+	needed_modules+="pillow "
+	err = True
 
 try:
-    import ssim 
+    import ssim
 except ImportError:
-    print('The testsuite requires pyssim. Try \"pip3 install pyssim\".\n')
-    errors+=1
+	needed_modules+="pyssim "
+	err = True
 
-if errors > 0:
-    exit(-1)
+if len(needed_modules) > 0:
+	print('The testsuite requires certain python modules. Try \"pip3 install %s\".\n' % needed_modules)
+	
+if shutil.which('gnuplot') is None:
+	print('gnuplot not found. gnuplot is needed for some of the tests.\n')
+	err = True
+	
+if err:
+	exit(-1)
 
 
 # now search the subdirectories under the "tests" directory
