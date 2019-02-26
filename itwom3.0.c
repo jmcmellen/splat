@@ -34,7 +34,7 @@
 * Development to 2.0c 8 Aug 2010 after modifying saalos and adiff for full      *
 * addition of saalos treatment to post obstruction calculations and debugging.  *
 * Modified to make 1st obs loss=5.8 only, no clutter loss considered            *
-* Updated to 3.0b after much cleanup, conversion to pure C, and added           *
+* Updated to 3.1 after much cleanup, conversion to pure C, and added           *
 * documentation by Michel Hoche-Mong.                                           *
 *                                                                               *
 * Commented out unused variables and calculations to eliminate gcc warnings     *
@@ -47,6 +47,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+
+#ifdef ITM_ELEV_DOUBLE
+#define elev_t double
+#else
+#define elev_t float
+#endif
 
 /* 
  * prop_type
@@ -2023,7 +2029,7 @@ double avar(double zzt, double zzl, double zzc, prop_type *prop, propv_type *pro
  *
  * See ITWOM-SUB-ROUTINES.pdf, page 150
  */
-void hzns(const double pfl[], prop_type *prop)
+void hzns(const elev_t pfl[], prop_type *prop)
 {
 	bool wq;
 	int np;
@@ -2099,7 +2105,7 @@ void hzns(const double pfl[], prop_type *prop)
  *
  * See ITWOM-SUB-ROUTINES.pdf, page 150
  */
-void hzns2(const double pfl[], prop_type *prop)
+void hzns2(const elev_t pfl[], prop_type *prop)
 {
 	bool wq;
 	int np, rp, i, j;
@@ -2245,7 +2251,7 @@ void hzns2(const double pfl[], prop_type *prop)
  *
  * Used only with ITM 1.2.2
  */
-void z1sq1 (const double z[], const double x1, const double x2, double *z0, double *zn)
+void z1sq1 (const elev_t z[], const double x1, const double x2, double *z0, double *zn)
 {
 	double xn, xa, xb, x, a, b;
 	int n, ja, jb;
@@ -2317,7 +2323,7 @@ void z1sq1 (const double z[], const double x1, const double x2, double *z0, doub
  *
  *  See ITWOM-SUB-ROUTINES.pdf p298
  */
-void z1sq2(const double z[], const double x1, const double x2, double *z0, double *zn)
+void z1sq2(const elev_t z[], const double x1, const double x2, double *z0, double *zn)
 {
 	/* corrected for use with ITWOM */
 	double xn, xa, xb, x, a, b, bn;
@@ -2397,7 +2403,7 @@ void z1sq2(const double z[], const double x1, const double x2, double *z0, doubl
  * Also see ITWOM-SUB-ROUTINES.pdf p265
  *
  */
-double qtile (const int nn, double a[], const int ir)
+double qtile (const int nn, elev_t a[], const int ir)
 {
 	double q=0.0, r; /* q initialization -- KD2BD */
 	int m, n, i, j, j1=0, i0=0, k;  /* more initializations -- KD2BD */
@@ -2518,11 +2524,11 @@ double qerf(const double z)
  * with ITM 1.2.2 and is limited to using a maximum of 245 pfl array elements.
  * It is thus faster but slightly less accurate.
  */
-double d1thx(const double pfl[], const double x1, const double x2)
+double d1thx(const elev_t pfl[], const double x1, const double x2)
 {
 	int np, ka, kb, n, k, j;
 	double d1thxv, sn, xa, xb;
-	double *s;
+	elev_t *s;
 
 	np=(int)pfl[0];
 	xa=x1/pfl[1];                  /* start point's array element */
@@ -2538,7 +2544,7 @@ double d1thx(const double pfl[], const double x1, const double x2)
 	kb=n-ka+1;                     /* kb can range from 32-221 */
 	sn=n-1;                        /* index of last path element to consider */
 
-    s = (double*)calloc(n+2, sizeof(double));
+    s = (elev_t*)calloc(n+2, sizeof(elev_t));
 	assert(s!=NULL);
 	s[0]=sn;
 	s[1]=1.0;
@@ -2605,11 +2611,11 @@ double d1thx(const double pfl[], const double x1, const double x2)
  * See ITWOM-SUB-ROUTINES.pdf p125. This version has been modified by Sid
  * Shumate to use the entire range of the pfl array if needed.
  */
-double d1thx2(const double pfl[], const double x1, const double x2)
+double d1thx2(const elev_t pfl[], const double x1, const double x2)
 {
 	int np, ka, kb, n, k, kmx, j;
 	double d1thx2v, sn, xa, xb, xc;
-	double *s;
+	elev_t *s;
 
 	np=(int)pfl[0];
 	xa=x1/pfl[1];                  /* start point's array element */
@@ -2627,7 +2633,7 @@ double d1thx2(const double pfl[], const double x1, const double x2)
 	kb=n-ka+1;
 	sn=n-1;
 
-    s = (double*)calloc(n+2, sizeof(double));
+    s = (elev_t*)calloc(n+2, sizeof(elev_t));
 	assert(s!=NULL);
 	s[0]=sn;
 	s[1]=1.0;
@@ -2698,7 +2704,7 @@ double d1thx2(const double pfl[], const double x1, const double x2)
  *
  * See ITWOM-SUB-ROUTINES.pdf p233
  */
-void qlrpfl(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
+void qlrpfl(const elev_t pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
 {
 	int np, j;
 	double xl[2], q, za, zb, temp;
@@ -2795,7 +2801,7 @@ void qlrpfl(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_ty
  *
  * See ITWOM-SUB-ROUTINES.pdf p247
  */
-void qlrpfl2(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
+void qlrpfl2(const elev_t pfl[], int klimx, int mdvarx, prop_type *prop, propa_type *propa, propv_type *propv)
 {
 	int np, j;
 	double xl[2], dlb, za, zb, temp, rad, rae1, rae2;
@@ -2959,7 +2965,7 @@ void qlrpfl2(const double pfl[], int klimx, int mdvarx, prop_type *prop, propa_t
 			Results are probably invalid.
 
 *****************************************************************************/
-void point_to_point_ITM(const double elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
+void point_to_point_ITM(const elev_t elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
 
 {
 	prop_type   prop = {0};
@@ -3081,7 +3087,7 @@ void point_to_point_ITM(const double elev[], double tht_m, double rht_m, double 
 			Results are probably invalid.
 
 *****************************************************************************/
-void point_to_point(const double elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
+void point_to_point(const elev_t elev[], double tht_m, double rht_m, double eps_dielect, double sgm_conductivity, double eno_ns_surfref, double frq_mhz, int radio_climate, int pol, double conf, double rel, double *dbloss, char *strmode, int *errnum)
 {
 	prop_type   prop = {0};
 	propv_type  propv = {0};
@@ -3192,7 +3198,7 @@ void point_to_point(const double elev[], double tht_m, double rht_m, double eps_
 	         Other-  Warning: Some parameters are out of range.
 	                          Results are probably invalid.
 *************************************************************************************************/
-void point_to_pointMDH_two (const double elev[], double tht_m, double rht_m,
+void point_to_pointMDH_two (const elev_t elev[], double tht_m, double rht_m,
           double eps_dielect, double sgm_conductivity, double eno_ns_surfref, 
 	  double enc_ncc_clcref, double clutter_height, double clutter_density, 
 	  double delta_h_diff, double frq_mhz, int radio_climate, int pol, int mode_var, 
@@ -3292,7 +3298,7 @@ void point_to_pointMDH_two (const double elev[], double tht_m, double rht_m,
 	         Other-  Warning: Some parameters are out of range.
 	                          Results are probably invalid.
 *************************************************************************************************/
-void point_to_pointDH (const double elev[], double tht_m, double rht_m, 
+void point_to_pointDH (const elev_t elev[], double tht_m, double rht_m, 
 		  double eps_dielect, double sgm_conductivity, double eno_ns_surfref,
 		  double enc_ncc_clcref, double clutter_height, double clutter_density, 
 		  double delta_h_diff, double frq_mhz, int radio_climate, int pol, 

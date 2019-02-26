@@ -94,6 +94,14 @@
 #define max(i, j) ( i > j ? i : j)
 #endif
 
+// avg must be a float or double or you get rounding down because of truncation
+// ignores values if n == 0 to avoid a divide-by-zero error
+#define UPDATE_RUNNING_AVG(avg, latest, n) do { \
+    (n) && ((avg) = (avg) + ((float)((latest) - (avg)))/(float)(n)); \
+} while (0)
+
+static double avgpathlen = 0.0;
+static int totalpaths = 0;
 
 /*****************************
  * Typedefs
@@ -265,15 +273,21 @@ typedef uint32_t Pixel;
 /*****************************
  * External stuff for ITWOM. I don't know why we don't just include a .h file.
  *****************************/
+#ifdef ITM_ELEV_DOUBLE
+#define elev_t double
+#else
+#define elev_t float
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-void point_to_point(double elev[], double tht_m, double rht_m,
+void point_to_point(elev_t elev[], double tht_m, double rht_m,
 	  double eps_dielect, double sgm_conductivity, double eno_ns_surfref,
 	  double frq_mhz, int radio_climate, int pol, double conf,
 	  double rel, double *dbloss, char *strmode, int *errnum);
 
-void point_to_point_ITM(double elev[], double tht_m, double rht_m,
+void point_to_point_ITM(elev_t elev[], double tht_m, double rht_m,
 	  double eps_dielect, double sgm_conductivity, double eno_ns_surfref,
 	  double frq_mhz, int radio_climate, int pol, double conf,
 	  double rel, double *dbloss, char *strmode, int *errnum);
@@ -3273,20 +3287,24 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 	}
 	ReadPath(source,destination,path);
 
+	/* XXX debug */
+	totalpaths++;
+	UPDATE_RUNNING_AVG(avgpathlen, path->length, totalpaths);
+
     /* XXX why +10? should it just be +2? Better yet, path->length+2? */
-	double *elev = (double*)calloc(path->arysize + 10, sizeof(double));
+	elev_t *elev = (elev_t*)calloc(path->arysize + 10, sizeof(elev_t));
 
 	four_thirds_earth=FOUR_THIRDS*EARTHRADIUS;
 
 	/* Copy elevations plus clutter along path into the elev[] array. */
 
 	for (x=1; x<path->length-1; x++)
-		elev[x+2]=(path->elevation[x]==0.0?path->elevation[x]*METERS_PER_FOOT:(clutter+path->elevation[x])*METERS_PER_FOOT);
+		elev[x+2]=(path->elevation[x]==0.0?(elev_t)(path->elevation[x]*METERS_PER_FOOT):(elev_t)((clutter+path->elevation[x])*METERS_PER_FOOT));
 
 	/* Copy ending points without clutter */
 
-	elev[2]=path->elevation[0]*METERS_PER_FOOT;
-	elev[path->length+1]=path->elevation[path->length-1]*METERS_PER_FOOT;
+	elev[2]=(elev_t)(path->elevation[0]*METERS_PER_FOOT);
+	elev[path->length+1]=(elev_t)(path->elevation[path->length-1]*METERS_PER_FOOT);
 
 	/* Since the only energy the propagation model considers
 	   reaching the destination is based on what is scattered
@@ -3383,11 +3401,11 @@ int PlotLRPath(Site source, Site destination, unsigned char mask_value, FILE *fd
 			   shortest distance terrain can play a role in
 			   path loss. */
  
-			elev[0]=y-1;  /* (number of points - 1) */
+			elev[0]=(elev_t)(y-1);  /* (number of points - 1) */
 
 			/* Distance between elevation samples */
 
-			elev[1]=METERS_PER_MILE*(path->distance[y]-path->distance[y-1]);
+			elev[1]=(elev_t)(METERS_PER_MILE*(path->distance[y]-path->distance[y-1]));
 
 			if (itwom)
 				point_to_point(elev,source.alt*METERS_PER_FOOT,
@@ -3967,6 +3985,7 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
 
 	if (verbose) {
 		fprintf(stdout,"\nDone!\n");
+		fprintf(stdout,"\nThere were %d paths with an average length of %d elements.\n", totalpaths, (int)avgpathlen);
 		fflush(stdout);
 	}
 
@@ -7509,18 +7528,18 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 
 		ReadPath(source,destination,path);  /* source=TX, destination=RX */
 
-		double *elev = (double*)calloc(path->arysize + 10, sizeof(double));
+		elev_t *elev = (elev_t*)calloc(path->arysize + 10, sizeof(elev_t));
 
 		/* Copy elevations plus clutter along
 		   path into the elev[] array. */
 
 		for (x=1; x<path->length-1; x++)
-			elev[x+2]=METERS_PER_FOOT*(path->elevation[x]==0.0?path->elevation[x]:(clutter+path->elevation[x]));
+			elev[x+2]=METERS_PER_FOOT*(path->elevation[x]==0.0?(elev_t)(path->elevation[x]):(elev_t)(clutter+path->elevation[x]));
 
 		/* Copy ending points without clutter */
 
-		elev[2]=path->elevation[0]*METERS_PER_FOOT;
-		elev[path->length+1]=path->elevation[path->length-1]*METERS_PER_FOOT;
+		elev[2]=(elev_t)(path->elevation[0]*METERS_PER_FOOT);
+		elev[path->length+1]=(elev_t)(path->elevation[path->length-1]*METERS_PER_FOOT);
 
 		fd=fopen("profile.gp","w");
 
@@ -7589,11 +7608,11 @@ void PathReport(Site source, Site destination, char *name, char graph_it)
 		  	   shortest distance terrain can play a role in
 		  	   path loss. */
 
-			elev[0]=y-1;	/* (number of points - 1) */
+			elev[0]=(elev_t)(y-1);	/* (number of points - 1) */
 
 			/* Distance between elevation samples */
 
-			elev[1]=METERS_PER_MILE*(path->distance[y]-path->distance[y-1]);
+			elev[1]=(elev_t)(METERS_PER_MILE*(path->distance[y]-path->distance[y-1]));
 
 			if (itwom)
 				point_to_point(elev,source.alt*METERS_PER_FOOT, 
@@ -8459,25 +8478,26 @@ int main(int argc, char *argv[])
 		unsigned long demmem;
 		pathmem = (WorkQueue::maxWorkers()*SizeofPath(APPMODE_NORMAL, maxpagesides))/1024;
 		demmem = (maxpagesides*maxpagesides*SizeofDEM(APPMODE_NORMAL))/1024;
-		fprintf(stdout,"At the %dx%d maximum in normal mode it will require %lu MB of RAM\n",
+		fprintf(stdout,"At the %dx%d maximum in normal mode it will require %lu MB of RAM.\n",
             maxpagesides, maxpagesides, (pathmem+demmem)/1024);
+		fprintf(stdout,"Each Path can be up to %lu KB.\n\n", pathmem);
 		/*
-		fprintf(stdout,"Each Path: %lu KB\n", pathmem);
 		fprintf(stdout,"Each DEM: %lu KB\n", demmem);
 		fprintf(stdout,"\n");
 	    */
 
 		pathmem = (WorkQueue::maxWorkers()*SizeofPath(APPMODE_HD, maxpagesides))/1024;
 		demmem = (maxpagesides*maxpagesides*SizeofDEM(APPMODE_HD))/1024;
-		fprintf(stdout,"At the %dx%d maximum in HD mode it will require %lu MB of RAM\n",
+		fprintf(stdout,"At the %dx%d maximum in HD mode it will require %lu MB of RAM.\n",
             maxpagesides, maxpagesides, (pathmem+demmem)/1024);
+		fprintf(stdout,"Each Path can be up to %lu KB.\n\n", pathmem);
 		/*
-		  fprintf(stdout,"Each Path: %lu KB\n", pathmem);
 		  fprintf(stdout,"Each DEM: %lu KB\n", demmem);
 		  fprintf(stdout,"\n");
 		 */
 
-		fprintf(stdout,"You have %lu MB of RAM available\n", (unsigned long)(systemMemory/(1024*1024)) );
+		fprintf(stdout,"You have %lu MB of RAM available.\n", (unsigned long)(systemMemory/(1024*1024)) );
+		fprintf(stdout,"You have %d cores/threads available.\n", WorkQueue::maxWorkers());
 
 		fflush(stdout);
 
