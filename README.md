@@ -16,8 +16,7 @@ that. (Later versions of OpenCL allow C++, but none of the common GPU drivers su
 
 Build instructions are in the file README.
 
-For this version, you must have either clang or gcc installed, and it must be a version that supports at
-least C++11 .
+For this version, you must have either gcc or clang installed, and it must be a version that supports at least C++11 .
 
 You also need several utility libraries:
 * libbzip2
@@ -25,19 +24,22 @@ You also need several utility libraries:
 * libpng
 * libjpeg
 
+and gnuplot for generating graphs.
+
+
 You can generally get these via system packages. For instance:
     
 Centos 7:
 
-`yum install bzip2-devel zlib-devel libpng-devel libjpeg-turbo-devel`
+`yum install bzip2-devel zlib-devel libpng-devel libjpeg-turbo-devel gnuplot`
 
 Debian (Buster):
 
-`apt-get install libbz2-dev zlib1g-dev libjpeg-dev libpng-dev`
+`apt-get install libbz2-dev zlib1g-dev libjpeg-dev libpng-dev gnuplot`
 
 OSX (High Sierra):
 
-`brew install jpeg libpng`
+`brew install jpeg libpng gnuplot`
 
 ## Changes
 
