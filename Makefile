@@ -10,12 +10,7 @@ ifdef GXX
   CC=gcc
   CXX=g++
   CPPFLAGS_32:= 
-  ifneq "$(OS)" "Darwin"
-    CPPFLAGS_64:=-march=x86-64 -mcmodel=medium
-  endif
-
-  GCC_CFLAGS:=-fomit-frame-pointer -Wno-stringop-truncation -Wno-format-truncation -Wno-format-overflow $(CPPFLAGS_$(ARCH))
-  GCC_CFLAGS:=-fomit-frame-pointer $(CPPFLAGS_$(ARCH))
+  GCC_CFLAGS:=$(CPPFLAGS_$(ARCH))
 else
   CC=clang
   CXX=clang++
@@ -23,8 +18,8 @@ else
 endif
 
 
-#CPPFLAGS= -g -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS)
-CPPFLAGS= -O3 -Wall -ffast-math -pipe $(CLANG_CFLAGS) $(GCC_CFLAGS)
+#CPPFLAGS= -g -Wall -ffast-math $(CLANG_CFLAGS) $(GCC_CFLAGS)
+CPPFLAGS= -O3 -Wall -ffast-math $(CLANG_CFLAGS) $(GCC_CFLAGS)
 
 SRCS = splat.cpp
 OBJS = $(SRCS:.cpp=.o)

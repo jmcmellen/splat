@@ -262,8 +262,8 @@ int LoadSDF_SDF(char *name)
 	sdf_file[x+3]='f';
 	sdf_file[x+4]=0;
 
-	strncpy(path_plus_name,sdf_path,255);
-	strncat(path_plus_name,sdf_file,254);
+	strcpy(path_plus_name,sdf_path);
+	strcat(path_plus_name,sdf_file);
 
 	infile=fopen(path_plus_name,"rb");
 
@@ -352,7 +352,7 @@ int LoadSDF_BZ(char *name)
 	   SPLAT Data Files into memory. */
 
 	int x, y, dummy;
-	char sdf_file[255], path_plus_name[255];
+	char sdf_file[255], path_plus_name[512];
 	FILE *fd;
 	BZFILE *bzfd;
 
@@ -369,8 +369,8 @@ int LoadSDF_BZ(char *name)
 	sdf_file[x+7]='2';
 	sdf_file[x+8]=0;
 
-	strncpy(path_plus_name,sdf_path,255);
-	strncat(path_plus_name,sdf_file,254);
+	strcpy(path_plus_name,sdf_path);
+	strcat(path_plus_name,sdf_file);
 
 	fd=fopen(path_plus_name,"rb");
 	bzfd=BZ2_bzReadOpen(&bzerror,fd,0,0,NULL,0);
@@ -608,6 +608,8 @@ int main(int argc, char **argv)
 	int x, y, z=0;
 	char *env=NULL;
 
+    sdf_path[0] = '\0';
+
 	if (argc==1 || (argc==2 && strncmp(argv[1],"-h",2)==0))
 	{
         fprintf(stderr, "\nsrtm2sdf: Generates SPLAT! elevation data files from unzipped\nSRTM-1 or SRTM-3 elevation data files, and replaces SRTM data voids with\nelevation data from older usgs2sdf derived SDF files.\n\n");
@@ -699,7 +701,7 @@ int main(int argc, char **argv)
 			for (x=0; string[x]!=13 && string[x]!=10 && string[x]!=0 && x<253; x++);
 			string[x]=0;
 
-			strncpy(sdf_path,string,253);
+			strcpy(sdf_path,string);
 
 			fclose(fd);
 		}
