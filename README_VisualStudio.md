@@ -16,10 +16,10 @@
 * This creates a Win32 Console Application. No fancy windows here!
 
 * Settings
-    Unicode is not supported, nor multibyte character set. General->Character set should be left as "unset".
-    The preprocessor for both Debug and Release needs to have _CRT_SECURE_NO_WARNINGS
-    The optimization should be /Od for Debug and /O2 for Release.
-    Precompiled Headers should be set to "Not Using Precompiled Headers".
+    * Unicode is not supported, nor multibyte character set. General->Character set should be left as "unset".
+    * The preprocessor for both Debug and Release needs to have _CRT_SECURE_NO_WARNINGS
+    * The optimization should be /Od for Debug and /O2 for Release.
+    * Precompiled Headers should be set to "Not Using Precompiled Headers".
     
 * Auxiliary Libraries
     You need bzip2, zlib, and png libraries at the minimum. jpeg is optional.
