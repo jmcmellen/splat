@@ -3763,7 +3763,7 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
  * are stored in memory, and written out in the form of a topographic map when
  * the WriteImageLR() or WriteImageSS() functions are later invoked.
  */
-PlotLRMap(Site source, double altitude, char *plo_filename, bool multithread)
+void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithread)
 {
     int y, z, count;
     Site edge;
