@@ -20,19 +20,18 @@ endif
 
 #CPPFLAGS= -g -Wall -ffast-math $(CLANG_CFLAGS) $(GCC_CFLAGS)
 CPPFLAGS= -O3 -Wall -ffast-math $(CLANG_CFLAGS) $(GCC_CFLAGS)
+OBJS=$(patsubst %.cpp, %.o, $(filter %.cpp, $(SRCS))) $(patsubst %.c, %.o, $(filter %.c, $(SRCS)))
 
-SRCS = splat.cpp
-OBJS = $(SRCS:.cpp=.o)
-C_SRCS = itwom3.0.c
-C_OBJS = $(C_SRCS:.c=.o)
+SRCS = splat.cpp \
+	itwom3.0.c \
+	zip.c
 
 LDFLAGS = -lm -lpthread -lz -lbz2 -ljpeg -lpng
 
 all: splat utils splat-hd
 
-splat: $(SRCS) $(C_OBJS)
-	$(CXX) $(CPPFLAGS) -std=c++11 $(INCLUDES) -c $(SRCS)
-	$(CXX) $(CPPFLAGS) -o $@ $(OBJS) $(C_OBJS) $(LDFLAGS)
+splat: $(OBJS)
+	$(CXX) $(CPPFLAGS) -o $@ $(OBJS) $(LDFLAGS)
 
 splat-hd: splat
 	ln -sf splat splat-hd
@@ -52,4 +51,6 @@ clean:
 .c.o:
 	$(CC) $(CPPFLAGS) -std=c99 -pedantic $(INCLUDES) -c $<
 
+.cpp.o:
+	$(CC) $(CPPFLAGS) -std=c++11 $(INCLUDES) -c $<
 
