@@ -35,6 +35,7 @@
 #endif
 
 #include "bzlib.h"
+#include "zip.h"
 
 #define HAVE_LIBPNG
 #ifndef _WIN32
@@ -4463,15 +4464,15 @@ void LoadDBMColors(Site xmtr)
  * The image created is rotated counter-clockwise 90 degrees from its
  * representation in DEM[][] so that north points up and east points right.
  */
-void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned char kml, unsigned char ngs, Site *xmtr, unsigned char txsites)
+void WriteImage(char *filename, ImageType imagetype, bool geo, bool kml, bool ngs, Site *xmtr, unsigned int txsites)
 {
     const char *suffix;
     char *mapfile, *geofile, *kmlfile;
     unsigned char mask;
     unsigned width, height, terrain;
-    int x, y, x0=0, y0=0;
+    int x0=0, y0=0;
     DEM *dem;
-    double lat, lon, conversion, one_over_gamma,
+    double conversion, one_over_gamma,
            north, south, east, west, minwest;
     FILE *fd;
 
@@ -4520,7 +4521,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
     east=(minwest<180.0?-minwest:360.0-min_west);
     west=(double)(max_west<180?-max_west:360-max_west);
 
-    if (kml==0 && geo)
+    if (!kml && geo)
     {
         fd=fopen(geofile,"wb");
 
@@ -4534,7 +4535,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
         fclose(fd);
     }
 
-    if (kml && geo==0)
+    if (kml && !geo)
     {
         fd=fopen(kmlfile,"wb");
 
@@ -4559,7 +4560,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
         fprintf(fd,"			</LatLonBox>\n");
         fprintf(fd,"	   </GroundOverlay>\n");
 
-        for (x=0; x<txsites; x++)
+        for (unsigned int x=0; x<txsites; x++)
         {
             fprintf(fd,"	 <Placemark>\n");
             fprintf(fd,"	   <name>%s</name>\n",xmtr[x].name);
@@ -4598,9 +4599,9 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
         return;
     }
 
-    for (y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
+    for (int y=0, lat=north; y<(int)height; y++, lat=north-(dpp*(double)y))
     {
-        for (x=0, lon=max_west; x<(int)width; x++, lon=(double)max_west-(dpp*(double)x))
+        for (int x=0, lon=max_west; x<(int)width; x++, lon=(double)max_west-(dpp*(double)x))
         {
             if (lon<0.0)
                 lon+=360.0;
@@ -4740,7 +4741,7 @@ void WriteImage(char *filename, ImageType imagetype, unsigned char geo, unsigned
  * array (only). The image created is rotated counter-clockwise 90 degrees from
  * its representation in DEM[][] so that north points up and east points right.
  */
-void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsigned char kml, unsigned char ngs, Site *xmtr, unsigned char txsites)
+void WriteImageLR(char *filename, ImageType imagetype, bool geo, bool kml, bool ngs, Site *xmtr, unsigned int txsites)
 {
     const char *suffix;
     char *mapfile, *geofile, *kmlfile, *ckfile;
@@ -4811,7 +4812,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
     east=(minwest<180.0?-minwest:360.0-min_west);
     west=(double)(max_west<180?-max_west:360-max_west);
 
-    if (kml==0 && geo)
+    if (!kml && geo)
     {
         fd=fopen(geofile,"wb");
 
@@ -4827,7 +4828,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
         fclose(fd);
     }
 
-    if (kml && geo==0)
+    if (kml && !geo)
     {   
         fd=fopen(kmlfile,"wb");
 
@@ -4865,10 +4866,10 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
         fprintf(fd,"		  <size x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
         fprintf(fd,"	   </ScreenOverlay>\n");
 
-        for (x=0; x<txsites; x++)
+        for (unsigned int i=0; i<txsites; i++)
         {
             fprintf(fd,"	 <Placemark>\n");
-            fprintf(fd,"	   <name>%s</name>\n",xmtr[x].name);
+            fprintf(fd,"	   <name>%s</name>\n",xmtr[i].name);
             fprintf(fd,"	   <visibility>1</visibility>\n");
             fprintf(fd,"	   <Style>\n");
             fprintf(fd,"	   <IconStyle>\n");
@@ -4884,7 +4885,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
             fprintf(fd,"	  <Point>\n");
             fprintf(fd,"		<extrude>1</extrude>\n");
             fprintf(fd,"		<altitudeMode>relativeToGround</altitudeMode>\n");
-            fprintf(fd,"		<coordinates>%f,%f,%f</coordinates>\n",(xmtr[x].lon<180.0?-xmtr[x].lon:360.0-xmtr[x].lon), xmtr[x].lat, xmtr[x].alt);
+            fprintf(fd,"		<coordinates>%f,%f,%f</coordinates>\n",(xmtr[i].lon<180.0?-xmtr[i].lon:360.0-xmtr[i].lon), xmtr[i].lat, xmtr[i].alt);
             fprintf(fd,"	  </Point>\n");
             fprintf(fd,"	 </Placemark>\n");
         }
@@ -5031,7 +5032,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
         ImageWriterEmitLine(&iw);
     }
 
-    if (kml==0 && geo==0)
+    if (!kml && !geo)
     {
         /* Display legend along bottom of image
          * if not generating .kml or .geo output.
@@ -5208,7 +5209,7 @@ void WriteImageLR(char *filename, ImageType imagetype, unsigned char geo, unsign
  * In this version of the WriteImage function the signal strength is
  *  plotted (vs the power level, plotted by WriteImageDBM).
  */
-void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsigned char kml, unsigned char ngs, Site *xmtr, unsigned char txsites)
+void WriteImageSS(char *filename, ImageType imagetype, bool geo, bool kml, bool ngs, Site *xmtr, unsigned int txsites)
 {
     const char *suffix;
     char *mapfile, *geofile, *kmlfile, *ckfile;
@@ -5279,7 +5280,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
     east=(minwest<180.0?-minwest:360.0-min_west);
     west=(double)(max_west<180?-max_west:360-max_west);
 
-    if (geo && kml==0)
+    if (geo && !kml)
     {
         fd=fopen(geofile,"wb");
 
@@ -5295,7 +5296,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
         fclose(fd);
     }
 
-    if (kml && geo==0)
+    if (kml && !geo)
     {   
         fd=fopen(kmlfile,"wb");
 
@@ -5332,10 +5333,10 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
         fprintf(fd,"		  <size x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
         fprintf(fd,"	   </ScreenOverlay>\n");
 
-        for (x=0; x<txsites; x++)
+        for (unsigned int i=0; i<txsites; i++)
         {
             fprintf(fd,"	 <Placemark>\n");
-            fprintf(fd,"	   <name>%s</name>\n",xmtr[x].name);
+            fprintf(fd,"	   <name>%s</name>\n",xmtr[i].name);
             fprintf(fd,"	   <visibility>1</visibility>\n");
             fprintf(fd,"	   <Style>\n");
             fprintf(fd,"	   <IconStyle>\n");
@@ -5351,7 +5352,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
             fprintf(fd,"	  <Point>\n");
             fprintf(fd,"		<extrude>1</extrude>\n");
             fprintf(fd,"		<altitudeMode>relativeToGround</altitudeMode>\n");
-            fprintf(fd,"		<coordinates>%f,%f,%f</coordinates>\n",(xmtr[x].lon<180.0?-xmtr[x].lon:360.0-xmtr[x].lon), xmtr[x].lat, xmtr[x].alt);
+            fprintf(fd,"		<coordinates>%f,%f,%f</coordinates>\n",(xmtr[i].lon<180.0?-xmtr[i].lon:360.0-xmtr[i].lon), xmtr[i].lat, xmtr[i].alt);
             fprintf(fd,"	  </Point>\n");
             fprintf(fd,"	 </Placemark>\n");
         }
@@ -5506,7 +5507,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
         ImageWriterEmitLine(&iw);
     }
 
-    if (kml==0 && geo==0)
+    if (!kml && !geo)
     {
         /* Display legend along bottom of image
          * if not generating .kml or .geo output.
@@ -5716,7 +5717,7 @@ void WriteImageSS(char *filename, ImageType imagetype, unsigned char geo, unsign
  * In this version of the WriteImage function the power level is
  *  plotted (vs the signal strength, plotted by WriteImageDBM).
  */
-void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsigned char kml, unsigned char ngs, Site *xmtr, unsigned char txsites)
+void WriteImageDBM(char *filename, ImageType imagetype, bool geo, bool kml, bool ngs, Site *xmtr, unsigned int txsites)
 {
     const char *suffix;
     char *mapfile, *geofile, *kmlfile, *ckfile;
@@ -5788,7 +5789,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
     east=(minwest<180.0?-minwest:360.0-min_west);
     west=(double)(max_west<180?-max_west:360-max_west);
 
-    if (geo && kml==0)
+    if (geo && !kml)
     {
         fd=fopen(geofile,"wb");
 
@@ -5804,8 +5805,8 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
         fclose(fd);
     }
 
-    if (kml && geo==0)
-    {   
+    if (kml && !geo)
+    {
         fd=fopen(kmlfile,"wb");
 
         fprintf(fd,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -5841,10 +5842,10 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
         fprintf(fd,"		  <size x=\"0\" y=\"0\" xunits=\"fraction\" yunits=\"fraction\"/>\n");
         fprintf(fd,"	   </ScreenOverlay>\n");
 
-        for (x=0; x<txsites; x++)
+        for (unsigned int i=0; i<txsites; i++)
         {
             fprintf(fd,"	 <Placemark>\n");
-            fprintf(fd,"	   <name>%s</name>\n",xmtr[x].name);
+            fprintf(fd,"	   <name>%s</name>\n",xmtr[i].name);
             fprintf(fd,"	   <visibility>1</visibility>\n");
             fprintf(fd,"	   <Style>\n");
             fprintf(fd,"	   <IconStyle>\n");
@@ -5860,7 +5861,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
             fprintf(fd,"	  <Point>\n");
             fprintf(fd,"		<extrude>1</extrude>\n");
             fprintf(fd,"		<altitudeMode>relativeToGround</altitudeMode>\n");
-            fprintf(fd,"		<coordinates>%f,%f,%f</coordinates>\n",(xmtr[x].lon<180.0?-xmtr[x].lon:360.0-xmtr[x].lon), xmtr[x].lat, xmtr[x].alt);
+            fprintf(fd,"		<coordinates>%f,%f,%f</coordinates>\n",(xmtr[i].lon<180.0?-xmtr[i].lon:360.0-xmtr[i].lon), xmtr[i].lat, xmtr[i].alt);
             fprintf(fd,"	  </Point>\n");
             fprintf(fd,"	 </Placemark>\n");
         }
@@ -6014,7 +6015,7 @@ void WriteImageDBM(char *filename, ImageType imagetype, unsigned char geo, unsig
         ImageWriterEmitLine(&iw);
     }
 
-    if (kml==0 && geo==0)
+    if (!kml && !geo)
     {
         /* Display legend along bottom of image
            if not generating .kml or .geo output. */
@@ -6632,7 +6633,7 @@ void GraphElevation(Site source, Site destination, char *name)
  * and output file type.
  * If no extension is found, .png is assumed.
  */
-void GraphHeight(Site source, Site destination, char *name, unsigned char fresnel_plot, unsigned char normalized)
+void GraphHeight(Site source, Site destination, char *name, bool fresnel_plot, bool normalized)
 {
     int	x;
     char	basename[MAX_PATH_LEN], term[30], ext[20];
@@ -7188,14 +7189,14 @@ void ObstructionAnalysis(Site xmtr, Site rcvr, double f, FILE *outfile)
 }
 
 /* Writes a SPLAT! Path Report (source.name-to-dest.name.txt) to the filesystem.
- * If (graph_it == 1), then gnuplot is invoked to generate an appropriate output
+ * If (graph_it == true), then gnuplot is invoked to generate an appropriate output
  * file indicating the ITM/ITWOM model loss between the source and destination
  * locations. You don't get a choice in the name of the text report, but "name"
  * is the name assigned to the output file generated by gnuplot.
  * The filename extension is used to set gnuplot's terminal setting and output
  * file type. If no extension is found, .png is assumed.
  */
-void PathReport(Site source, Site destination, char *name, char graph_it)
+void PathReport(Site source, Site destination, char *name, bool graph_it)
 {
     int	x, y, errnum;
     char	basename[MAX_PATH_LEN], term[30], ext[20], strmode[100],
@@ -8356,16 +8357,17 @@ void WriteKML(Site source, Site destination)
 
 int main(int argc, char *argv[])
 {
-    int		x, y, z=0, min_lat, min_lon, max_lat, max_lon,
+    int     errcount = 0;
+    int		min_lat, min_lon, max_lat, max_lon,
             rxlat, rxlon, txlat, txlon, west_min, west_max,
             north_min, north_max;
-
-    unsigned char	coverage=0, LRmap=0, terrain_plot=0,
-                    elevation_plot=0, height_plot=0, norm_height_plot=0,
-                    map=0, longley_plot=0, cities=0, bfs=0, txsites=0,
-                    topomap=0, geo=0, kml=0, pt2pt_mode=0,
-                    area_mode=0, max_txsites, ngs=0, nolospath=0,
-                    nositereports=0, fresnel_plot=1, command_line_log=0;
+    unsigned int txsites=0, max_txsites=0, cities=0, bfs=0;
+    bool	coverage=false, LRmap=false, terrain_plot=false,
+            elevation_plot=false, height_plot=false, norm_height_plot=false,
+            map=false, longley_plot=false;
+    bool    topomap=false, geo=false, kml=false, pt2pt_mode=false,
+            area_mode=false, ngs=false, nolospath=false,
+            nositereports=false, fresnel_plot=true, command_line_log=false;
 
 #ifdef HAVE_LIBPNG
     ImageType imagetype=IMAGETYPE_PNG;
@@ -8494,8 +8496,6 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    y=argc-1;
-
     kml=0;
     geo=0;
     metric=0;
@@ -8521,7 +8521,7 @@ int main(int argc, char *argv[])
     ani_filename[0]=0;
     earthradius=EARTHRADIUS;
 
-    for (x=0; x<4; x++)
+    for (int x=0; x<4; x++)
     {
         tx_site[x].lat=91.0;
         tx_site[x].lon=361.0;
@@ -8529,13 +8529,13 @@ int main(int argc, char *argv[])
 
     /* Scan for command line arguments */
 
-    for (x=1; x<=y; x++)
+    for (int x=1, z=0; x<argc; x++)
     {
         if (strcmp(argv[x],"-R")==0)
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 sscanf(argv[z],"%lf",&max_range);
 
@@ -8551,7 +8551,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 sscanf(argv[z],"%lf",&er_mult);
 
@@ -8569,7 +8569,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 sscanf(argv[z],"%d",&verbose);
             }			 
@@ -8579,7 +8579,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 sscanf(argv[z],"%lf",&clutter);
 
@@ -8592,7 +8592,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 sscanf(argv[z],"%lf",&fzone_clearance);
 
@@ -8607,7 +8607,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
                 strncpy(mapfile,argv[z],MAX_PATH_LEN-1);
             map=1;
         }
@@ -8618,7 +8618,7 @@ int main(int argc, char *argv[])
 
             logfile[0]=0;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
                 strncpy(logfile,argv[z],MAX_PATH_LEN-1);
 
             command_line_log=1;
@@ -8629,7 +8629,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
                 strncpy(udt_file,argv[z],MAX_PATH_LEN-1);
         }
 #endif
@@ -8638,7 +8638,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 sscanf(argv[z],"%lf",&altitude);
                 map=1;
@@ -8652,7 +8652,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0]) /* A minus argument is legal here */
+            if (z<argc && argv[z][0]) /* A minus argument is legal here */
                 sscanf(argv[z],"%d",&contour_threshold);
         }
 
@@ -8660,7 +8660,7 @@ int main(int argc, char *argv[])
         { 
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 strncpy(terrain_file,argv[z],MAX_PATH_LEN-10);
                 terrain_plot=1;
@@ -8672,7 +8672,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 strncpy(elevation_file,argv[z],MAX_PATH_LEN-10);
                 elevation_plot=1;
@@ -8684,7 +8684,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 strncpy(height_file,argv[z],MAX_PATH_LEN-10);
                 height_plot=1;
@@ -8696,7 +8696,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 strncpy(norm_height_file,argv[z],MAX_PATH_LEN-10);
                 norm_height_plot=1;
@@ -8778,7 +8778,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
                 strncpy(sdf_path,argv[z],MAX_PATH_LEN-2);
 
             /* Ensure it has a trailing slash */
@@ -8795,7 +8795,7 @@ int main(int argc, char *argv[])
 
             z=x+1;
 
-            while (z<=y && argv[z][0] && argv[z][0]!='-' && txsites<30)
+            while (z<argc && argv[z][0] && argv[z][0]!='-' && txsites<30)
             {
                 strncpy(txfile,argv[z],MAX_PATH_LEN-1);
                 tx_site[txsites]=LoadQTH(txfile);
@@ -8810,7 +8810,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 sscanf(argv[z],"%lf",&altitudeLR);
                 map=1;
@@ -8826,7 +8826,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 strncpy(longley_file,argv[z],MAX_PATH_LEN-10);
                 longley_plot=1;
@@ -8840,7 +8840,7 @@ int main(int argc, char *argv[])
 
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 strncpy(rxfile,argv[z],MAX_PATH_LEN-1);
                 rx_site=LoadQTH(rxfile);
@@ -8855,7 +8855,7 @@ int main(int argc, char *argv[])
 
             z=x+1;
 
-            while (z<=y && argv[z][0] && argv[z][0]!='-' && cities<5)
+            while (z<argc && argv[z][0] && argv[z][0]!='-' && cities<5)
             {
                 strncpy(city_file[cities],argv[z],MAX_PATH_LEN-1);
                 cities++;
@@ -8871,7 +8871,7 @@ int main(int argc, char *argv[])
 
             z=x+1;
 
-            while (z<=y && argv[z][0] && argv[z][0]!='-' && bfs<5)
+            while (z<argc && argv[z][0] && argv[z][0]!='-' && bfs<5)
             {
                 strncpy(boundary_file[bfs],argv[z],MAX_PATH_LEN-1);
                 bfs++;
@@ -8885,7 +8885,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 sscanf(argv[z],"%lf",&forced_freq);
 
@@ -8901,7 +8901,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
             {
                 sscanf(argv[z],"%lf",&forced_erp);
 
@@ -8914,7 +8914,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
                 strncpy(ano_filename,argv[z],253);
         }
 
@@ -8922,7 +8922,7 @@ int main(int argc, char *argv[])
         {
             z=x+1;
 
-            if (z<=y && argv[z][0] && argv[z][0]!='-')
+            if (z<argc && argv[z][0] && argv[z][0]!='-')
                 strncpy(ani_filename,argv[z],253);
         }
     }
@@ -8938,22 +8938,23 @@ int main(int argc, char *argv[])
     if (txsites==0)
     {
         fprintf(stderr,"\n%c*** ERROR: No transmitter site(s) specified!\n\n",7);
-        exit (-1);
+        return -1;
     }
 
-    for (x=0, y=0; x<txsites; x++)
+    errcount = 0;
+    for (unsigned int x=0; x<txsites; x++)
     {
         if (tx_site[x].lat==91.0 && tx_site[x].lon==361.0)
         {
             fprintf(stderr,"\n*** ERROR: Transmitter site #%d not found!",x+1);
-            y++;
+            errcount++;
         }
     }
 
-    if (y)
+    if (errcount)
     {
         fprintf(stderr,"%c\n\n",7);
-        exit (-1);
+        return -1;
     }
 
     /* XXX TODO: Read maxpagesides from commandline.
@@ -9012,6 +9013,7 @@ int main(int argc, char *argv[])
         fgets(buf,MAX_PATH_LEN-2,fd);
 
         /* Remove <CR> and/or <LF> from buf */
+        int x;
         for (x=0; buf[x]!=13 && buf[x]!=10 && buf[x]!=0 && x<(MAX_PATH_LEN-2); x++);
         buf[x]=0;
 
@@ -9035,9 +9037,9 @@ int main(int argc, char *argv[])
     if (ani_filename[0])
     {
         LoadLRP(tx_site[0],0); /* Get ERP status */
-        y=LoadANO(ani_filename);
+        LoadANO(ani_filename);
 
-        for (x=0; x<txsites && x<max_txsites; x++)
+        for (unsigned int x=0; x<txsites && x<max_txsites; x++)
             PlaceMarker(tx_site[x]);
 
         if (rxsite)
@@ -9045,7 +9047,7 @@ int main(int argc, char *argv[])
 
         if (bfs)
         {
-            for (x=0; x<bfs; x++)
+            for (unsigned int x=0; x<bfs; x++)
                 LoadBoundaries(boundary_file[x]);
 
             fprintf(stdout,"\n");
@@ -9054,7 +9056,7 @@ int main(int argc, char *argv[])
 
         if (cities)
         {
-            for (x=0; x<cities; x++)
+            for (unsigned int x=0; x<cities; x++)
                 LoadCities(city_file[x]);
 
             fprintf(stdout,"\n");
@@ -9075,16 +9077,13 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    x=0;
-    y=0;
-
     min_lat=90;
     max_lat=-90;
 
     min_lon=(int)floor(tx_site[0].lon);
     max_lon=(int)floor(tx_site[0].lon);
 
-    for (y=0, z=0; z<txsites && z<max_txsites; z++)
+    for (unsigned int z=0; z<txsites && z<max_txsites; z++)
     {
         txlat=(int)floor(tx_site[z].lat);
         txlon=(int)floor(tx_site[z].lon);
@@ -9126,7 +9125,7 @@ int main(int argc, char *argv[])
 
     if (area_mode || topomap)
     {
-        for (z=0; z<txsites && z<max_txsites; z++)
+        for (unsigned int z=0; z<txsites && z<max_txsites; z++)
         {
             /* "Ball park" estimates used to load any additional
                SDF files required to conduct this analysis. */
@@ -9275,7 +9274,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        for (x=0; x<txsites && x<4; x++)
+        for (unsigned int x=0; x<txsites && x<4; x++)
         {
             PlaceMarker(tx_site[x]);
 
@@ -9361,7 +9360,7 @@ int main(int argc, char *argv[])
 
     if (area_mode && topomap==0)
     {
-        for (x=0; x<txsites && x<max_txsites; x++)
+        for (unsigned int x=0; x<txsites && x<max_txsites; x++)
         {
             if (coverage)
                 PlotLOSMap(tx_site[x],altitude, multithread);
@@ -9379,14 +9378,14 @@ int main(int argc, char *argv[])
 
         if (kml==0)
         {
-            for (x=0; x<txsites && x<max_txsites; x++)
+            for (unsigned int x=0; x<txsites && x<max_txsites; x++)
                 PlaceMarker(tx_site[x]);
         }
 
         if (cities)
         {
 
-            for (y=0; y<cities; y++)
+            for (unsigned int y=0; y<cities; y++)
                 LoadCities(city_file[y]);
 
             fprintf(stdout,"\n");
@@ -9397,7 +9396,7 @@ int main(int argc, char *argv[])
 
         if (bfs)
         {
-            for (y=0; y<bfs; y++)
+            for (unsigned int y=0; y<bfs; y++)
                 LoadBoundaries(boundary_file[y]);
 
             fprintf(stdout,"\n");
@@ -9427,7 +9426,7 @@ int main(int argc, char *argv[])
 
         if (fd!=NULL)
         {
-            for (x=0; x<argc; x++)
+            for (int x=0; x<argc; x++)
                 fprintf(fd,"%s ",argv[x]);
 
             fprintf(fd,"\n");
