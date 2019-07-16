@@ -3558,17 +3558,13 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
 {
     int y, z, count;
     Site edge;
-    unsigned char symbol[4], x;
+    unsigned char x;
     double lat, lon, minwest, maxnorth, th;
     static unsigned char mask_value=1;
+    char symbol[4] = {'.', 'o', 'O', 'o' };
 
     minwest=dpp+(double)min_west;
     maxnorth=(double)max_north-dpp;
-
-    symbol[0]='.';
-    symbol[1]='o';
-    symbol[2]='O';
-    symbol[3]='o';
 
     count=0;
 
@@ -3592,7 +3588,10 @@ void PlotLOSMap(Site source, double altitude, bool multithread)
     WorkQueue wq;
 
     if (verbose) {
-        fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
+        if (multithread) {
+            fprintf(stdout,"Using %d threads...\n\n", wq.maxWorkers());
+        }
+        fprintf(stdout," 0%c to  25%c ",37,37);
         fflush(stdout);
     }
 
@@ -3769,17 +3768,13 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
     int y, z, count;
     Site edge;
     double lat, lon, minwest, maxnorth, th;
-    unsigned char x, symbol[4];
+    unsigned char x;
     static unsigned char mask_value=1;
     FILE *fd=NULL;
+    char symbol[4] = {'.', 'o', 'O', 'o' };
 
     minwest=dpp+(double)min_west;
     maxnorth=(double)max_north-dpp;
-
-    symbol[0]='.';
-    symbol[1]='o';
-    symbol[2]='O';
-    symbol[3]='o';
 
     count=0;
 
@@ -3828,7 +3823,10 @@ void PlotLRMap(Site source, double altitude, char *plo_filename, bool multithrea
     WorkQueue wq;
 
     if (verbose) {
-        fprintf(stdout,"...\n\n 0%c to  25%c ",37,37);
+        if (multithread) {
+            fprintf(stdout,"Using %d threads...\n\n", wq.maxWorkers());
+        }
+        fprintf(stdout," 0%c to  25%c ",37,37);
         fflush(stdout);
     }
 
