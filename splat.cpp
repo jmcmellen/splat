@@ -95,6 +95,8 @@
 #define max(i, j) ( i > j ? i : j)
 #endif
 
+#define DO_KMZ 1
+
 /* avg must be a float or double or you get rounding down because of truncation
  * ignores values if n == 0 to avoid a divide-by-zero error
  */
@@ -4466,6 +4468,9 @@ void WriteImage(char *filename, ImageType imagetype, bool geo, bool kml, bool ng
 {
     const char *suffix;
     char *mapfile, *geofile, *kmlfile;
+#if DO_KMZ
+    char *kmzfile;
+#endif
     unsigned char mask;
     unsigned width, height, terrain;
     int x0=0, y0=0;
@@ -4507,7 +4512,9 @@ void WriteImage(char *filename, ImageType imagetype, bool geo, bool kml, bool ng
     mapfile = copyFilename(filename, suffix);
     geofile = copyFilename(filename, "geo");
     kmlfile = copyFilename(filename, "kml");
-
+#if DO_KMZ
+    kmzfile = copyFilename(filename, "kmz");
+#endif
 
     minwest=((double)min_west)+dpp;
 
@@ -4543,9 +4550,10 @@ void WriteImage(char *filename, ImageType imagetype, bool geo, bool kml, bool ng
         fprintf(fd,"   <name>%s</name>\n",SPLAT_NAME);
         fprintf(fd,"	 <description>Line-of-Sight Contour</description>\n");
         fprintf(fd,"	   <GroundOverlay>\n");
-        fprintf(fd,"		 <name>%s Line-of-Sight Contour</name>\n",SPLAT_NAME);
-        fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
-        fprintf(fd,"		<Icon>\n");
+        fprintf(fd,"		  <name>%s Line-of-Sight Contour</name>\n",SPLAT_NAME);
+        fprintf(fd,"		  <description>SPLAT! Coverage</description>\n");
+        fprintf(fd,"		  <color>8cffffff</color>\n"); /* transparency level, higher is clearer */
+        fprintf(fd,"		  <Icon>\n");
         fprintf(fd,"			  <href>%s</href>\n",mapfile);
         fprintf(fd,"		</Icon>\n");
         /* fprintf(fd,"			<opacity>128</opacity>\n"); */
@@ -4727,6 +4735,40 @@ void WriteImage(char *filename, ImageType imagetype, bool geo, bool kml, bool ng
 
     ImageWriterFinish(&iw);
 
+#if DO_KMZ
+    if (kml) {
+        bool success = false;
+        struct zip_t *zip = zip_open(kmzfile, ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
+        if (zip) {
+            /* Pack the KML */
+            if (zip_entry_open(zip, kmlfile) == 0) {
+                if (zip_entry_fwrite(zip, kmlfile) == 0) {
+                    success = true;
+                }
+                zip_entry_close(zip);
+            }
+            /* Pack the map image */
+            if (zip_entry_open(zip, mapfile) == 0) {
+                if (zip_entry_fwrite(zip, mapfile) == 0) {
+                    success = true;
+                }
+                zip_entry_close(zip);
+            }
+            zip_close(zip);
+        }
+
+        if (success) {
+            unlink(mapfile);
+            unlink(kmlfile);
+            fprintf(stdout, "\nKMZ file written to: \"%s\"\n", kmzfile);
+        } else {
+            unlink(kmzfile);
+            fprintf(stdout, "\nCouldn't create KMZ file.\n");
+        }
+        free(kmzfile);
+    }
+#endif
+
     free(mapfile);
     free(geofile);
     free(kmlfile);
@@ -4743,6 +4785,9 @@ void WriteImageLR(char *filename, ImageType imagetype, bool geo, bool kml, bool 
 {
     const char *suffix;
     char *mapfile, *geofile, *kmlfile, *ckfile;
+#if DO_KMZ
+    char *kmzfile;
+#endif
     unsigned int width, height, red, green, blue, terrain=0;
     unsigned int imgheight, imgwidth;
     unsigned char mask;
@@ -4788,6 +4833,9 @@ void WriteImageLR(char *filename, ImageType imagetype, bool geo, bool kml, bool 
     mapfile = copyFilename(filename, suffix);
     geofile = copyFilename(filename, "geo");
     kmlfile = copyFilename(filename, "kml");
+#if DO_KMZ
+    kmzfile = copyFilename(filename, "kmz");
+#endif
 
     /* ick */
     ckfile = copyFilename(filename, NULL);
@@ -4838,11 +4886,12 @@ void WriteImageLR(char *filename, ImageType imagetype, bool geo, bool kml, bool 
         fprintf(fd,"   <name>%s</name>\n",SPLAT_NAME);
         fprintf(fd,"	 <description>%s Transmitter Path Loss Overlay</description>\n",xmtr[0].name);
         fprintf(fd,"	   <GroundOverlay>\n");
-        fprintf(fd,"		 <name>SPLAT! Path Loss Overlay</name>\n");
-        fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
-        fprintf(fd,"		<Icon>\n");
+        fprintf(fd,"		  <name>SPLAT! Path Loss Overlay</name>\n");
+        fprintf(fd,"		  <description>SPLAT! Coverage</description>\n");
+        fprintf(fd,"		  <color>8cffffff</color>\n"); /* transparency level, higher is clearer */
+        fprintf(fd,"		  <Icon>\n");
         fprintf(fd,"			  <href>%s</href>\n",basename_s(mapfile));
-        fprintf(fd,"		</Icon>\n");
+        fprintf(fd,"		  </Icon>\n");
         /* fprintf(fd,"			<opacity>128</opacity>\n"); */
         fprintf(fd,"			<LatLonBox>\n");
         fprintf(fd,"			   <north>%.5f</north>\n",north);
@@ -4854,7 +4903,8 @@ void WriteImageLR(char *filename, ImageType imagetype, bool geo, bool kml, bool 
         fprintf(fd,"	   </GroundOverlay>\n");
         fprintf(fd,"	   <ScreenOverlay>\n");
         fprintf(fd,"		  <name>Color Key</name>\n");
-        fprintf(fd,"		<description>Contour Color Key</description>\n");
+        fprintf(fd,"		  <description>Contour Color Key</description>\n");
+        fprintf(fd,"		  <color>8cffffff</color>\n"); /* transparency level, higher is clearer */
         fprintf(fd,"		  <Icon>\n");
         fprintf(fd,"			<href>%s</href>\n",basename_s(ckfile));
         fprintf(fd,"		  </Icon>\n");
@@ -5188,6 +5238,46 @@ void WriteImageLR(char *filename, ImageType imagetype, bool geo, bool kml, bool 
         }
 
         ImageWriterFinish(&iw);
+
+#if DO_KMZ
+        bool success = false;
+        struct zip_t *zip = zip_open(kmzfile, ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
+        if (zip) {
+            /* Pack the KML */
+            if (zip_entry_open(zip, kmlfile) == 0) {
+                if (zip_entry_fwrite(zip, kmlfile) == 0) {
+                    success = true;
+                }
+                zip_entry_close(zip);
+            }
+            /* Pack the -ck file */
+            if (zip_entry_open(zip, ckfile) == 0) {
+                if (zip_entry_fwrite(zip, ckfile) == 0) {
+                    success = true;
+                }
+                zip_entry_close(zip);
+            }
+            /* Pack the map image */
+            if (zip_entry_open(zip, mapfile) == 0) {
+                if (zip_entry_fwrite(zip, mapfile) == 0) {
+                    success = true;
+                }
+                zip_entry_close(zip);
+            }
+            zip_close(zip);
+        }
+
+        if (success) {
+            unlink(mapfile);
+            unlink(kmlfile);
+            unlink(ckfile);
+            fprintf(stdout, "\nKMZ file written to: \"%s\"\n", kmzfile);
+        } else {
+            unlink(kmzfile);
+            fprintf(stdout, "\nCouldn't create KMZ file.\n");
+        }
+        free(kmzfile);
+#endif
     }
 
     free(mapfile);
@@ -5211,6 +5301,9 @@ void WriteImageSS(char *filename, ImageType imagetype, bool geo, bool kml, bool 
 {
     const char *suffix;
     char *mapfile, *geofile, *kmlfile, *ckfile;
+#if DO_KMZ
+    char *kmzfile;
+#endif
     unsigned width, height, terrain, red, green, blue;
     unsigned int imgheight, imgwidth;
     unsigned char mask;
@@ -5256,6 +5349,9 @@ void WriteImageSS(char *filename, ImageType imagetype, bool geo, bool kml, bool 
     mapfile = copyFilename(filename, suffix);
     geofile = copyFilename(filename, "geo");
     kmlfile = copyFilename(filename, "kml");
+#if DO_KMZ
+    kmzfile = copyFilename(filename, "kmz");
+#endif
 
     /* ick */
     ckfile = copyFilename(filename, NULL);
@@ -5306,10 +5402,11 @@ void WriteImageSS(char *filename, ImageType imagetype, bool geo, bool kml, bool 
         fprintf(fd,"	 <description>%s Transmitter Contours</description>\n",xmtr[0].name);
         fprintf(fd,"	   <GroundOverlay>\n");
         fprintf(fd,"		 <name>SPLAT! Signal Strength Contours</name>\n");
-        fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
-        fprintf(fd,"		<Icon>\n");
+        fprintf(fd,"		 <description>SPLAT! Coverage</description>\n");
+        fprintf(fd,"		 <color>8cffffff</color>\n"); /* transparency level, higher is clearer */
+        fprintf(fd,"		 <Icon>\n");
         fprintf(fd,"			  <href>%s</href>\n",basename_s(mapfile));
-        fprintf(fd,"		</Icon>\n");
+        fprintf(fd,"		 </Icon>\n");
         /* fprintf(fd,"			<opacity>128</opacity>\n"); */
         fprintf(fd,"			<LatLonBox>\n");
         fprintf(fd,"			   <north>%.5f</north>\n",north);
@@ -5321,7 +5418,8 @@ void WriteImageSS(char *filename, ImageType imagetype, bool geo, bool kml, bool 
         fprintf(fd,"	   </GroundOverlay>\n");
         fprintf(fd,"	   <ScreenOverlay>\n");
         fprintf(fd,"		  <name>Color Key</name>\n");
-        fprintf(fd,"			<description>Contour Color Key</description>\n");
+        fprintf(fd,"		  <description>Contour Color Key</description>\n");
+        fprintf(fd,"		  <color>8cffffff</color>\n"); /* transparency level, higher is clearer */
         fprintf(fd,"		  <Icon>\n");
         fprintf(fd,"			<href>%s</href>\n",basename_s(ckfile));
         fprintf(fd,"		  </Icon>\n");
@@ -5696,6 +5794,46 @@ void WriteImageSS(char *filename, ImageType imagetype, bool geo, bool kml, bool 
         }
 
         ImageWriterFinish(&iw);
+
+#if DO_KMZ
+        bool success = false;
+        struct zip_t *zip = zip_open(kmzfile, ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
+        if (zip) {
+            /* Pack the KML */
+            if (zip_entry_open(zip, kmlfile) == 0) {
+                if (zip_entry_fwrite(zip, kmlfile) == 0) {
+                    success = true;
+                }
+                zip_entry_close(zip);
+            }
+            /* Pack the -ck file */
+            if (zip_entry_open(zip, ckfile) == 0) {
+                if (zip_entry_fwrite(zip, ckfile) == 0) {
+                    success = true;
+                }
+                zip_entry_close(zip);
+            }
+            /* Pack the map image */
+            if (zip_entry_open(zip, mapfile) == 0) {
+                if (zip_entry_fwrite(zip, mapfile) == 0) {
+                    success = true;
+                }
+                zip_entry_close(zip);
+            }
+            zip_close(zip);
+        }
+
+        if (success) {
+            unlink(mapfile);
+            unlink(kmlfile);
+            unlink(ckfile);
+            fprintf(stdout, "\nKMZ file written to: \"%s\"\n", kmzfile);
+        } else {
+            unlink(kmzfile);
+            fprintf(stdout, "\nCouldn't create KMZ file.\n");
+        }
+        free(kmzfile);
+#endif
     }
 
     free(mapfile);
@@ -5814,10 +5952,11 @@ void WriteImageDBM(char *filename, ImageType imagetype, bool geo, bool kml, bool
         fprintf(fd,"	 <description>%s Transmitter Contours</description>\n",xmtr[0].name);
         fprintf(fd,"	   <GroundOverlay>\n");
         fprintf(fd,"		 <name>SPLAT! Signal Power Level Contours</name>\n");
-        fprintf(fd,"		   <description>SPLAT! Coverage</description>\n");
-        fprintf(fd,"		<Icon>\n");
+        fprintf(fd,"		 <description>SPLAT! Coverage</description>\n");
+        fprintf(fd,"		 <color>8cffffff</color>\n"); /* transparency level, higher is clearer */
+        fprintf(fd,"		 <Icon>\n");
         fprintf(fd,"			  <href>%s</href>\n",basename_s(mapfile));
-        fprintf(fd,"		</Icon>\n");
+        fprintf(fd,"		 </Icon>\n");
         /* fprintf(fd,"			<opacity>128</opacity>\n"); */
         fprintf(fd,"			<LatLonBox>\n");
         fprintf(fd,"			   <north>%.5f</north>\n",north);
@@ -5829,7 +5968,8 @@ void WriteImageDBM(char *filename, ImageType imagetype, bool geo, bool kml, bool
         fprintf(fd,"	   </GroundOverlay>\n");
         fprintf(fd,"	   <ScreenOverlay>\n");
         fprintf(fd,"		  <name>Color Key</name>\n");
-        fprintf(fd,"			<description>Contour Color Key</description>\n");
+        fprintf(fd,"		  <description>Contour Color Key</description>\n");
+        fprintf(fd,"		  <color>8cffffff</color>\n"); /* transparency level, higher is clearer */
         fprintf(fd,"		  <Icon>\n");
         fprintf(fd,"			<href>%s</href>\n",basename_s(ckfile));
         fprintf(fd,"		  </Icon>\n");
@@ -8129,7 +8269,11 @@ int LoadANO(char *filename)
 void WriteKML(Site source, Site destination)
 {
     int	x, y;
-    char	block, report_name[MAX_PATH_LEN];
+    char	block;
+    char report_name[MAX_PATH_LEN-4], kmlfile[MAX_PATH_LEN];
+#if DO_KMZ
+    char kmzfile[MAX_PATH_LEN];
+#endif
     double	distance, rx_alt, tx_alt, cos_xmtr_angle,
             azimuth, cos_test_angle, test_alt;
     FILE	*fd=NULL;
@@ -8141,12 +8285,13 @@ void WriteKML(Site source, Site destination)
     }
     ReadPath(source,destination,path);
 
-    snprintf(report_name,MAX_PATH_LEN,"%s-to-%s.kml",source.name,destination.name);
+    snprintf(report_name,MAX_PATH_LEN-4,"%s-to-%s",source.name,destination.name);
 
     for (x=0; report_name[x]!=0; x++)
         if (report_name[x]==32 || report_name[x]==17 || report_name[x]==92 || report_name[x]==42 || report_name[x]==47)
             report_name[x]='_';
 
+    snprintf(kmlfile, MAX_PATH_LEN, "%s.kml", report_name);
     fd=fopen(report_name,"w");
 
     fprintf(fd,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -8345,7 +8490,32 @@ void WriteKML(Site source, Site destination)
 
     fclose(fd);
 
-    fprintf(stdout, "\nKML file written to: \"%s\"",report_name);
+
+#if DO_KMZ
+    snprintf(kmzfile, MAX_PATH_LEN, "%s.kmz", report_name);
+    bool success = false;
+
+    struct zip_t *zip = zip_open(kmzfile, ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
+    if (zip) {
+        if (zip_entry_open(zip, kmlfile) == 0) {
+            if (zip_entry_fwrite(zip, kmlfile) == 0) {
+                success = true;
+            }
+            zip_entry_close(zip);
+        }
+        zip_close(zip);
+    }
+
+    if (success) {
+        unlink(kmlfile);
+        fprintf(stdout, "\nKMZ file written to: \"%s\"\n", kmzfile);
+    } else {
+        unlink(kmzfile);
+        fprintf(stdout, "\nCouldn't create KMZ file. KML file written to: \"%s\"\n", kmlfile);
+    }
+#else
+    fprintf(stdout, "\nKML file written to: \"%s\"", kmlfile);
+#endif
 
     fflush(stdout);
 
