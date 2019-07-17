@@ -4791,8 +4791,8 @@ void WriteImageLR(char *filename, ImageType imagetype, bool geo, bool kml, bool 
 
     /* ick */
     ckfile = copyFilename(filename, NULL);
-    ckfile = (char*)realloc(ckfile, strlen(ckfile)+strlen(suffix)+4);
-    strcat(ckfile, "-ck");
+    ckfile = (char*)realloc(ckfile, strlen(ckfile)+strlen(suffix)+5);
+    strcat(ckfile, "-ck.");
     strcat(ckfile, suffix);
 
     minwest=((double)min_west)+dpp;
@@ -4810,7 +4810,7 @@ void WriteImageLR(char *filename, ImageType imagetype, bool geo, bool kml, bool 
     east=(minwest<180.0?-minwest:360.0-min_west);
     west=(double)(max_west<180?-max_west:360-max_west);
 
-    if (!kml && geo)
+    if (geo && !kml)
     {
         fd=fopen(geofile,"wb");
 
@@ -5259,8 +5259,8 @@ void WriteImageSS(char *filename, ImageType imagetype, bool geo, bool kml, bool 
 
     /* ick */
     ckfile = copyFilename(filename, NULL);
-    ckfile = (char*)realloc(ckfile, strlen(ckfile)+strlen(suffix)+4);
-    strcat(ckfile, "-ck");
+    ckfile = (char*)realloc(ckfile, strlen(ckfile)+strlen(suffix)+5);
+    strcat(ckfile, "-ck.");
     strcat(ckfile, suffix);
 
     minwest=((double)min_west)+dpp;
@@ -5767,10 +5767,9 @@ void WriteImageDBM(char *filename, ImageType imagetype, bool geo, bool kml, bool
 
     /* ick */
     ckfile = copyFilename(filename, NULL);
-    ckfile = (char*)realloc(ckfile, strlen(ckfile)+strlen(suffix)+4);
-    strcat(ckfile, "-ck");
+    ckfile = (char*)realloc(ckfile, strlen(ckfile)+strlen(suffix)+5);
+    strcat(ckfile, "-ck.");
     strcat(ckfile, suffix);
-
 
     minwest=((double)min_west)+dpp;
 
