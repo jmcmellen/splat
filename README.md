@@ -28,7 +28,7 @@ and gnuplot for generating graphs.
 
 
 You can generally get these via system packages. For instance:
-    
+
 Centos 7:
 
 `yum install bzip2-devel zlib-devel libpng-devel libjpeg-turbo-devel gnuplot`
@@ -40,6 +40,16 @@ Debian (Buster):
 OSX (High Sierra):
 
 `brew install jpeg libpng gnuplot`
+
+## Installation on Ubuntu
+Ubuntu 18.04 LTS:
+
+```
+sudo apt install git
+git clone https://github.com/hoche/splat.git
+sudo apt install libbz2-dev zlib1g-dev libjpeg-dev libpng-dev gnuplot
+make
+```
 
 ## Changes
 
