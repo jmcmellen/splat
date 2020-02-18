@@ -33,7 +33,7 @@ Centos 7:
 
 `yum install bzip2-devel zlib-devel libpng-devel libjpeg-turbo-devel gnuplot`
 
-Debian (Buster):
+Debian (Buster) and Ubuntu (18.04 LTS):
 
 `apt-get install libbz2-dev zlib1g-dev libjpeg-dev libpng-dev gnuplot`
 
@@ -41,8 +41,8 @@ OSX (High Sierra):
 
 `brew install jpeg libpng gnuplot`
 
-## Installation on Ubuntu
-Ubuntu 18.04 LTS:
+## Example Build on Ubuntu 18.04 LTS
+As an example, a build on Ubuntu 18.04 LTS might look like this:
 
 ```
 sudo apt install git
