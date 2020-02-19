@@ -9,7 +9,7 @@ OS:=$(shell uname)
 ifdef GXX
   CC=gcc
   CXX=g++
-  CPPFLAGS_32:= 
+  CPPFLAGS_32:=-march=i686
   GCC_CFLAGS:=$(CPPFLAGS_$(ARCH))
 else
   CC=clang
