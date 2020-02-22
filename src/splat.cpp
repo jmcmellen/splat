@@ -43,7 +43,7 @@
 #endif
 
 #ifdef HAVE_LIBPNG
-#include "png.h"
+#include <png.h>
 #endif
 #ifdef HAVE_LIBJPEG
 #include "jpeglib.h"
