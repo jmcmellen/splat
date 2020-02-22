@@ -1,5 +1,11 @@
-cmake_minimum_required(VERSION 2.6)
-project(splat)
+cmake_minimum_required(VERSION 3.10)
+
+project(splat VERSION 2.0)
+
+# specify the C++ standard
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
 
 if(WIN32)
   set(SHAREDIR ".")
