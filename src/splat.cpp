@@ -46,7 +46,9 @@
 #include <png.h>
 #endif
 #ifdef HAVE_LIBJPEG
+extern "C" {
 #include "jpeglib.h"
+}
 #endif
 
 #include "fontdata.h"
